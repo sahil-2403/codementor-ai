@@ -1,5 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { sendResponse } from "../utils/ApiResponse.js";
+import { LearningGoal } from "../models/LearningGoal.js";
 import {
   getCurrentCourse,
   getRoadmapVersions,
