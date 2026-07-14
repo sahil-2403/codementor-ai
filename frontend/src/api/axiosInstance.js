@@ -1,0 +1,75 @@
+import axios from 'axios';
+
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+
+const readCookie = (name) => {
+  if (typeof document === 'undefined') return '';
+  return document.cookie
+    .split('; ')
+    .find((row) => row.startsWith(`${name}=`))
+    ?.split('=')[1] || '';
+};
+
+const csrfClient = axios.create({ baseURL, withCredentials: true });
+
+const api = axios.create({
+  baseURL,
+  withCredentials: true,
+  headers: { 'Content-Type': 'application/json' }
+});
+
+let refreshPromise = null;
+let csrfPromise = null;
+
+const ensureCsrfToken = async ({ force = false } = {}) => {
+  const existing = readCookie('csrfToken');
+  if (existing && !force) return decodeURIComponent(existing);
+  csrfPromise = csrfPromise || csrfClient.get('/auth/csrf-token').then((res) => res.data?.data?.csrfToken || readCookie('csrfToken'));
+  try {
+    return await csrfPromise;
+  } finally {
+    csrfPromise = null;
+  }
+};
+
+api.interceptors.request.use(async (config) => {
+  const method = (config.method || 'get').toLowerCase();
+  const isWrite = !['get', 'head', 'options'].includes(method);
+  const isPublicAuth = ['/auth/login', '/auth/register', '/auth/forgot-password', '/auth/reset-password', '/auth/verify-email', '/auth/resend-verification', '/auth/refresh-token'].some((path) => config.url?.includes(path));
+  if (isWrite && !isPublicAuth) {
+    const token = await ensureCsrfToken();
+    if (token) config.headers['X-CSRF-Token'] = token;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    const status = error.response?.status;
+
+    if (status === 401 && originalRequest && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh-token')) {
+      originalRequest._retry = true;
+      try {
+        refreshPromise = refreshPromise || api.post('/auth/refresh-token');
+        await refreshPromise;
+        refreshPromise = null;
+        return api(originalRequest);
+      } catch (refreshError) {
+        refreshPromise = null;
+      }
+    }
+
+    if (status === 403 && error.response?.data?.message === 'Invalid CSRF token' && originalRequest && !originalRequest._csrfRetry) {
+      originalRequest._csrfRetry = true;
+      await ensureCsrfToken({ force: true });
+      return api(originalRequest);
+    }
+
+    const message = error.response?.data?.message || error.message || 'Something went wrong';
+    return Promise.reject(new Error(message));
+  }
+);
+
+export default api;
