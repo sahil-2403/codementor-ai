@@ -1,20 +1,44 @@
-import Loader from '../../components/common/Loader.jsx';
+import { Link } from 'react-router-dom';
+import { BookOpen, FileQuestion, Layers3, Tags } from 'lucide-react';
 import PageShell from '../../components/common/PageShell.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
-import MetricGrid from '../../components/common/MetricGrid.jsx';
-import SectionHeader from '../../components/common/SectionHeader.jsx';
-import AdminStatCard from '../../components/admin/AdminStatCard.jsx';
-import Card from '../../components/common/Card.jsx';
-import { useAdminAnalytics } from '../../queries/adminQueries.js';
+
+const sections = [
+  { title: 'Topics', description: 'Organize the skills used across lessons and quiz questions.', href: '/admin/topics', icon: Tags },
+  { title: 'Lessons', description: 'Create, edit, publish, and archive learning content.', href: '/admin/lessons', icon: BookOpen },
+  { title: 'Questions', description: 'Manage assessment and quiz questions by topic and difficulty.', href: '/admin/questions', icon: FileQuestion },
+  { title: 'Roadmap templates', description: 'Maintain the module structure used to create learner roadmaps.', href: '/admin/templates', icon: Layers3 }
+];
 
 export default function AdminDashboardPage() {
-  const { data, isLoading } = useAdminAnalytics();
-  if (isLoading) return <Loader label="Loading admin dashboard..." />;
-  const stats = data?.stats || {};
-  return <PageShell>
-    <PageHeader eyebrow="Admin CMS" title="Content and platform overview" description="Monitor content, users, AI activity, jobs, and audit signals from a consistent production-style admin surface." />
-    <MetricGrid columns="md:grid-cols-5"><AdminStatCard title="Users" value={stats.users || 0} /><AdminStatCard title="Lessons" value={stats.lessons || 0} /><AdminStatCard title="Published" value={stats.publishedLessons || 0} /><AdminStatCard title="Questions" value={stats.questions || 0} /><AdminStatCard title="Templates" value={stats.templates || 0} /></MetricGrid>
-    <MetricGrid columns="md:grid-cols-5"><AdminStatCard title="Courses" value={stats.courses || 0} /><AdminStatCard title="AI logs" value={stats.aiLogs || 0} /><AdminStatCard title="Jobs" value={stats.jobs || 0} /><AdminStatCard title="Failed jobs" value={stats.failedJobs || 0} /><AdminStatCard title="Interview attempts" value={stats.interviewAttempts || 0} /></MetricGrid>
-    <Card><SectionHeader title="Production workflow" description="These admin modules are intentionally separated so you can learn CMS lifecycle, job monitoring, and audit-trail architecture independently." /><div className="mt-4 grid gap-3 md:grid-cols-3"><div className="rounded-2xl bg-white p-4"><b>Content lifecycle</b><p className="text-sm text-slate-500">Draft, publish, and archive lessons/questions safely.</p></div><div className="rounded-2xl bg-white p-4"><b>Background jobs</b><p className="text-sm text-slate-500">Roadmap and AI work can run in queues and be monitored from Admin → Jobs.</p></div><div className="rounded-2xl bg-white p-4"><b>Audit trail</b><p className="text-sm text-slate-500">Key learner/admin actions are recorded for debugging and review.</p></div></div></Card>
-  </PageShell>;
+  return (
+    <PageShell>
+      <PageHeader
+        eyebrow="Admin CMS"
+        title="Content management"
+        description="Manage the learning content that powers CodeMentor AI. Platform monitoring and user data are intentionally kept outside this admin area."
+      />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {sections.map(({ title, description, href, icon: Icon }) => (
+          <Link
+            key={href}
+            to={href}
+            className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+          >
+            <div className="flex items-start gap-4">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-950 text-white">
+                <Icon size={20} />
+              </span>
+              <div>
+                <h2 className="font-black text-slate-950">{title}</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+                <span className="mt-4 inline-block text-sm font-bold text-slate-700 group-hover:text-slate-950">Open module →</span>
+              </div>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </PageShell>
+  );
 }

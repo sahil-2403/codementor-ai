@@ -3,7 +3,6 @@ import { AIUsageLog } from '../models/AIUsageLog.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { startOfToday } from '../utils/date.js';
 import { ApiError } from '../utils/ApiError.js';
-import { invalidateAdminAnalyticsCache } from './cacheInvalidation.service.js';
 
 const limitMap = {
   [AI_FEATURES.MENTOR_CHAT]: () => Number(process.env.DAILY_MENTOR_LIMIT || 10),
@@ -36,7 +35,6 @@ export const checkAIUsageLimit = async (userId, feature) => {
       provider: process.env.AI_PROVIDER || 'mock',
       metadata: { limit }
     });
-    await invalidateAdminAnalyticsCache();
     throw new ApiError(429, `Daily AI limit reached for ${feature}`);
   }
 };
@@ -55,23 +53,19 @@ export const logAIUsage = async ({
   contextSources = [],
   metadata = {},
   errorMessage = ''
-}) => {
-  const log = await AIUsageLog.create({
-    user,
-    feature,
-    status,
-    model,
-    provider,
-    inputTokens,
-    outputTokens,
-    estimatedCost,
-    latencyMs,
-    promptFingerprint,
-    contextSourceCount: contextSources.length,
-    contextSources,
-    metadata,
-    errorMessage
-  });
-  await invalidateAdminAnalyticsCache();
-  return log;
-};
+}) => AIUsageLog.create({
+  user,
+  feature,
+  status,
+  model,
+  provider,
+  inputTokens,
+  outputTokens,
+  estimatedCost,
+  latencyMs,
+  promptFingerprint,
+  contextSourceCount: contextSources.length,
+  contextSources,
+  metadata,
+  errorMessage
+});

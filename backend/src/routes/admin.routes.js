@@ -17,7 +17,6 @@ import {
   idParamSchema
 } from '../validations/admin.validation.js';
 import {
-  analytics,
   listTopics,
   createTopic,
   updateTopic,
@@ -40,17 +39,11 @@ import {
   updateTemplate,
   updateTemplateStatus,
   archiveTemplate,
-  duplicateTemplate,
-  listUsers,
-  listAIUsage,
-  aiUsageSummary,
-  listAdminJobs,
-  listAdminActivityLogs
+  duplicateTemplate
 } from '../controllers/admin.controller.js';
 
 const router = Router();
 router.use(requireAuth, requireRole(ROLES.ADMIN));
-router.get('/analytics', analytics);
 
 router.get('/topics', listTopics);
 router.post('/topics', adminWriteLimiter, validate(topicSchema), createTopic);
@@ -79,9 +72,4 @@ router.patch('/templates/:id/status', adminWriteLimiter, validate(idParamSchema)
 router.post('/templates/:id/duplicate', adminWriteLimiter, validate(idParamSchema), duplicateTemplate);
 router.delete('/templates/:id', adminWriteLimiter, validate(idParamSchema), archiveTemplate);
 
-router.get('/users', listUsers);
-router.get('/ai-usage', listAIUsage);
-router.get('/ai-usage/summary', aiUsageSummary);
-router.get('/jobs', listAdminJobs);
-router.get('/activity-logs', listAdminActivityLogs);
 export default router;

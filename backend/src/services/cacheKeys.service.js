@@ -7,8 +7,7 @@ export const cacheKeys = {
   template: ({ goalKey, level }) => buildCacheKey('roadmap-template', goalKey, level),
   resolvedTemplate: (templateId) => buildCacheKey('resolved-template', templateId),
   projectTasks: (filter = {}) => buildCacheKey('project-tasks', filter),
-  interviewQuestions: (filter = {}) => buildCacheKey('interview-questions', filter),
-  adminAnalytics: () => 'admin:analytics'
+  interviewQuestions: (filter = {}) => buildCacheKey('interview-questions', filter)
 };
 
 export const cachePrefixes = {
@@ -17,6 +16,5 @@ export const cachePrefixes = {
   roadmapTemplate: 'roadmap-template:',
   resolvedTemplate: 'resolved-template:',
   projectTasks: 'project-tasks:',
-  interviewQuestions: 'interview-questions:',
-  adminAnalytics: 'admin:analytics'
+  interviewQuestions: 'interview-questions:'
 };

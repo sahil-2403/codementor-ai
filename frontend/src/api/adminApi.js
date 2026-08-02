@@ -3,8 +3,6 @@ import api from './axiosInstance.js';
 const withParams = (params = {}) => ({ params: Object.fromEntries(Object.entries(params).filter(([, value]) => value !== '' && value !== undefined && value !== null)) });
 
 export const adminApi = {
-  analytics: () => api.get('/admin/analytics').then((res) => res.data.data),
-
   topics: (params) => api.get('/admin/topics', withParams(params)).then((res) => res.data.data),
   createTopic: (payload) => api.post('/admin/topics', payload).then((res) => res.data.data),
   updateTopic: ({ id, payload }) => api.patch(`/admin/topics/${id}`, payload).then((res) => res.data.data),
@@ -28,11 +26,5 @@ export const adminApi = {
   updateTemplate: ({ id, payload }) => api.patch(`/admin/templates/${id}`, payload).then((res) => res.data.data),
   updateTemplateStatus: ({ id, status }) => api.patch(`/admin/templates/${id}/status`, { status }).then((res) => res.data.data),
   duplicateTemplate: (id) => api.post(`/admin/templates/${id}/duplicate`).then((res) => res.data.data),
-  archiveTemplate: (id) => api.delete(`/admin/templates/${id}`).then((res) => res.data.data),
-
-  users: (params) => api.get('/admin/users', withParams(params)).then((res) => res.data.data),
-  aiUsage: (params) => api.get('/admin/ai-usage', withParams(params)).then((res) => res.data.data),
-  aiUsageSummary: (params) => api.get('/admin/ai-usage/summary', withParams(params)).then((res) => res.data.data),
-  jobs: (params) => api.get('/admin/jobs', withParams(params)).then((res) => res.data.data),
-  activityLogs: (params) => api.get('/admin/activity-logs', withParams(params)).then((res) => res.data.data)
+  archiveTemplate: (id) => api.delete(`/admin/templates/${id}`).then((res) => res.data.data)
 };

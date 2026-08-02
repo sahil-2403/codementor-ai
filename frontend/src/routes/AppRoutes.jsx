@@ -36,10 +36,6 @@ import TopicsPage from "../pages/admin/TopicsPage.jsx";
 import LessonsPage from "../pages/admin/LessonsPage.jsx";
 import QuestionsPage from "../pages/admin/QuestionsPage.jsx";
 import TemplatesPage from "../pages/admin/TemplatesPage.jsx";
-import UsersPage from "../pages/admin/UsersPage.jsx";
-import AIUsagePage from "../pages/admin/AIUsagePage.jsx";
-import JobsPage from "../pages/admin/JobsPage.jsx";
-import ActivityLogsPage from "../pages/admin/ActivityLogsPage.jsx";
 
 export default function AppRoutes() {
   return (
@@ -58,19 +54,10 @@ export default function AppRoutes() {
           <Route element={<OnboardingGuard mode="needs-onboarding" />}>
             <Route path="/onboarding/goal" element={<GoalPage />} />
             <Route path="/onboarding/level" element={<LevelPage />} />
-            <Route
-              path="/onboarding/preferences"
-              element={<PreferencesPage />}
-            />
-            <Route
-              path="/onboarding/assessment-intro"
-              element={<AssessmentIntroPage />}
-            />
+            <Route path="/onboarding/preferences" element={<PreferencesPage />} />
+            <Route path="/onboarding/assessment-intro" element={<AssessmentIntroPage />} />
             <Route path="/onboarding/assessment" element={<AssessmentPage />} />
-            <Route
-              path="/onboarding/assessment-report/:assessmentId"
-              element={<AssessmentReportPage />}
-            />
+            <Route path="/onboarding/assessment-report/:assessmentId" element={<AssessmentReportPage />} />
             <Route path="/onboarding/generating" element={<GeneratingPage />} />
           </Route>
           <Route element={<OnboardingGuard mode="needs-course" />}>
@@ -78,10 +65,7 @@ export default function AppRoutes() {
             <Route path="/roadmap" element={<RoadmapPage />} />
             <Route path="/lessons/:lessonId" element={<LessonPage />} />
             <Route path="/quizzes/:moduleId" element={<QuizPage />} />
-            <Route
-              path="/quizzes/result/:attemptId"
-              element={<QuizResultPage />}
-            />
+            <Route path="/quizzes/result/:attemptId" element={<QuizResultPage />} />
             <Route path="/mentor" element={<MentorPage />} />
             <Route path="/progress" element={<ProgressPage />} />
             <Route path="/reports" element={<ReportsPage />} />
@@ -99,10 +83,6 @@ export default function AppRoutes() {
             <Route path="/admin/lessons" element={<LessonsPage />} />
             <Route path="/admin/questions" element={<QuestionsPage />} />
             <Route path="/admin/templates" element={<TemplatesPage />} />
-            <Route path="/admin/users" element={<UsersPage />} />
-            <Route path="/admin/ai-usage" element={<AIUsagePage />} />
-            <Route path="/admin/jobs" element={<JobsPage />} />
-            <Route path="/admin/activity" element={<ActivityLogsPage />} />
           </Route>
         </Route>
       </Route>

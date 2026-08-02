@@ -11,8 +11,5 @@ export const invalidateContentCache = async () => deleteCacheByPrefixes([
   cachePrefixes.roadmapTemplate,
   cachePrefixes.resolvedTemplate,
   cachePrefixes.projectTasks,
-  cachePrefixes.interviewQuestions,
-  cachePrefixes.adminAnalytics
+  cachePrefixes.interviewQuestions
 ]);
-
-export const invalidateAdminAnalyticsCache = async () => deleteCacheByPrefix(cachePrefixes.adminAnalytics);

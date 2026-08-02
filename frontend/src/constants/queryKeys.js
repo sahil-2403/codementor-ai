@@ -14,13 +14,8 @@ export const queryKeys = {
   projectSubmissions: ['project-submissions'],
   interviewQuestions: (params = {}) => ['interview-questions', params],
   interviewAttempts: ['interview-attempts'],
-  adminAnalytics: ['admin-analytics'],
   adminTopics: (params = {}) => ['admin-topics', params],
   adminLessons: (params = {}) => ['admin-lessons', params],
   adminQuestions: (params = {}) => ['admin-questions', params],
-  adminTemplates: (params = {}) => ['admin-templates', params],
-  adminUsers: (params = {}) => ['admin-users', params],
-  adminAIUsage: (params = {}) => ['admin-ai-usage', params],
-  adminJobs: (params = {}) => ['admin-jobs', params],
-  adminActivityLogs: (params = {}) => ['admin-activity-logs', params]
+  adminTemplates: (params = {}) => ['admin-templates', params]
 };
