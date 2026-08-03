@@ -2,91 +2,121 @@ import { z } from 'zod';
 import { objectIdSchema } from '../utils/zod.js';
 
 const objectId = objectIdSchema;
-const statusEnum = z.enum(['draft', 'published', 'archived']);
 const difficultyEnum = z.enum(['beginner', 'intermediate', 'advanced']);
+const lifecycleStatusEnum = z.enum(['published', 'archived']);
+const cleanString = z.string().trim();
 
 export const topicSchema = z.object({
   body: z.object({
-    title: z.string().min(2),
-    category: z.string().min(2),
+    title: cleanString.min(2),
+    category: cleanString.min(2),
     difficulty: difficultyEnum.default('beginner'),
-    tags: z.array(z.string()).optional().default([]),
-    order: z.coerce.number().optional().default(0)
+    tags: z.array(cleanString.min(1)).optional().default([]),
+    order: z.coerce.number().int().min(0).optional().default(0)
   })
 });
 
 export const topicUpdateSchema = z.object({
-  body: topicSchema.shape.body.partial()
+  body: topicSchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
+});
+
+const interviewPairSchema = z.object({
+  question: cleanString.min(1),
+  answer: cleanString.min(1)
 });
 
 export const lessonSchema = z.object({
   body: z.object({
-    title: z.string().min(2),
+    title: cleanString.min(2),
     topic: objectId,
     difficulty: difficultyEnum.default('beginner'),
-    theory: z.string().min(10),
+    theory: cleanString.min(10),
     codeExample: z.string().optional().default(''),
     codeExplanation: z.string().optional().default(''),
-    commonMistakes: z.array(z.string()).optional().default([]),
+    commonMistakes: z.array(cleanString.min(1)).optional().default([]),
     interviewDefinition: z.string().optional().default(''),
-    interviewQuestions: z.array(z.object({ question: z.string(), answer: z.string() })).optional().default([]),
+    interviewQuestions: z.array(interviewPairSchema).optional().default([]),
     practiceTask: z.string().optional().default(''),
-    tags: z.array(z.string()).optional().default([]),
-    estimatedMinutes: z.coerce.number().optional().default(45),
-    status: statusEnum.optional().default('published')
+    tags: z.array(cleanString.min(1)).optional().default([]),
+    estimatedMinutes: z.coerce.number().int().min(5).max(300).optional().default(45)
   })
 });
 
 export const lessonUpdateSchema = z.object({
-  body: lessonSchema.shape.body.partial()
+  body: lessonSchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
 });
 
 export const questionSchema = z.object({
   body: z.object({
-    question: z.string().min(5),
+    question: cleanString.min(5),
     type: z.enum(['mcq', 'code_output', 'short_answer']).default('mcq'),
-    options: z.array(z.string()).optional().default([]),
-    correctAnswer: z.string(),
+    options: z.array(cleanString.min(1)).optional().default([]),
+    correctAnswer: cleanString.min(1),
     explanation: z.string().optional().default(''),
     topic: objectId,
     difficulty: difficultyEnum.default('beginner'),
-    relatedLesson: z.string().optional().nullable(),
-    tags: z.array(z.string()).optional().default([]),
-    status: statusEnum.optional().default('published')
+    relatedLesson: objectId.optional().nullable(),
+    tags: z.array(cleanString.min(1)).optional().default([])
   })
 });
 
 export const questionUpdateSchema = z.object({
-  body: questionSchema.shape.body.partial()
+  body: questionSchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
+});
+
+export const interviewQuestionSchema = z.object({
+  body: z.object({
+    question: cleanString.min(5),
+    topic: cleanString.min(2),
+    type: z.enum(['definition', 'concept', 'output', 'scenario', 'debugging', 'system_design_lite']).default('concept'),
+    difficulty: difficultyEnum.default('beginner'),
+    expectedAnswer: cleanString.min(1),
+    answerChecklist: z.array(cleanString.min(1)).optional().default([]),
+    tags: z.array(cleanString.min(1)).optional().default([])
+  })
+});
+
+export const interviewQuestionUpdateSchema = z.object({
+  body: interviewQuestionSchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
 });
 
 const templateModuleSchema = z.object({
-  title: z.string().min(2),
+  title: cleanString.min(2),
   description: z.string().optional().default(''),
-  order: z.coerce.number().optional().default(0),
-  durationDays: z.coerce.number().optional().default(7),
-  lessonSlugs: z.array(z.string()).optional().default([]),
-  quizTags: z.array(z.string()).optional().default([])
+  order: z.coerce.number().int().min(1),
+  durationDays: z.coerce.number().int().min(1).max(90).optional().default(7),
+  lessonSlugs: z.array(cleanString.min(1)).optional().default([]),
+  quizTags: z.array(cleanString.min(1)).optional().default([])
 });
 
 export const templateSchema = z.object({
   body: z.object({
-    goalKey: z.string().min(2),
+    goalKey: cleanString.min(2),
     level: difficultyEnum,
-    title: z.string().min(2),
+    title: cleanString.min(2),
     description: z.string().optional().default(''),
     modules: z.array(templateModuleSchema).default([]),
-    estimatedDurationDays: z.coerce.number().optional().default(90),
-    status: statusEnum.optional().default('published')
+    estimatedDurationDays: z.coerce.number().int().min(1).max(365).optional().default(90)
   })
 });
 
 export const templateUpdateSchema = z.object({
-  body: templateSchema.shape.body.partial()
+  body: templateSchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
 });
 
 export const statusUpdateSchema = z.object({
-  body: z.object({ status: statusEnum })
+  body: z.object({
+    status: lifecycleStatusEnum,
+    confirmPublish: z.boolean().optional().default(false)
+  }).superRefine((body, context) => {
+    if (body.status === 'published' && body.confirmPublish !== true) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['confirmPublish'],
+        message: 'Confirm that the content has been reviewed before publishing'
+      });
+    }
+  })
 });
 
 export const idParamSchema = z.object({ params: z.object({ id: objectIdSchema }) });

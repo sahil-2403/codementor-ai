@@ -7,7 +7,7 @@ import Select from '../common/Select.jsx';
 import FormTextarea from '../form/FormTextarea.jsx';
 import { lessonFormSchema } from '../../validations/admin.schema.js';
 
-const emptyForm = { title: '', topic: '', difficulty: 'beginner', theory: '', codeExample: '', codeExplanation: '', commonMistakes: '', interviewDefinition: '', interviewQuestions: '', practiceTask: '', tags: '', estimatedMinutes: 45, status: 'published' };
+const emptyForm = { title: '', topic: '', difficulty: 'beginner', theory: '', codeExample: '', codeExplanation: '', commonMistakes: '', interviewDefinition: '', interviewQuestions: '', practiceTask: '', tags: '', estimatedMinutes: 45 };
 
 const toForm = (lesson, topics) => lesson ? {
   title: lesson.title || '',
@@ -21,8 +21,7 @@ const toForm = (lesson, topics) => lesson ? {
   interviewQuestions: (lesson.interviewQuestions || []).map((item) => `${item.question}::${item.answer}`).join('\n'),
   practiceTask: lesson.practiceTask || '',
   tags: (lesson.tags || []).join(', '),
-  estimatedMinutes: lesson.estimatedMinutes || 45,
-  status: lesson.status || 'published'
+  estimatedMinutes: lesson.estimatedMinutes || 45
 } : { ...emptyForm, topic: topics[0]?._id || '' };
 
 const parseInterviewQuestions = (value) => value.split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
@@ -44,7 +43,7 @@ export default function LessonForm({ topics = [], initialData = null, onSubmit, 
 
   return <form onSubmit={handleSubmit(submit)} className="grid gap-3 rounded-[2rem] bg-white/70 p-5">
     <div className="grid gap-3 md:grid-cols-2"><Input label="Title" error={errors.title?.message} {...register('title')} /><Select label="Topic" {...register('topic')}>{topics.map((topic) => <option key={topic._id} value={topic._id}>{topic.title}</option>)}</Select></div>
-    <div className="grid gap-3 md:grid-cols-3"><Select label="Difficulty" {...register('difficulty')}><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></Select><Select label="Status" {...register('status')}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></Select><Input label="Minutes" type="number" error={errors.estimatedMinutes?.message} {...register('estimatedMinutes')} /></div>
+    <div className="grid gap-3 md:grid-cols-2"><Select label="Difficulty" {...register('difficulty')}><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></Select><Input label="Minutes" type="number" error={errors.estimatedMinutes?.message} {...register('estimatedMinutes')} /></div>
     <FormTextarea label="Theory" rows={4} registration={register('theory')} error={errors.theory?.message} />
     <FormTextarea label="Code example" rows={4} registration={register('codeExample')} error={errors.codeExample?.message} />
     <FormTextarea label="Code explanation" rows={3} registration={register('codeExplanation')} error={errors.codeExplanation?.message} />

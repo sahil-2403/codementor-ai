@@ -6,6 +6,7 @@ import { useInvalidatingMutation } from './queryUtils.js';
 export const useAdminTopics = (params = {}) => useQuery({ queryKey: queryKeys.adminTopics(params), queryFn: () => adminApi.topics(params), placeholderData: keepPreviousData });
 export const useAdminLessons = (params = {}) => useQuery({ queryKey: queryKeys.adminLessons(params), queryFn: () => adminApi.lessons(params), placeholderData: keepPreviousData });
 export const useAdminQuestions = (params = {}) => useQuery({ queryKey: queryKeys.adminQuestions(params), queryFn: () => adminApi.questions(params), placeholderData: keepPreviousData });
+export const useAdminInterviewQuestions = (params = {}) => useQuery({ queryKey: queryKeys.adminInterviewQuestions(params), queryFn: () => adminApi.interviewQuestions(params), placeholderData: keepPreviousData });
 export const useAdminTemplates = (params = {}) => useQuery({ queryKey: queryKeys.adminTemplates(params), queryFn: () => adminApi.templates(params), placeholderData: keepPreviousData });
 
 export const useCreateTopic = () => useInvalidatingMutation(adminApi.createTopic, [['admin-topics']]);
@@ -21,6 +22,11 @@ export const useCreateQuestion = () => useInvalidatingMutation(adminApi.createQu
 export const useUpdateQuestion = () => useInvalidatingMutation(adminApi.updateQuestion, [['admin-questions']]);
 export const useUpdateQuestionStatus = () => useInvalidatingMutation(adminApi.updateQuestionStatus, [['admin-questions']]);
 export const useArchiveQuestion = () => useInvalidatingMutation(adminApi.archiveQuestion, [['admin-questions']]);
+
+export const useCreateInterviewQuestion = () => useInvalidatingMutation(adminApi.createInterviewQuestion, [['admin-interview-questions']]);
+export const useUpdateInterviewQuestion = () => useInvalidatingMutation(adminApi.updateInterviewQuestion, [['admin-interview-questions']]);
+export const useUpdateInterviewQuestionStatus = () => useInvalidatingMutation(adminApi.updateInterviewQuestionStatus, [['admin-interview-questions']]);
+export const useArchiveInterviewQuestion = () => useInvalidatingMutation(adminApi.archiveInterviewQuestion, [['admin-interview-questions']]);
 
 export const useCreateTemplate = () => useInvalidatingMutation(adminApi.createTemplate, [['admin-templates']]);
 export const useUpdateTemplate = () => useInvalidatingMutation(adminApi.updateTemplate, [['admin-templates']]);

@@ -11,6 +11,8 @@ import {
   lessonUpdateSchema,
   questionSchema,
   questionUpdateSchema,
+  interviewQuestionSchema,
+  interviewQuestionUpdateSchema,
   templateSchema,
   templateUpdateSchema,
   statusUpdateSchema,
@@ -33,6 +35,12 @@ import {
   updateQuestion,
   updateQuestionStatus,
   archiveQuestion,
+  listInterviewQuestions,
+  getInterviewQuestion,
+  createInterviewQuestion,
+  updateInterviewQuestion,
+  updateInterviewQuestionStatus,
+  archiveInterviewQuestion,
   listTemplates,
   getTemplate,
   createTemplate,
@@ -61,8 +69,15 @@ router.get('/questions', listQuestions);
 router.post('/questions', adminWriteLimiter, validate(questionSchema), createQuestion);
 router.get('/questions/:id', validate(idParamSchema), getQuestion);
 router.patch('/questions/:id', adminWriteLimiter, validate(idParamSchema), validate(questionUpdateSchema), updateQuestion);
-router.patch('/questions/:id/status', adminWriteLimiter, validate(idParamSchema), validate(statusUpdateSchema), updateQuestionStatus);
+router.patch('/questions/:id/status', admiinWriteLimiter, validate(idParamSchema), validate(statusUpdateSchema), updateQuestionStatus);
 router.delete('/questions/:id', adminWriteLimiter, validate(idParamSchema), archiveQuestion);
+
+router.get('/interview-questions', listInterviewQuestions);
+router.post('/interview-questions', adminWriteLimiter, validate(interviewQuestionSchema), createInterviewQuestion);
+router.get('/interview-questions/:id', validate(idParamSchema), getInterviewQuestion);
+router.patch('/interview-questions/:id', adminWriteLimiter, validate(idParamSchema), validate(interviewQuestionUpdateSchema), updateInterviewQuestion);
+router.patch('/interview-questions/:id/status', adminWriteLimiter, validate(idParamSchema), validate(statusUpdateSchema), updateInterviewQuestionStatus);
+router.delete('/interview-questions/:id', adminWriteLimiter, validate(idParamSchema), archiveInterviewQuestion);
 
 router.get('/templates', listTemplates);
 router.post('/templates', adminWriteLimiter, validate(templateSchema), createTemplate);

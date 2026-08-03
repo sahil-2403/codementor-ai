@@ -24,11 +24,19 @@ export default function LessonsPage() {
   const updateLesson = useUpdateLesson();
   const updateStatus = useUpdateLessonStatus();
   const archiveLesson = useArchiveLesson();
+
   if (isLoading || topics.isLoading) return <Loader />;
+
   const lessons = data?.lessons || [];
   const submit = (payload) => {
     if (editing) updateLesson.mutate({ id: editing._id, payload }, { onSuccess: () => setEditing(null) });
     else createLesson.mutate(payload);
+  };
+
+  const publishLesson = (lesson) => {
+    const confirmed = window.confirm(`Publish “${lesson.title}”? Learners may see it immediately in active roadmap flows.`);
+    if (!confirmed) return;
+    updateStatus.mutate({ id: lesson._id, status: 'published', confirmPublish: true });
   };
 
   const columns = [
@@ -37,13 +45,25 @@ export default function LessonsPage() {
     { key: 'difficulty', header: 'Level', render: (lesson) => <span className="capitalize">{lesson.difficulty}</span> },
     { key: 'status', header: 'Status', render: (lesson) => <StatusPill status={lesson.status} /> },
     { key: 'updatedAt', header: 'Updated', render: (lesson) => formatDate(lesson.updatedAt || lesson.createdAt) },
-    { key: 'actions', header: 'Actions', cellClassName: 'px-4 py-3 text-right', render: (lesson) => <div className="flex flex-wrap justify-end gap-2"><Button type="button" variant="ghost" onClick={() => setEditing(lesson)}>Edit</Button>{lesson.status !== 'published' && <Button type="button" variant="secondary" onClick={() => updateStatus.mutate({ id: lesson._id, status: 'published' })}>Publish</Button>}{lesson.status !== 'draft' && <Button type="button" variant="secondary" onClick={() => updateStatus.mutate({ id: lesson._id, status: 'draft' })}>Draft</Button>}{lesson.status !== 'archived' && <Button type="button" variant="secondary" onClick={() => setConfirmArchive(lesson)}>Archive</Button>}</div> }
+    {
+      key: 'actions',
+      header: 'Actions',
+      cellClassName: 'px-4 py-3 text-right',
+      render: (lesson) => {
+        const publishing = updateStatus.isPending && updateStatus.variables?.id === lesson._id;
+        return <div className="flex flex-wrap justify-end gap-2">
+          {lesson.status !== 'archived' && <Button type="button" variant="ghost" onClick={() => setEditing(lesson)}>Edit</Button>}
+          {lesson.status === 'draft' && <Button type="button" variant="secondary" disabled={publishing} onClick={() => publishLesson(lesson)}>{publishing ? 'Publishing...' : 'Publish'}</Button>}
+          {lesson.status !== 'archived' && <Button type="button" variant="secondary" onClick={() => setConfirmArchive(lesson)}>Archive</Button>}
+        </div>;
+      }
+    }
   ];
 
   return <PageShell>
-    <PageHeader eyebrow="Admin CMS" title="Lesson CMS" description="Create, edit, publish, unpublish, archive, search, and filter learning content from one consistent admin workflow." />
+    <PageHeader eyebrow="Admin CMS" title="Lesson CMS" description="Create reviewed drafts, publish validated lessons, and archive retired content." />
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.2fr]">
-      <Card><SectionHeader title={editing ? 'Edit lesson' : 'Create lesson'} description="Use draft status for unfinished content and publish only reviewed lessons." /><div className="mt-4"><LessonForm topics={topics.data?.topics || []} initialData={editing} onSubmit={submit} onCancel={editing ? () => setEditing(null) : null} isLoading={createLesson.isPending || updateLesson.isPending} /></div></Card>
+      <Card><SectionHeader title={editing ? 'Edit lesson' : 'Create lesson draft'} description="New lessons remain drafts until they pass publish checks." /><div className="mt-4"><LessonForm topics={topics.data?.topics || []} initialData={editing} onSubmit={submit} onCancel={editing ? () => setEditing(null) : null} isLoading={createLesson.isPending || updateLesson.isPending} /></div></Card>
       <Card>
         <SectionHeader title="Lessons" description={`${data?.pagination?.total || 0} lessons in content library.`} />
         <div className="mt-4"><AdminFilters filters={filters} setFilters={setFilters} topics={topics.data?.topics || []} /></div>
