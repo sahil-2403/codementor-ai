@@ -8,6 +8,8 @@ import { corsOptions } from './config/cors.js';
 import { apiLimiter } from './middlewares/rateLimit.middleware.js';
 import { csrfProtection } from './middlewares/csrf.middleware.js';
 import { errorHandler, notFound } from './middlewares/error.middleware.js';
+import { requestId } from './middlewares/requestId.middleware.js';
+import { getLiveness, getReadiness } from './services/health.service.js';
 
 import authRoutes from './routes/auth.routes.js';
 import onboardingRoutes from './routes/onboarding.routes.js';
@@ -27,6 +29,7 @@ const app = express();
 
 if (env.trustProxy !== false) app.set('trust proxy', env.trustProxy);
 
+app.use(requestId);
 app.use(helmet({
   contentSecurityPolicy: env.isProduction ? undefined : false,
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -36,10 +39,15 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(morgan(env.isProduction ? 'combined' : 'dev'));
+
+app.get('/health', (req, res) => res.status(200).json({ success: true, data: getLiveness(), requestId: req.requestId }));
+app.get('/health/ready', (req, res) => {
+  const readiness = getReadiness();
+  res.status(readiness.ready ? 200 : 503).json({ success: readiness.ready, data: readiness, requestId: req.requestId });
+});
+
 app.use('/api', apiLimiter);
 app.use('/api', csrfProtection);
-
-app.get('/health', (req, res) => res.json({ success: true, message: 'CodeMentor AI API is healthy' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/onboarding', onboardingRoutes);

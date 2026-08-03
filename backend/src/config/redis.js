@@ -20,3 +20,18 @@ export const getRedisConnection = () => {
 
   return redisConnection;
 };
+
+export const getRedisStatus = () => ({
+  enabled: isQueueEnabled() || isRedisCacheEnabled(),
+  ready: redisConnection?.status === 'ready',
+  status: redisConnection?.status || 'disabled'
+});
+
+export const closeRedisConnection = async () => {
+  if (!redisConnection) return;
+  try {
+    await redisConnection.quit();
+  } finally {
+    redisConnection = null;
+  }
+};
