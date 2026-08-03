@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { requireAuth } from '../middlewares/auth.middleware.js';
-import { myUsage } from '../controllers/aiUsage.controller.js';
+import { status } from '../controllers/ai.controller.js';
 
 const router = Router();
 router.use(requireAuth);
-router.get('/me', myUsage);
+router.get('/status', status);
+
 export default router;

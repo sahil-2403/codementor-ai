@@ -21,7 +21,7 @@ import progressRoutes from './routes/progress.routes.js';
 import mentorRoutes from './routes/mentor.routes.js';
 import reportRoutes from './routes/report.routes.js';
 import adminRoutes from './routes/admin.routes.js';
-import aiUsageRoutes from './routes/aiUsage.routes.js';
+import aiRoutes from './routes/ai.routes.js';
 import projectRoutes from './routes/project.routes.js';
 import interviewRoutes from './routes/interview.routes.js';
 
@@ -59,7 +59,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/mentor', mentorRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/ai-usage', aiUsageRoutes);
+app.use('/api/ai', aiRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/interview', interviewRoutes);
 
