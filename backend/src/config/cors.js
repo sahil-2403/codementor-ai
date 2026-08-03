@@ -1,13 +1,9 @@
-const parseOrigins = () => {
-  const raw = process.env.ALLOWED_ORIGINS || process.env.CLIENT_URL || 'http://localhost:5173';
-  return raw.split(',').map((origin) => origin.trim()).filter(Boolean);
-};
+import { env } from './env.js';
 
 export const corsOptions = {
   origin(origin, callback) {
-    const allowedOrigins = parseOrigins();
-    if (!origin && process.env.NODE_ENV !== 'production') return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (!origin && !env.isProduction) return callback(null, true);
+    if (env.allowedOrigins.includes(origin)) return callback(null, true);
     return callback(new Error('CORS origin not allowed'));
   },
   credentials: true,

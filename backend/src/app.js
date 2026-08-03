@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import { env } from './config/env.js';
 import { corsOptions } from './config/cors.js';
 import { apiLimiter } from './middlewares/rateLimit.middleware.js';
 import { csrfProtection } from './middlewares/csrf.middleware.js';
@@ -24,15 +25,17 @@ import interviewRoutes from './routes/interview.routes.js';
 
 const app = express();
 
+if (env.trustProxy !== false) app.set('trust proxy', env.trustProxy);
+
 app.use(helmet({
-  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+  contentSecurityPolicy: env.isProduction ? undefined : false,
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   referrerPolicy: { policy: 'no-referrer' }
 }));
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+app.use(morgan(env.isProduction ? 'combined' : 'dev'));
 app.use('/api', apiLimiter);
 app.use('/api', csrfProtection);
 

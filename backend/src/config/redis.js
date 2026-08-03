@@ -1,13 +1,13 @@
 import IORedis from 'ioredis';
+import { env } from './env.js';
 
 let redisConnection = null;
 
 export const getRedisConnection = () => {
-  if (process.env.ENABLE_QUEUE !== 'true') return null;
+  const redisRequired = env.enableQueue || (env.enableCache && env.cacheDriver === 'redis');
+  if (!redisRequired) return null;
   if (!redisConnection) {
-    redisConnection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-      maxRetriesPerRequest: null
-    });
+    redisConnection = new IORedis(env.redisUrl, { maxRetriesPerRequest: null });
   }
   return redisConnection;
 };

@@ -1,24 +1,26 @@
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env.js';
 import { sha256 } from '../utils/hash.js';
 
 export const createAccessToken = (user) =>
   jwt.sign(
     { id: user._id, role: user.role, tokenVersion: user.refreshTokenVersion || 0 },
-    process.env.JWT_ACCESS_SECRET,
-    { expiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '15m' }
+    env.jwtAccessSecret,
+    { expiresIn: env.jwtAccessExpiresIn }
   );
 
 export const createRefreshToken = (user) =>
-  jwt.sign({ id: user._id, version: user.refreshTokenVersion || 0 }, process.env.JWT_REFRESH_SECRET, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d'
+  jwt.sign({ id: user._id, version: user.refreshTokenVersion || 0 }, env.jwtRefreshSecret, {
+    expiresIn: env.jwtRefreshExpiresIn
   });
 
 export const hashToken = (token) => sha256(token);
 
 const cookieBase = () => ({
   httpOnly: true,
-  sameSite: 'lax',
-  secure: process.env.COOKIE_SECURE === 'true'
+  sameSite: env.cookieSameSite,
+  secure: env.cookieSecure,
+  ...(env.cookieDomain ? { domain: env.cookieDomain } : {})
 });
 
 export const setAuthCookies = (res, accessToken, refreshToken) => {
@@ -38,4 +40,4 @@ export const clearAuthCookies = (res) => {
   res.clearCookie('refreshToken', options);
 };
 
-export const verifyRefreshToken = (token) => jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+export const verifyRefreshToken = (token) => jwt.verify(token, env.jwtRefreshSecret);
