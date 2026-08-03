@@ -10,6 +10,7 @@ import { projectReviewFallback } from './aiFallback.service.js';
 import { mergeWeakTopics } from './progress.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
+import { createInAvailableAttemptSlot } from './attemptSlot.service.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 
 const difficultyRank = { beginner: 1, intermediate: 2, advanced: 3 };
@@ -41,7 +42,7 @@ export const listProjectTasks = async ({ userId, difficulty, tag }) => {
       ...task,
       isLocked,
       lockedReason: isLocked ? `Unlock this after reaching ${task.difficulty} level.` : '',
-      attemptsUsed: taskSubmissions.length,
+      attemptsUsed: taskSubmissions.filter((submission) => [1, 2].includes(submission.attemptNumber)).length,
       maxAttempts: 2,
       bestScore,
       latestSubmission: taskSubmissions[0] || null
@@ -55,7 +56,8 @@ export const getProjectTask = async ({ taskId, userId }) => {
   const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true }).lean();
   const submissions = await ProjectSubmission.find({ user: userId, projectTask: taskId }).sort({ createdAt: -1 }).limit(5);
   const isLocked = !allowedByLevel(course?.level || 'beginner', task.difficulty);
-  return { task: { ...task, isLocked, lockedReason: isLocked ? `Unlock this after reaching ${task.difficulty} level.` : '', maxAttempts: 2 }, submissions, attemptsUsed: submissions.length, maxAttempts: 2 };
+  const attemptsUsed = submissions.filter((submission) => [1, 2].includes(submission.attemptNumber)).length;
+  return { task: { ...task, isLocked, lockedReason: isLocked ? `Unlock this after reaching ${task.difficulty} level.` : '', maxAttempts: 2 }, submissions, attemptsUsed, maxAttempts: 2 };
 };
 
 export const submitProjectTask = async ({ userId, projectTaskId, taskId, submittedCode = '', submittedExplanation = '' }) => {
@@ -66,18 +68,22 @@ export const submitProjectTask = async ({ userId, projectTaskId, taskId, submitt
   if (!task) throw new ApiError(404, 'Project task not found');
   const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true }).lean();
   if (!allowedByLevel(course?.level || 'beginner', task.difficulty)) throw new ApiError(403, 'This project is locked for your current level', [], 'CONTENT_LOCKED');
-  const attempts = await ProjectSubmission.countDocuments({ user: userId, projectTask: task._id });
-  if (attempts >= 2) throw new ApiError(409, 'You have used both submissions for this project task', [], 'ATTEMPT_LIMIT_REACHED');
   if (!submittedCode.trim() && !submittedExplanation.trim()) throw new ApiError(400, 'Submit code or explanation for review');
 
-  const submission = await ProjectSubmission.create({
-    user: userId,
-    projectTask: task._id,
-    submittedCode,
-    submittedExplanation,
-    status: 'submitted',
-    reviewMode: 'none'
+  const submission = await createInAvailableAttemptSlot({
+    model: ProjectSubmission,
+    identityFilter: { user: userId, projectTask: task._id },
+    payload: {
+      user: userId,
+      projectTask: task._id,
+      submittedCode,
+      submittedExplanation,
+      status: 'submitted',
+      reviewMode: 'none'
+    },
+    limitMessage: 'You have used both submissions for this project task'
   });
+
   await invalidateUserLearningCache(userId);
   return submission;
 };

@@ -41,5 +41,13 @@ const projectSubmissionSchema = new mongoose.Schema(
 );
 
 projectSubmissionSchema.index({ user: 1, projectTask: 1, createdAt: -1 });
+projectSubmissionSchema.index(
+  { user: 1, projectTask: 1, attemptNumber: 1 },
+  {
+    unique: true,
+    name: 'project_attempt_slot_unique',
+    partialFilterExpression: { attemptNumber: { $type: 'number' } }
+  }
+);
 
 export const ProjectSubmission = mongoose.model('ProjectSubmission', projectSubmissionSchema);

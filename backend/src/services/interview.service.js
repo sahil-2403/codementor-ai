@@ -12,6 +12,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { CACHE_TTL, getOrSetCache } from './cache.service.js';
 import { cacheKeys } from './cacheKeys.service.js';
 import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
+import { createInAvailableAttemptSlot } from './attemptSlot.service.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 
 const publicQuestionProjection = '-expectedAnswer -answerChecklist';
@@ -45,9 +46,6 @@ const getFullInterviewQuestion = async (questionId) => {
 
 export const saveInterviewAnswer = async ({ user, questionId, answer }) => {
   const question = await getFullInterviewQuestion(questionId);
-  const attemptCount = await InterviewAttempt.countDocuments({ user: user._id, question: question._id });
-  if (attemptCount >= 2) throw new ApiError(409, 'You have used both attempts for this interview question', [], 'ATTEMPT_LIMIT_REACHED');
-
   const { sanitizedText } = await guardAIRequest({
     userId: user._id,
     feature: AI_FEATURES.INTERVIEW_FEEDBACK,
@@ -56,12 +54,17 @@ export const saveInterviewAnswer = async ({ user, questionId, answer }) => {
     metadata: { questionId }
   });
 
-  const attempt = await InterviewAttempt.create({
-    user: user._id,
-    question: question._id,
-    answer: sanitizedText,
-    status: 'submitted',
-    feedbackMode: 'none'
+  const attempt = await createInAvailableAttemptSlot({
+    model: InterviewAttempt,
+    identityFilter: { user: user._id, question: question._id },
+    payload: {
+      user: user._id,
+      question: question._id,
+      answer: sanitizedText,
+      status: 'submitted',
+      feedbackMode: 'none'
+    },
+    limitMessage: 'You have used both attempts for this interview question'
   });
 
   await invalidateUserLearningCache(user._id);

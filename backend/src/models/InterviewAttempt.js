@@ -32,5 +32,13 @@ const interviewAttemptSchema = new mongoose.Schema(
 
 interviewAttemptSchema.index({ user: 1, createdAt: -1 });
 interviewAttemptSchema.index({ user: 1, question: 1, createdAt: -1 });
+interviewAttemptSchema.index(
+  { user: 1, question: 1, attemptNumber: 1 },
+  {
+    unique: true,
+    name: 'interview_attempt_slot_unique',
+    partialFilterExpression: { attemptNumber: { $type: 'number' } }
+  }
+);
 
 export const InterviewAttempt = mongoose.model('InterviewAttempt', interviewAttemptSchema);
