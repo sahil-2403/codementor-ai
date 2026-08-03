@@ -1,19 +1,51 @@
-const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+import { env } from '../config/env.js';
+import { sendEmail } from '../email/emailTransport.js';
+import { buildPasswordResetEmail, buildVerificationEmail } from '../email/emailTemplates.js';
 
-const shouldLogLinks = () => process.env.ALLOW_DEV_EMAIL_LOG !== 'false' && process.env.NODE_ENV !== 'production';
-
-export const sendVerificationEmail = async ({ email, token }) => {
-  const link = `${clientUrl}/verify-email?token=${encodeURIComponent(token)}`;
-  if (shouldLogLinks()) {
-    console.log(`\n[CodeMentor AI email] Verify ${email}: ${link}\n`);
-  }
-  return { sent: true };
+const buildClientUrl = (path, token) => {
+  const url = new URL(path, env.clientUrl);
+  url.searchParams.set('token', token);
+  return url.toString();
 };
 
-export const sendPasswordResetEmail = async ({ email, token }) => {
-  const link = `${clientUrl}/reset-password?token=${encodeURIComponent(token)}`;
-  if (shouldLogLinks()) {
-    console.log(`\n[CodeMentor AI email] Reset password for ${email}: ${link}\n`);
+const logDevelopmentLink = ({ type, email, link }) => {
+  if (!env.allowDevEmailLog || env.isProduction) return false;
+  console.log(`\n[CodeMentor AI development email] ${type} for ${email}: ${link}\n`);
+  return true;
+};
+
+const disabledDelivery = ({ type, email, link }) => ({
+  sent: false,
+  mode: logDevelopmentLink({ type, email, link }) ? 'development_link' : 'disabled',
+  code: 'EMAIL_DELIVERY_UNAVAILABLE'
+});
+
+export const sendVerificationEmail = async ({ email, token, name }) => {
+  const verificationUrl = buildClientUrl('/verify-email', token);
+
+  if (!env.emailEnabled) {
+    return disabledDelivery({ type: 'Verify account', email, link: verificationUrl });
   }
-  return { sent: true };
+
+  const message = buildVerificationEmail({ name, verificationUrl });
+  return sendEmail({
+    to: email,
+    type: 'account_verification',
+    ...message
+  });
+};
+
+export const sendPasswordResetEmail = async ({ email, token, name }) => {
+  const resetUrl = buildClientUrl('/reset-password', token);
+
+  if (!env.emailEnabled) {
+    return disabledDelivery({ type: 'Reset password', email, link: resetUrl });
+  }
+
+  const message = buildPasswordResetEmail({ name, resetUrl });
+  return sendEmail({
+    to: email,
+    type: 'password_reset',
+    ...message
+  });
 };

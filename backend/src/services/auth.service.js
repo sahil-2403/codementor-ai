@@ -5,6 +5,7 @@ import { randomToken, sha256 } from '../utils/hash.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from './email.service.js';
 
 const cleanUserById = (id) => User.findById(id).select('-password -refreshTokenHash -emailVerificationToken -emailVerificationExpires -passwordResetToken -passwordResetExpires');
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
 const createEmailVerificationToken = async (user) => {
   const verificationToken = randomToken(24);
@@ -14,17 +15,36 @@ const createEmailVerificationToken = async (user) => {
   return verificationToken;
 };
 
+const registrationMessage = (delivery) => {
+  if (delivery.sent) {
+    return 'Account created. Check your email to verify your account before logging in.';
+  }
+  if (delivery.mode === 'development_link') {
+    return 'Account created. Email delivery is disabled, so a development verification link was written to the server log.';
+  }
+  return 'Account created, but the verification email could not be delivered. Use Resend verification to try again.';
+};
+
 export const registerUser = async ({ name, email, password }) => {
-  const existing = await User.findOne({ email });
+  const normalizedEmail = normalizeEmail(email);
+  const existing = await User.findOne({ email: normalizedEmail });
   if (existing) throw new ApiError(409, 'Email already registered');
 
-  const user = await User.create({ name, email, password, isEmailVerified: false });
+  const user = await User.create({ name, email: normalizedEmail, password, isEmailVerified: false });
   const verificationToken = await createEmailVerificationToken(user);
-  await sendVerificationEmail({ email: user.email, token: verificationToken });
+  const delivery = await sendVerificationEmail({
+    email: user.email,
+    token: verificationToken,
+    name: user.name
+  });
   const cleanUser = await cleanUserById(user._id);
+
   return {
     user: cleanUser,
-    message: 'Account created. Check your email to verify your account before logging in.'
+    verificationRequired: true,
+    emailSent: delivery.sent,
+    deliveryMode: delivery.mode,
+    message: registrationMessage(delivery)
   };
 };
 
@@ -44,15 +64,18 @@ export const verifyEmailWithToken = async ({ token }) => {
 };
 
 export const resendEmailVerification = async ({ email }) => {
-  const user = await User.findOne({ email }).select('+emailVerificationToken +emailVerificationExpires');
-  if (!user || user.isEmailVerified) return { message: 'If the account exists and needs verification, a verification token was generated.' };
+  const user = await User.findOne({ email: normalizeEmail(email) }).select('+emailVerificationToken +emailVerificationExpires');
+  if (!user || user.isEmailVerified) {
+    return { message: 'If the account exists and needs verification, a verification email has been requested.' };
+  }
+
   const verificationToken = await createEmailVerificationToken(user);
-  await sendVerificationEmail({ email: user.email, token: verificationToken });
-  return { message: 'If the account exists and needs verification, a verification email has been sent.' };
+  await sendVerificationEmail({ email: user.email, token: verificationToken, name: user.name });
+  return { message: 'If the account exists and needs verification, a verification email has been requested.' };
 };
 
 export const loginUser = async ({ email, password }) => {
-  const user = await User.findOne({ email }).select('+password +refreshTokenHash +refreshTokenVersion');
+  const user = await User.findOne({ email: normalizeEmail(email) }).select('+password +refreshTokenHash +refreshTokenVersion');
   if (!user) throw new ApiError(401, 'Invalid credentials');
 
   const isMatch = await user.comparePassword(password);
@@ -104,14 +127,16 @@ export const logoutAllDevices = async (userId) => {
 };
 
 export const requestPasswordReset = async (email) => {
-  const user = await User.findOne({ email }).select('+passwordResetToken +passwordResetExpires');
-  if (!user) return { message: 'If the email exists, a reset token was generated.' };
+  const genericMessage = 'If the email exists, a password reset link has been requested.';
+  const user = await User.findOne({ email: normalizeEmail(email) }).select('+passwordResetToken +passwordResetExpires');
+  if (!user) return { message: genericMessage };
+
   const resetToken = randomToken(24);
   user.passwordResetToken = sha256(resetToken);
   user.passwordResetExpires = new Date(Date.now() + 15 * 60 * 1000);
   await user.save();
-  await sendPasswordResetEmail({ email: user.email, token: resetToken });
-  return { message: 'If the email exists, a reset link has been sent.' };
+  await sendPasswordResetEmail({ email: user.email, token: resetToken, name: user.name });
+  return { message: genericMessage };
 };
 
 export const resetPasswordWithToken = async ({ token, password }) => {

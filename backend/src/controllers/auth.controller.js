@@ -13,7 +13,12 @@ export const csrfToken = asyncHandler(async (req, res) => {
 export const register = asyncHandler(async (req, res) => {
   const result = await registerUser(req.body);
   await logActivity({ user: result.user._id, action: 'auth_registered', entityType: 'User', entityId: result.user._id, message: 'User registered and email verification is pending', req });
-  sendResponse(res, 201, result.message, { user: result.user });
+  sendResponse(res, 201, result.message, {
+    user: result.user,
+    verificationRequired: result.verificationRequired,
+    emailSent: result.emailSent,
+    deliveryMode: result.deliveryMode
+  });
 });
 
 export const verifyEmail = asyncHandler(async (req, res) => {
