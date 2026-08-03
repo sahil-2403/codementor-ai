@@ -15,8 +15,13 @@ const calculateCompletion = (course, completedLessonIds) => {
 
 export const createProgressForCourse = async ({ userId, coursePlanId, session = null } = {}) => {
   await invalidateUserLearningCache(userId);
-  const docs = await Progress.create([{ user: userId, coursePlan: coursePlanId }], session ? { session } : undefined);
-  return docs[0];
+  const query = Progress.findOneAndUpdate(
+    { user: userId, coursePlan: coursePlanId },
+    { $setOnInsert: { user: userId, coursePlan: coursePlanId } },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+  if (session) query.session(session);
+  return query;
 };
 
 const buildCurrentProgressPayload = async (userId) => {

@@ -36,6 +36,8 @@ const coursePlanSchema = new mongoose.Schema(
     aiGenerated: { type: Boolean, default: false },
     version: { type: Number, default: 1 },
     parentCoursePlan: { type: mongoose.Schema.Types.ObjectId, ref: 'CoursePlan', default: null },
+    generationJob: { type: mongoose.Schema.Types.ObjectId, ref: 'AIJob', default: undefined },
+    generationKey: { type: String, default: undefined },
     generatedReason: {
       type: String,
       enum: ['initial_template', 'assessment_personalized', 'weak_topic_update', 'manual_regeneration', 'preference_adjusted'],
@@ -49,5 +51,21 @@ const coursePlanSchema = new mongoose.Schema(
 
 coursePlanSchema.index({ user: 1, status: 1, isActive: 1, createdAt: -1 });
 coursePlanSchema.index({ user: 1, isActive: 1 }, { unique: true, partialFilterExpression: { isActive: true } });
+coursePlanSchema.index(
+  { generationJob: 1 },
+  {
+    unique: true,
+    name: 'course_generation_job_unique',
+    partialFilterExpression: { generationJob: { $type: 'objectId' } }
+  }
+);
+coursePlanSchema.index(
+  { user: 1, generationKey: 1 },
+  {
+    unique: true,
+    name: 'course_generation_key_unique',
+    partialFilterExpression: { generationKey: { $type: 'string' } }
+  }
+);
 
 export const CoursePlan = mongoose.model('CoursePlan', coursePlanSchema);

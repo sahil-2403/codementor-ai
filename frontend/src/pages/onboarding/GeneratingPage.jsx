@@ -59,6 +59,10 @@ export default function GeneratingPage() {
     mutationFn: roadmapApi.generateOrGet,
   });
 
+  const retryMutation = useMutation({
+    mutationFn: roadmapApi.retryJob,
+  });
+
   const refreshLearningQueries = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus }),
@@ -230,6 +234,7 @@ export default function GeneratingPage() {
           message={
             localError ||
             generateMutation.error?.message ||
+            retryMutation.error?.message ||
             jobQuery.error?.message
           }
         />
@@ -267,9 +272,38 @@ export default function GeneratingPage() {
           ) : null}
 
           {job?.status === "failed" ? (
-            <Link to="/onboarding/preferences">
-              <Button>Back to setup</Button>
-            </Link>
+            <>
+              <Button
+                disabled={retryMutation.isPending}
+                onClick={() => {
+                  setLocalError("");
+                  retryMutation.mutate(job._id, {
+                    onSuccess: async (result) => {
+                      if (result?.course || result?.mode === "existing" || result?.mode === "sync") {
+                        await redirectToDashboard();
+                        return;
+                      }
+
+                      const nextJobId = result?.job?._id || job._id;
+                      queryClient.setQueryData(["roadmap-job", nextJobId], {
+                        job: result?.job || { ...job, status: result?.mode || "processing", error: "" },
+                        course: result?.course || null
+                      });
+                      await refreshLearningQueries();
+                      navigate(`/onboarding/generating?jobId=${nextJobId}`, { replace: true });
+                    },
+                    onError: (error) => {
+                      setLocalError(error?.message || "Could not retry roadmap setup.");
+                    }
+                  });
+                }}
+              >
+                {retryMutation.isPending ? "Retrying..." : "Retry roadmap setup"}
+              </Button>
+              <Link to="/onboarding/preferences">
+                <Button variant="secondary">Back to setup</Button>
+              </Link>
+            </>
           ) : null}
         </div>
       </Card>

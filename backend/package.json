@@ -10,7 +10,8 @@
     "seed": "node src/seed/seed.js",
     "worker": "node src/workers/index.js",
     "migrate:attempt-numbers": "node src/migrations/backfillAttemptNumbers.js",
-    "migrate:attempt-indexes": "node src/migrations/enforceAttemptIndexes.js"
+    "migrate:attempt-indexes": "node src/migrations/enforceAttemptIndexes.js",
+    "migrate:roadmap-indexes": "node src/migrations/enforceRoadmapIndexes.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
