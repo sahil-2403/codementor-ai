@@ -6,14 +6,9 @@ import { logActivity } from "./activityLog.service.js";
 import { makeSearchRegex } from "../utils/pagination.js";
 import { listWithPagination } from "./listQuery.service.js";
 import { ApiError } from "../utils/ApiError.js";
+import { isQueueEnabled } from "../config/env.js";
 
-const shouldUseRoadmapQueue = () => {
-  return Boolean(
-    roadmapQueue &&
-    process.env.ENABLE_QUEUE === "true" &&
-    process.env.ENABLE_ROADMAP_QUEUE === "true",
-  );
-};
+const shouldUseRoadmapQueue = () => Boolean(roadmapQueue && isQueueEnabled());
 
 export const createRoadmapGenerationJobOrRun = async ({
   userId,
@@ -40,8 +35,6 @@ export const createRoadmapGenerationJobOrRun = async ({
 
     if (existingJob && canQueue) return { mode: "queued", job: existingJob };
 
-    // Recovery for local/dev usage: if a previous queued job exists but the roadmap
-    // worker is not enabled/running, do not keep the learner stuck on the generating page.
     if (existingJob && !canQueue) {
       existingJob.status = "failed";
       existingJob.error =
@@ -111,7 +104,7 @@ export const createRoadmapGenerationJobOrRun = async ({
     const course = await createCourseFromTemplate(payload);
 
     aiJob.status = "completed";
-    aiJob.output = { coursePlanId: course._id, mode: "sync_fallback" };
+    aiJob.output = { coursePlanId: course._id, mode: "sync" };
     aiJob.completedAt = new Date();
     aiJob.attempts = 1;
     await aiJob.save();
@@ -121,8 +114,7 @@ export const createRoadmapGenerationJobOrRun = async ({
       action: "roadmap_job_completed_sync",
       entityType: "CoursePlan",
       entityId: course._id,
-      message:
-        "Roadmap generated synchronously because the roadmap queue is disabled",
+      message: "Roadmap generated synchronously",
       metadata: {
         jobId: aiJob._id,
         version: course.version,

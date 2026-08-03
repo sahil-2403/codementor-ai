@@ -100,7 +100,8 @@ const envSchema = z.object({
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['COOKIE_SECURE'], message: 'COOKIE_SECURE must be true when COOKIE_SAME_SITE is none' });
   }
 
-  if ((values.ENABLE_QUEUE || (values.ENABLE_CACHE && values.CACHE_DRIVER === 'redis')) && !values.REDIS_URL) {
+  const redisCacheEnabled = values.ENABLE_CACHE && values.CACHE_DRIVER === 'redis';
+  if ((values.ENABLE_QUEUE || redisCacheEnabled) && !values.REDIS_URL) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['REDIS_URL'], message: 'REDIS_URL is required for Redis cache or queue mode' });
   }
 
@@ -176,4 +177,7 @@ export const env = Object.freeze({
   enableDemoMode: values.ENABLE_DEMO_MODE
 });
 
+export const isCacheEnabled = () => env.enableCache && env.cacheDriver !== 'disabled';
+export const isRedisCacheEnabled = () => isCacheEnabled() && env.cacheDriver === 'redis';
+export const isQueueEnabled = () => env.enableQueue && Boolean(env.redisUrl);
 export const isGeminiAvailable = () => env.enableAi && Boolean(env.geminiApiKey);
