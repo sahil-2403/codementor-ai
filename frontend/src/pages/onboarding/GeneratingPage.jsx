@@ -10,6 +10,7 @@ import ErrorMessage from "../../components/common/ErrorMessage.jsx";
 import OnboardingShell from "../../components/onboarding/OnboardingShell.jsx";
 import OnboardingInsightCard from "../../components/onboarding/OnboardingInsightCard.jsx";
 import { roadmapApi } from "../../api/roadmapApi.js";
+import { onboardingApi } from "../../api/onboardingApi.js";
 import { queryKeys } from "../../constants/queryKeys.js";
 
 const statusMeta = {
@@ -45,6 +46,13 @@ export default function GeneratingPage() {
   const redirectedRef = useRef(false);
 
   const [localError, setLocalError] = useState("");
+
+  const onboardingStatusQuery = useQuery({
+    queryKey: queryKeys.onboardingStatus,
+    queryFn: onboardingApi.status,
+    retry: false
+  });
+  const onboardingStatus = onboardingStatusQuery.data;
   const [showSlowHint, setShowSlowHint] = useState(false);
 
   const generateMutation = useMutation({
@@ -68,7 +76,23 @@ export default function GeneratingPage() {
   };
 
   useEffect(() => {
-    if (jobId || startedRef.current) return;
+    if (jobId || startedRef.current || onboardingStatusQuery.isLoading) return;
+
+    if (onboardingStatus?.state === 'completed' || onboardingStatus?.hasActiveCourse) {
+      redirectToDashboard();
+      return;
+    }
+
+    const existingJob = onboardingStatus?.roadmapJob;
+    if (existingJob?._id && ['queued', 'processing'].includes(existingJob.status)) {
+      navigate(`/onboarding/generating?jobId=${existingJob._id}`, { replace: true });
+      return;
+    }
+
+    if (!['roadmap_pending', 'roadmap_failed'].includes(onboardingStatus?.state)) {
+      setLocalError('Finish the current onboarding step before generating a roadmap.');
+      return;
+    }
 
     startedRef.current = true;
     setLocalError("");
@@ -101,7 +125,7 @@ export default function GeneratingPage() {
         );
       },
     });
-  }, [jobId]);
+  }, [jobId, onboardingStatus?.state, onboardingStatus?.roadmapJob?._id, onboardingStatusQuery.isLoading]);
 
   const currentRoadmapQuery = useQuery({
     queryKey: queryKeys.roadmap,
@@ -143,7 +167,7 @@ export default function GeneratingPage() {
   );
   const Icon = meta.icon;
 
-  if (!jobId && generateMutation.isPending) {
+  if (onboardingStatusQuery.isLoading || (!jobId && generateMutation.isPending)) {
     return <Loader label="Preparing your roadmap..." />;
   }
 

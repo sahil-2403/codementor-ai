@@ -13,6 +13,8 @@ import { logActivity } from './activityLog.service.js';
 import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { env, isGeminiAvailable } from '../config/env.js';
+import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
+import { setRoadmapOnboardingState } from './onboarding.service.js';
 
 const reasonByRoadmapType = {
   [ROADMAP_TYPES.TEMPLATE]: 'initial_template',
@@ -97,6 +99,11 @@ export const createCourseFromTemplate = async ({ userId, learningGoalId, roadmap
     await persistCourse();
   }
 
+  await setRoadmapOnboardingState({
+    userId,
+    learningGoalId,
+    state: ONBOARDING_STATES.COMPLETED
+  });
   await invalidateUserLearningCache(userId);
   await logActivity({ user: userId, action: 'roadmap_generated', entityType: 'CoursePlan', entityId: course._id, message: `Roadmap v${course.version} generated`, metadata: { roadmapType: course.roadmapType, generatedReason: course.generatedReason, aiGenerated: course.aiGenerated } });
   return course;

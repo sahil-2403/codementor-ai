@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Loader from '../../components/common/Loader.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -21,13 +20,6 @@ const priorityStyle = {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { data, isLoading } = useDashboard();
-  const courseForStorage = data?.course;
-
-  useEffect(() => {
-    if (courseForStorage?.learningGoal) localStorage.setItem('learningGoalId', courseForStorage.learningGoal);
-    if (courseForStorage?.level) localStorage.setItem('learningLevel', courseForStorage.level);
-  }, [courseForStorage?.learningGoal, courseForStorage?.level]);
-
   if (isLoading) return <Loader label="Loading dashboard..." />;
   if (!data?.course) return <EmptyState title="No active roadmap yet" description="Start onboarding to create your personalized MERN roadmap." actionLabel="Start onboarding" onAction={() => navigate('/onboarding/goal')} />;
   const { stats, progress, nextLesson, course, recommendations = [], studyPlan = [], dueRevisions = [], roadmapVersions = [] } = data;

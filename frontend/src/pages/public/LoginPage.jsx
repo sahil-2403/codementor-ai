@@ -29,7 +29,7 @@ export default function LoginPage() {
       const user = await login(values);
       if (user.role === 'admin') return navigate('/admin');
       const status = await onboardingApi.status();
-      navigate(status?.hasActiveCourse ? '/dashboard' : '/onboarding/goal');
+      navigate(status?.nextPath || (status?.hasActiveCourse ? '/dashboard' : '/onboarding/goal'));
     } catch (err) {
       setError('root', { message: err.message });
     }

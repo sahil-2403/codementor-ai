@@ -2,6 +2,7 @@ import { QuizQuestion } from '../models/QuizQuestion.js';
 import { Assessment } from '../models/Assessment.js';
 import { LearningGoal } from '../models/LearningGoal.js';
 import { ApiError } from '../utils/ApiError.js';
+import { markAssessmentCompleted, markAssessmentStarted } from './onboarding.service.js';
 
 const getRecommendedLevel = ({ requestedLevel, score }) => {
   if (score < 45) return requestedLevel === 'advanced' ? 'intermediate' : 'beginner';
@@ -33,6 +34,7 @@ export const getAssessmentQuestions = async ({ userId, learningGoalId, level }) 
   }).populate({ path: 'questionIds', select: '-correctAnswer -explanation', populate: { path: 'topic', select: 'title category' } }).sort({ createdAt: -1 });
 
   if (recentSession?.questionIds?.length) {
+    await markAssessmentStarted({ userId, learningGoalId });
     return { sessionId: recentSession._id, questions: recentSession.questionIds };
   }
 
@@ -57,6 +59,7 @@ export const getAssessmentQuestions = async ({ userId, learningGoalId, level }) 
     score: 0
   });
 
+  await markAssessmentStarted({ userId, learningGoalId });
   return { sessionId: session._id, questions };
 };
 
@@ -113,8 +116,7 @@ export const submitAssessment = async ({ userId, learningGoalId, sessionId, answ
   session.completedAt = new Date();
   await session.save();
 
-  goal.assessmentPreference = 'take';
-  await goal.save();
+  await markAssessmentCompleted({ userId, learningGoalId });
 
   return {
     assessment: session,

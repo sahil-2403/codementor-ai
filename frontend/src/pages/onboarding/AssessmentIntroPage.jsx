@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { BrainCircuit, ClipboardCheck, FastForward, ShieldCheck } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
@@ -8,10 +9,14 @@ import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import { onboardingApi } from '../../api/onboardingApi.js';
 import { onboardingCopyByLevel } from '../../constants/onboardingSteps.js';
+import Loader from '../../components/common/Loader.jsx';
+import { queryKeys } from '../../constants/queryKeys.js';
 
 export default function AssessmentIntroPage() {
   const navigate = useNavigate();
-  const level = localStorage.getItem('learningLevel') || 'intermediate';
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status });
+  const level = data?.currentGoal?.level || 'intermediate';
   const [error, setError] = useState('');
   const [skipping, setSkipping] = useState(false);
   const copy = onboardingCopyByLevel[level] || onboardingCopyByLevel.intermediate;
@@ -20,11 +25,14 @@ export default function AssessmentIntroPage() {
     try {
       setSkipping(true);
       setError('');
-      await onboardingApi.skipAssessment({ learningGoalId: localStorage.getItem('learningGoalId') });
+      await onboardingApi.skipAssessment();
+      await queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus });
       navigate('/onboarding/generating');
     } catch (err) { setError(err.message); }
     finally { setSkipping(false); }
   };
+
+  if (isLoading) return <Loader label="Loading assessment options..." />;
 
   return <OnboardingShell
     current="setup"

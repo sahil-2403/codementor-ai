@@ -3,6 +3,8 @@ import { getRedisConnection } from '../config/redis.js';
 import { AIJob } from '../models/AIJob.js';
 import { createCourseFromTemplate } from '../services/roadmap.service.js';
 import { logActivity } from '../services/activityLog.service.js';
+import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
+import { setRoadmapOnboardingState } from '../services/onboarding.service.js';
 
 export const startRoadmapWorker = () => {
   const connection = getRedisConnection();
@@ -29,6 +31,13 @@ export const startRoadmapWorker = () => {
         await aiJob.save();
       }
 
+      await setRoadmapOnboardingState({
+        userId: payload.userId,
+        learningGoalId: payload.learningGoalId,
+        state: ONBOARDING_STATES.COMPLETED,
+        roadmapJobId: aiJob?._id || null
+      });
+
       await logActivity({
         user: payload.userId,
         action: 'roadmap_job_completed',
@@ -47,6 +56,14 @@ export const startRoadmapWorker = () => {
         aiJob.attempts = job.attemptsMade + 1;
         await aiJob.save();
       }
+      await setRoadmapOnboardingState({
+        userId: payload.userId,
+        learningGoalId: payload.learningGoalId,
+        state: ONBOARDING_STATES.ROADMAP_FAILED,
+        roadmapJobId: aiJob?._id || null,
+        errorCode: error.code || 'ROADMAP_GENERATION_FAILED',
+        errorMessage: 'Roadmap generation could not be completed. Please retry.'
+      });
       await logActivity({
         user: payload.userId,
         action: 'roadmap_job_failed',

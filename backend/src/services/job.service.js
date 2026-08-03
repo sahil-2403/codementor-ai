@@ -7,6 +7,8 @@ import { makeSearchRegex } from "../utils/pagination.js";
 import { listWithPagination } from "./listQuery.service.js";
 import { ApiError } from "../utils/ApiError.js";
 import { isQueueEnabled } from "../config/env.js";
+import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
+import { setRoadmapOnboardingState } from './onboarding.service.js';
 
 const shouldUseRoadmapQueue = () => Boolean(roadmapQueue && isQueueEnabled());
 
@@ -73,6 +75,13 @@ export const createRoadmapGenerationJobOrRun = async ({
     attempts: 0,
   });
 
+  await setRoadmapOnboardingState({
+    userId,
+    learningGoalId: payload.learningGoalId,
+    state: ONBOARDING_STATES.ROADMAP_GENERATING,
+    roadmapJobId: aiJob._id
+  });
+
   if (canQueue) {
     const bullJob = await addRoadmapJob({
       ...payload,
@@ -130,6 +139,14 @@ export const createRoadmapGenerationJobOrRun = async ({
     aiJob.completedAt = new Date();
     aiJob.attempts = 1;
     await aiJob.save();
+    await setRoadmapOnboardingState({
+      userId,
+      learningGoalId: payload.learningGoalId,
+      state: ONBOARDING_STATES.ROADMAP_FAILED,
+      roadmapJobId: aiJob._id,
+      errorCode: error.code || 'ROADMAP_GENERATION_FAILED',
+      errorMessage: 'Roadmap generation could not be completed. Please retry.'
+    });
     throw error;
   }
 };

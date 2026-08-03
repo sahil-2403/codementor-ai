@@ -63,11 +63,7 @@ export default function AssessmentReportPage() {
       setCreating(true);
       setError("");
 
-      const learningGoalId =
-        report?.learningGoalId ||
-        (!isPersonalizeFlow
-          ? localStorage.getItem("learningGoalId")
-          : undefined);
+      const learningGoalId = report?.learningGoalId;
 
       if (!learningGoalId) {
         setError("Learning goal was not found. Please restart onboarding.");

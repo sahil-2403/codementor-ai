@@ -17,8 +17,8 @@ export default function AssessmentPage() {
   const isPersonalizeFlow = searchParams.get('personalize') === 'true';
   const personalizeQuery = isPersonalizeFlow ? '?personalize=true' : '';
   const { data: statusData, isLoading: statusLoading } = useQuery({ queryKey: ['onboarding-status'], queryFn: onboardingApi.status });
-  const level = isPersonalizeFlow ? (statusData?.latestGoal?.level || 'intermediate') : (localStorage.getItem('learningLevel') || statusData?.latestGoal?.level || 'intermediate');
-  const learningGoalId = isPersonalizeFlow ? statusData?.latestGoal?._id : (localStorage.getItem('learningGoalId') || statusData?.latestGoal?._id);
+  const level = statusData?.currentGoal?.level || statusData?.latestGoal?.level || 'intermediate';
+  const learningGoalId = statusData?.currentGoal?._id || statusData?.latestGoal?._id;
   const { data, isLoading } = useQuery({
     queryKey: ['assessment', level, learningGoalId],
     queryFn: () => assessmentApi.start({ level, learningGoalId }),

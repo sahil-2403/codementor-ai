@@ -1,38 +1,48 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, BookOpenCheck, Gauge, GraduationCap } from 'lucide-react';
 import { onboardingApi } from '../../api/onboardingApi.js';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
-import Badge from '../../components/common/Badge.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
+import Loader from '../../components/common/Loader.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import { levels } from '../../constants/levels.js';
 import { onboardingCopyByLevel } from '../../constants/onboardingSteps.js';
+import { queryKeys } from '../../constants/queryKeys.js';
 
 const icons = { beginner: BookOpenCheck, intermediate: Gauge, advanced: GraduationCap };
 
 export default function LevelPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status });
   const [selected, setSelected] = useState('beginner');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const selectedCopy = onboardingCopyByLevel[selected];
 
+  useEffect(() => {
+    if (data?.currentGoal?.level) setSelected(data.currentGoal.level);
+  }, [data?.currentGoal?.level]);
+
   const continueNext = async () => {
     try {
       setSaving(true);
       setError('');
-      const storedGoal = localStorage.getItem('selectedGoal');
-      const goal = storedGoal ? JSON.parse(storedGoal) : { key: 'junior-mern-stack', title: 'Junior MERN Stack Developer' };
-      const result = await onboardingApi.createGoal({ goalKey: goal.key, goalTitle: goal.title, level: selected });
-      localStorage.setItem('learningGoalId', result.goal._id);
-      localStorage.setItem('learningLevel', selected);
-      navigate(selected === 'beginner' ? '/onboarding/preferences' : '/onboarding/assessment-intro');
-    } catch (err) { setError(err.message); }
-    finally { setSaving(false); }
+      const result = await onboardingApi.saveLevel({ level: selected });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus });
+      navigate(result?.goal?.onboardingState === 'preferences_pending' ? '/onboarding/preferences' : '/onboarding/assessment-intro');
+    } catch (err) {
+      setError(err?.message || 'Could not save your level.');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (isLoading) return <Loader label="Loading your onboarding progress..." />;
 
   return <OnboardingShell
     current="level"
@@ -53,7 +63,7 @@ export default function LevelPage() {
       {levels.map((level) => {
         const Icon = icons[level.key] || BookOpenCheck;
         const active = selected === level.key;
-        return <button key={level.key} onClick={() => setSelected(level.key)} className={`rounded-[2rem] border p-6 text-left transition ${active ? 'border-indigo-500 bg-white shadow-soft' : 'border-slate-200 bg-white/65 hover:-translate-y-0.5 hover:bg-white hover:shadow-soft'}`}>
+        return <button key={level.key} disabled={saving} onClick={() => setSelected(level.key)} className={`rounded-[2rem] border p-6 text-left transition ${active ? 'border-indigo-500 bg-white shadow-soft' : 'border-slate-200 bg-white/65 hover:-translate-y-0.5 hover:bg-white hover:shadow-soft'}`}>
           <div className={`grid h-12 w-12 place-items-center rounded-2xl ${active ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700'}`}><Icon size={20} /></div>
           <h3 className="mt-5 text-2xl font-black capitalize text-slate-950">{level.title}</h3>
           <p className="mt-2 leading-7 text-slate-600">{level.description}</p>
