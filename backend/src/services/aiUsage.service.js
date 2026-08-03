@@ -3,38 +3,25 @@ import { AIUsageLog } from '../models/AIUsageLog.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { startOfToday } from '../utils/date.js';
 import { ApiError } from '../utils/ApiError.js';
+import { env } from '../config/env.js';
 
 const limitMap = {
-  [AI_FEATURES.MENTOR_CHAT]: () => Number(process.env.DAILY_MENTOR_LIMIT || 10),
-  [AI_FEATURES.ROADMAP_GENERATION]: () => Number(process.env.DAILY_ROADMAP_LIMIT || 1),
-  [AI_FEATURES.QUIZ_EXPLANATION]: () => Number(process.env.DAILY_QUIZ_EXPLANATION_LIMIT || 3),
-  [AI_FEATURES.WEEKLY_REPORT]: () => Number(process.env.WEEKLY_REPORT_LIMIT || 1),
-  [AI_FEATURES.PROJECT_REVIEW]: () => Number(process.env.DAILY_PROJECT_REVIEW_LIMIT || 5),
-  [AI_FEATURES.INTERVIEW_FEEDBACK]: () => Number(process.env.DAILY_INTERVIEW_FEEDBACK_LIMIT || 5)
+  [AI_FEATURES.MENTOR_CHAT]: () => env.aiLimits.mentor,
+  [AI_FEATURES.ROADMAP_GENERATION]: () => env.aiLimits.roadmap,
+  [AI_FEATURES.QUIZ_EXPLANATION]: () => env.aiLimits.quizExplanation,
+  [AI_FEATURES.WEEKLY_REPORT]: () => env.aiLimits.weeklyReport,
+  [AI_FEATURES.PROJECT_REVIEW]: () => env.aiLimits.projectReview,
+  [AI_FEATURES.INTERVIEW_FEEDBACK]: () => env.aiLimits.interviewFeedback
 };
 
 export const createPromptFingerprint = (value = '') => crypto.createHash('sha256').update(String(value)).digest('hex').slice(0, 16);
-
 export const estimateTokens = (value = '') => Math.ceil(String(value).split(/\s+/).filter(Boolean).length * 1.35);
 
 export const checkAIUsageLimit = async (userId, feature) => {
   const limit = limitMap[feature]?.() ?? 5;
-  const count = await AIUsageLog.countDocuments({
-    user: userId,
-    feature,
-    status: 'success',
-    createdAt: { $gte: startOfToday() }
-  });
-
+  const count = await AIUsageLog.countDocuments({ user: userId, feature, status: 'success', createdAt: { $gte: startOfToday() } });
   if (count >= limit) {
-    await AIUsageLog.create({
-      user: userId,
-      feature,
-      status: 'blocked',
-      model: process.env.AI_PROVIDER || 'mock',
-      provider: process.env.AI_PROVIDER || 'mock',
-      metadata: { limit }
-    });
+    await AIUsageLog.create({ user: userId, feature, status: 'blocked', model: env.geminiModel, provider: 'gemini', metadata: { limit } });
     throw new ApiError(429, `Daily AI limit reached for ${feature}`);
   }
 };
@@ -43,8 +30,8 @@ export const logAIUsage = async ({
   user,
   feature,
   status = 'success',
-  model = 'mock',
-  provider = process.env.AI_PROVIDER || 'mock',
+  model = env.geminiModel,
+  provider = 'gemini',
   inputTokens = 0,
   outputTokens = 0,
   estimatedCost = 0,
