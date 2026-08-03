@@ -5,7 +5,17 @@ const interviewAttemptSchema = new mongoose.Schema(
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     question: { type: mongoose.Schema.Types.ObjectId, ref: 'InterviewQuestion', required: true, index: true },
     answer: { type: String, required: true },
-    feedbackMode: { type: String, enum: ['ai', 'fallback'], default: 'ai' },
+    status: {
+      type: String,
+      enum: ['submitted', 'reviewing', 'reviewed', 'review_unavailable'],
+      default: 'submitted',
+      index: true
+    },
+    feedbackMode: { type: String, enum: ['ai', 'fallback', 'none'], default: 'none' },
+    reviewAttempts: { type: Number, default: 0 },
+    reviewRequestedAt: { type: Date, default: null },
+    reviewedAt: { type: Date, default: null },
+    reviewErrorCode: { type: String, default: '' },
     score: { type: Number, default: null },
     aiFeedback: {
       summary: { type: String, default: '' },
@@ -20,5 +30,6 @@ const interviewAttemptSchema = new mongoose.Schema(
 );
 
 interviewAttemptSchema.index({ user: 1, createdAt: -1 });
+interviewAttemptSchema.index({ user: 1, question: 1, createdAt: -1 });
 
 export const InterviewAttempt = mongoose.model('InterviewAttempt', interviewAttemptSchema);

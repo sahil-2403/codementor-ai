@@ -15,8 +15,17 @@ const projectSubmissionSchema = new mongoose.Schema(
     projectTask: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectTask', required: true, index: true },
     submittedCode: { type: String, default: '' },
     submittedExplanation: { type: String, default: '' },
-    status: { type: String, enum: ['submitted', 'reviewed'], default: 'submitted', index: true },
+    status: {
+      type: String,
+      enum: ['submitted', 'reviewing', 'reviewed', 'review_unavailable'],
+      default: 'submitted',
+      index: true
+    },
     reviewMode: { type: String, enum: ['ai', 'fallback', 'none'], default: 'none' },
+    reviewAttempts: { type: Number, default: 0 },
+    reviewRequestedAt: { type: Date, default: null },
+    reviewedAt: { type: Date, default: null },
+    reviewErrorCode: { type: String, default: '' },
     score: { type: Number, default: null },
     aiFeedback: {
       summary: { type: String, default: '' },

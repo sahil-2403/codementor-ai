@@ -4,7 +4,7 @@ import { CoursePlan } from '../models/CoursePlan.js';
 import { Progress } from '../models/Progress.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { aiProvider } from '../ai/aiProvider.service.js';
-import { checkAIUsageLimit, createPromptFingerprint, logAIUsage } from './aiUsage.service.js';
+import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
 import { guardAIRequest, sanitizeCodeText } from './aiSafety.service.js';
 import { projectReviewFallback } from './aiFallback.service.js';
 import { mergeWeakTopics } from './progress.service.js';
@@ -65,12 +65,19 @@ export const submitProjectTask = async ({ userId, projectTaskId, taskId, submitt
   const task = await ProjectTask.findOne({ _id: resolvedTaskId, status: 'published' });
   if (!task) throw new ApiError(404, 'Project task not found');
   const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true }).lean();
-  if (!allowedByLevel(course?.level || 'beginner', task.difficulty)) throw new ApiError(403, 'This project is locked for your current level');
+  if (!allowedByLevel(course?.level || 'beginner', task.difficulty)) throw new ApiError(403, 'This project is locked for your current level', [], 'CONTENT_LOCKED');
   const attempts = await ProjectSubmission.countDocuments({ user: userId, projectTask: task._id });
-  if (attempts >= 2) throw new ApiError(429, 'You have used both submissions for this project task');
+  if (attempts >= 2) throw new ApiError(409, 'You have used both submissions for this project task', [], 'ATTEMPT_LIMIT_REACHED');
   if (!submittedCode.trim() && !submittedExplanation.trim()) throw new ApiError(400, 'Submit code or explanation for review');
 
-  const submission = await ProjectSubmission.create({ user: userId, projectTask: task._id, submittedCode, submittedExplanation });
+  const submission = await ProjectSubmission.create({
+    user: userId,
+    projectTask: task._id,
+    submittedCode,
+    submittedExplanation,
+    status: 'submitted',
+    reviewMode: 'none'
+  });
   await invalidateUserLearningCache(userId);
   return submission;
 };
@@ -80,51 +87,76 @@ export const reviewProjectSubmission = async ({ user, submissionId }) => {
   const submission = await ProjectSubmission.findOne({ _id: submissionId, user: user._id }).populate('projectTask');
   if (!submission) throw new ApiError(404, 'Project submission not found');
   if (submission.status === 'reviewed') return submission;
+  if (submission.status === 'reviewing') throw new ApiError(409, 'This project submission is already being reviewed', [], 'REVIEW_IN_PROGRESS');
+
+  submission.status = 'reviewing';
+  submission.reviewRequestedAt = new Date();
+  submission.reviewAttempts = (submission.reviewAttempts || 0) + 1;
+  submission.reviewErrorCode = '';
+  await submission.save();
+
   const aiConfigured = isGeminiAvailable();
-  if (aiConfigured) await checkAIUsageLimit(user._id, AI_FEATURES.PROJECT_REVIEW);
+  let promptFingerprint = '';
+  let progress = null;
 
-  const course = await CoursePlan.findOne({ user: user._id, status: 'active' });
-  const progress = course ? await Progress.findOne({ user: user._id, coursePlan: course._id }) : null;
-  const guardText = `${submission.projectTask?.title || ''} ${submission.submittedExplanation || ''} ${submission.submittedCode || ''}`;
-  const { promptFingerprint } = await guardAIRequest({ userId: user._id, feature: AI_FEATURES.PROJECT_REVIEW, text: guardText, maxChars: env.aiInputLimits.projectCodeChars + env.aiInputLimits.projectExplanationChars, metadata: { submissionId } });
-
-  let aiResult;
   try {
+    if (aiConfigured) await checkAIUsageLimit(user._id, AI_FEATURES.PROJECT_REVIEW);
+
+    const course = await CoursePlan.findOne({ user: user._id, status: 'active' });
+    progress = course ? await Progress.findOne({ user: user._id, coursePlan: course._id }) : null;
+    const guardText = `${submission.projectTask?.title || ''} ${submission.submittedExplanation || ''} ${submission.submittedCode || ''}`;
+    const guarded = await guardAIRequest({ userId: user._id, feature: AI_FEATURES.PROJECT_REVIEW, text: guardText, maxChars: env.aiInputLimits.projectCodeChars + env.aiInputLimits.projectExplanationChars, metadata: { submissionId } });
+    promptFingerprint = guarded.promptFingerprint;
+
     if (!aiConfigured) throw new Error('Gemini is not configured');
-    aiResult = await aiProvider.reviewProjectSubmission({
+    const aiResult = await aiProvider.reviewProjectSubmission({
       task: submission.projectTask,
       submission,
       userLevel: course?.level || 'learner',
       weakTopics: progress?.weakTopics || []
     });
+
+    submission.status = 'reviewed';
+    submission.reviewMode = 'ai';
+    submission.reviewedAt = new Date();
+    submission.reviewErrorCode = '';
+    submission.score = aiResult.score ?? null;
+    submission.aiFeedback = {
+      summary: aiResult.summary,
+      strengths: aiResult.strengths || [],
+      improvements: aiResult.improvements || [],
+      checklist: aiResult.checklist || [],
+      weakTopicsDetected: aiResult.weakTopicsDetected || [],
+      generatedAt: new Date()
+    };
+    await submission.save();
+
+    if (progress && submission.aiFeedback.weakTopicsDetected.length) {
+      await mergeWeakTopics({ progress, weakTopics: submission.aiFeedback.weakTopicsDetected, source: 'project_submission' });
+    }
+
+    await logAIUsage({ user: user._id, feature: AI_FEATURES.PROJECT_REVIEW, model: aiResult.model || env.geminiModel, provider: 'gemini', inputTokens: aiResult.inputTokens || 0, outputTokens: aiResult.outputTokens || 0, latencyMs: Date.now() - startedAt, promptFingerprint, contextSources: [{ type: 'project_task', title: submission.projectTask?.title, refId: submission.projectTask?._id?.toString() }], metadata: { submissionId, score: submission.score } });
   } catch (error) {
-    aiResult = { ...projectReviewFallback({ task: submission.projectTask, submission }), aiAvailable: false };
+    const fallback = projectReviewFallback({ task: submission.projectTask, submission });
+    submission.status = 'review_unavailable';
+    submission.reviewMode = 'fallback';
+    submission.reviewedAt = null;
+    submission.reviewErrorCode = error.code || 'GEMINI_UNAVAILABLE';
+    submission.score = null;
+    submission.aiFeedback = {
+      summary: fallback.summary,
+      strengths: fallback.strengths || [],
+      improvements: fallback.improvements || [],
+      checklist: fallback.checklist || [],
+      weakTopicsDetected: [],
+      generatedAt: new Date()
+    };
+    await submission.save();
+
     await logAIUsage({ user: user._id, feature: AI_FEATURES.PROJECT_REVIEW, status: 'failed', model: env.geminiModel, provider: 'gemini', latencyMs: Date.now() - startedAt, promptFingerprint, contextSources: [{ type: 'project_task', title: submission.projectTask?.title, refId: submission.projectTask?._id?.toString() }], metadata: { submissionId, errorType: 'provider_failure' }, errorMessage: error.message });
   }
 
-  const isFallback = aiResult.aiAvailable === false;
-  submission.status = 'reviewed';
-  submission.reviewMode = isFallback ? 'fallback' : 'ai';
-  submission.score = isFallback ? null : (aiResult.score ?? null);
-  submission.aiFeedback = {
-    summary: aiResult.summary,
-    strengths: aiResult.strengths || [],
-    improvements: aiResult.improvements || [],
-    checklist: aiResult.checklist || [],
-    weakTopicsDetected: isFallback ? [] : (aiResult.weakTopicsDetected || []),
-    generatedAt: new Date()
-  };
-  await submission.save();
-
-  if (!isFallback && progress && submission.aiFeedback.weakTopicsDetected.length) {
-    await mergeWeakTopics({ progress, weakTopics: submission.aiFeedback.weakTopicsDetected, source: 'project_submission' });
-  }
   await invalidateUserLearningCache(user._id);
-
-  if (!isFallback) {
-    await logAIUsage({ user: user._id, feature: AI_FEATURES.PROJECT_REVIEW, model: aiResult.model || env.geminiModel, provider: 'gemini', inputTokens: aiResult.inputTokens || 0, outputTokens: aiResult.outputTokens || 0, latencyMs: Date.now() - startedAt, promptFingerprint, contextSources: [{ type: 'project_task', title: submission.projectTask?.title, refId: submission.projectTask?._id?.toString() }], metadata: { submissionId, score: submission.score } });
-  }
-
   return submission;
 };
 
