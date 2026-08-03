@@ -13,6 +13,7 @@ const projectSubmissionSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     projectTask: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectTask', required: true, index: true },
+    attemptNumber: { type: Number, enum: [1, 2], default: null },
     submittedCode: { type: String, default: '' },
     submittedExplanation: { type: String, default: '' },
     status: {

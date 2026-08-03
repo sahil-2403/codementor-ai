@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed/seed.js",
-    "worker": "node src/workers/index.js"
+    "worker": "node src/workers/index.js",
+    "migrate:attempt-numbers": "node src/migrations/backfillAttemptNumbers.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

@@ -4,6 +4,7 @@ const interviewAttemptSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     question: { type: mongoose.Schema.Types.ObjectId, ref: 'InterviewQuestion', required: true, index: true },
+    attemptNumber: { type: Number, enum: [1, 2], default: null },
     answer: { type: String, required: true },
     status: {
       type: String,
