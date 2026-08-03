@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { AIJob } from '../models/AIJob.js';
 import { CoursePlan } from '../models/CoursePlan.js';
 import { addRoadmapJob, roadmapQueue } from '../jobs/roadmap.queue.js';
@@ -10,6 +9,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { env, isQueueEnabled } from '../config/env.js';
 import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
 import { setRoadmapOnboardingState } from './onboarding.service.js';
+import { createRoadmapIdempotencyKey } from '../domain/roadmapIdempotency.js';
 
 const ROADMAP_JOB_TYPE = 'roadmap_generation';
 const ROADMAP_LOCK_KEY = 'roadmap_generation';
@@ -19,17 +19,8 @@ const ROADMAP_JOB_STALE_MS = Math.max(15 * 60 * 1000, env.aiTimeoutMs * 3);
 const shouldUseRoadmapQueue = () => Boolean(roadmapQueue && isQueueEnabled());
 const isDuplicateKeyError = (error) => error?.code === 11000;
 
-const normalizeRoadmapPayload = (payload = {}) => ({
-  learningGoalId: payload.learningGoalId?.toString?.() || String(payload.learningGoalId || ''),
-  assessmentId: payload.assessmentId?.toString?.() || String(payload.assessmentId || ''),
-  roadmapType: payload.roadmapType || '',
-  generatedReason: payload.generatedReason || ''
-});
+export { createRoadmapIdempotencyKey };
 
-export const createRoadmapIdempotencyKey = (payload) => crypto
-  .createHash('sha256')
-  .update(JSON.stringify(normalizeRoadmapPayload(payload)))
-  .digest('hex');
 
 const findActiveRoadmapJobs = (userId) => AIJob.find({
   user: userId,
@@ -286,7 +277,7 @@ const claimFailedRoadmapJob = async ({ userId, jobId }) => {
           error: '',
           errorCode: '',
           output: {},
-          completdAt: null
+          completedAt: null
         }
       },
       { new: true }
@@ -318,7 +309,7 @@ const resolveExistingRoadmapJob = async ({ userId, job, req = null, retryFailed 
     currentJob.status = 'failed';
     currentJob.error = 'Completed roadmap job did not reference a saved course.';
     currentJob.errorCode = 'ROADMAP_OUTPUT_MISSING';
-    currentJob.completdAt = new Date();
+    currentJob.completedAt = new Date();
     currentJob.lockKey = undefined;
     await currentJob.save();
   }

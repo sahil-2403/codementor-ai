@@ -3,10 +3,9 @@ import { ApiError } from '../utils/ApiError.js';
 import { createAccessToken, createRefreshToken, hashToken, verifyRefreshToken } from './token.service.js';
 import { randomToken, sha256 } from '../utils/hash.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from './email.service.js';
+import { assertEmailVerified, assertResetTokenUsable, assertVerificationTokenUsable, normalizeEmail } from '../domain/authPolicy.js';
 
 const cleanUserById = (id) => User.findById(id).select('-password -refreshTokenHash -emailVerificationToken -emailVerificationExpires -passwordResetToken -passwordResetExpires');
-const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
-
 const createEmailVerificationToken = async (user) => {
   const verificationToken = randomToken(24);
   user.emailVerificationToken = sha256(verificationToken);
@@ -28,7 +27,7 @@ const registrationMessage = (delivery) => {
 export const registerUser = async ({ name, email, password }) => {
   const normalizedEmail = normalizeEmail(email);
   const existing = await User.findOne({ email: normalizedEmail });
-  if (existing) throw new ApiError(409, 'Email already registered');
+  if (existing) throw new ApiError(409, 'Email already registered', [], 'EMAIL_ALREADY_REGISTERED');
 
   const user = await User.create({ name, email: normalizedEmail, password, isEmailVerified: false });
   const verificationToken = await createEmailVerificationToken(user);
@@ -50,12 +49,11 @@ export const registerUser = async ({ name, email, password }) => {
 
 export const verifyEmailWithToken = async ({ token }) => {
   const hashed = sha256(token);
-  const user = await User.findOne({
-    emailVerificationToken: hashed,
-    emailVerificationExpires: { $gt: new Date() }
-  }).select('+emailVerificationToken +emailVerificationExpires');
+  const user = await User.findOne({ emailVerificationToken: hashed })
+    .select('+emailVerificationToken +emailVerificationExpires');
 
-  if (!user) throw new ApiError(400, 'Invalid or expired verification link');
+  assertVerificationTokenUsable(user);
+
   user.isEmailVerified = true;
   user.emailVerificationToken = '';
   user.emailVerificationExpires = null;
@@ -80,7 +78,7 @@ export const loginUser = async ({ email, password }) => {
 
   const isMatch = await user.comparePassword(password);
   if (!isMatch) throw new ApiError(401, 'Invalid credentials');
-  if (!user.isEmailVerified) throw new ApiError(403, 'Please verify your email before logging in');
+  assertEmailVerified(user);
 
   user.refreshTokenVersion = (user.refreshTokenVersion || 0) + 1;
   const accessToken = createAccessToken(user);
@@ -141,8 +139,9 @@ export const requestPasswordReset = async (email) => {
 
 export const resetPasswordWithToken = async ({ token, password }) => {
   const hashed = sha256(token);
-  const user = await User.findOne({ passwordResetToken: hashed, passwordResetExpires: { $gt: new Date() } }).select('+passwordResetToken +passwordResetExpires +refreshTokenVersion +refreshTokenHash');
-  if (!user) throw new ApiError(400, 'Invalid or expired reset token');
+  const user = await User.findOne({ passwordResetToken: hashed })
+    .select('+passwordResetToken +passwordResetExpires +refreshTokenVersion +refreshTokenHash');
+  assertResetTokenUsable(user);
   user.password = password;
   user.passwordResetToken = '';
   user.passwordResetExpires = null;

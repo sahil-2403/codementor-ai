@@ -1,5 +1,5 @@
 import { CoursePlan } from '../models/CoursePlan.js';
-import { requireActiveCourseForUser, assertModuleBelongsToCourse, assertQuestionsBelongToModule } from './dataIntegrity.service.js';
+import { requireActiveCourseForUser, assertModuleBelongsToCourse, assertModuleUnlocked, assertQuestionsBelongToModule } from './dataIntegrity.service.js';
 import { QuizQuestion } from '../models/QuizQuestion.js';
 import { QuizAttempt } from '../models/QuizAttempt.js';
 import { Progress } from '../models/Progress.js';
@@ -16,8 +16,7 @@ import { env, isGeminiAvailable } from '../config/env.js';
 
 export const getQuizForModule = async ({ userId, moduleId }) => {
   const course = await requireActiveCourseForUser({ userId, populate: true });
-  const module = assertModuleBelongsToCourse({ course, moduleId });
-  if (module.status === 'locked') throw new ApiError(403, 'This module is locked. Complete earlier lessons before taking this quiz.');
+  const module = assertModuleUnlocked(assertModuleBelongsToCourse({ course, moduleId }));
   return {
     courseId: course._id,
     moduleId,
@@ -28,8 +27,7 @@ export const getQuizForModule = async ({ userId, moduleId }) => {
 
 export const submitQuiz = async ({ userId, moduleId, answers }) => {
   const course = await requireActiveCourseForUser({ userId });
-  const module = assertModuleBelongsToCourse({ course, moduleId });
-  if (module.status === 'locked') throw new ApiError(403, 'This module is locked. Complete earlier lessons before taking this quiz.');
+  const module = assertModuleUnlocked(assertModuleBelongsToCourse({ course, moduleId }));
   const questionIds = answers.map((answer) => answer.questionId.toString());
   assertQuestionsBelongToModule({ module, questionIds, requireExactSet: true });
 
