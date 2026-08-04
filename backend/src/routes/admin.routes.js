@@ -69,7 +69,7 @@ router.get('/questions', listQuestions);
 router.post('/questions', adminWriteLimiter, validate(questionSchema), createQuestion);
 router.get('/questions/:id', validate(idParamSchema), getQuestion);
 router.patch('/questions/:id', adminWriteLimiter, validate(idParamSchema), validate(questionUpdateSchema), updateQuestion);
-router.patch('/questions/:id/status', admiinWriteLimiter, validate(idParamSchema), validate(statusUpdateSchema), updateQuestionStatus);
+router.patch('/questions/:id/status', adminWriteLimiter, validate(idParamSchema), validate(statusUpdateSchema), updateQuestionStatus);
 router.delete('/questions/:id', adminWriteLimiter, validate(idParamSchema), archiveQuestion);
 
 router.get('/interview-questions', listInterviewQuestions);

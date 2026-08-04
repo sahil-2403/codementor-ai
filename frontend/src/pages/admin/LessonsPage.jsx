@@ -1,23 +1,26 @@
 import { useState } from 'react';
-import Card from '../../components/common/Card.jsx';
-import Button from '../../components/common/Button.jsx';
-import Loader from '../../components/common/Loader.jsx';
-import PageShell from '../../components/common/PageShell.jsx';
-import PageHeader from '../../components/common/PageHeader.jsx';
-import SectionHeader from '../../components/common/SectionHeader.jsx';
-import DataTable from '../../components/common/DataTable.jsx';
-import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
-import LessonForm from '../../components/admin/LessonForm.jsx';
+import AdminLifecycleGuide from '../../components/admin/AdminLifecycleGuide.jsx';
 import AdminFilters from '../../components/admin/AdminFilters.jsx';
+import LessonForm from '../../components/admin/LessonForm.jsx';
 import PaginationControls from '../../components/admin/PaginationControls.jsx';
+import Button from '../../components/common/Button.jsx';
+import Card from '../../components/common/Card.jsx';
+import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
+import DataTable from '../../components/common/DataTable.jsx';
+import ErrorMessage from '../../components/common/ErrorMessage.jsx';
+import Loader from '../../components/common/Loader.jsx';
+import PageHeader from '../../components/common/PageHeader.jsx';
+import PageShell from '../../components/common/PageShell.jsx';
+import SectionHeader from '../../components/common/SectionHeader.jsx';
 import StatusPill from '../../components/common/StatusPill.jsx';
+import { useAdminLessons, useAdminTopics, useArchiveLesson, useCreateLesson, useUpdateLesson, useUpdateLessonStatus } from '../../queries/adminQueries.js';
 import { formatDate } from '../../utils/formatDate.js';
-import { useAdminLessons, useAdminTopics, useCreateLesson, useUpdateLesson, useUpdateLessonStatus, useArchiveLesson } from '../../queries/adminQueries.js';
 
 export default function LessonsPage() {
   const [filters, setFilters] = useState({ page: 1, limit: 8, search: '', status: '', difficulty: '', topic: '' });
   const [editing, setEditing] = useState(null);
-  const [confirmArchive, setConfirmArchive] = useState(null);
+  const [publishTarget, setPublishTarget] = useState(null);
+  const [archiveTarget, setArchiveTarget] = useState(null);
   const { data, isLoading } = useAdminLessons(filters);
   const topics = useAdminTopics({ limit: 100 });
   const createLesson = useCreateLesson();
@@ -25,22 +28,17 @@ export default function LessonsPage() {
   const updateStatus = useUpdateLessonStatus();
   const archiveLesson = useArchiveLesson();
 
-  if (isLoading || topics.isLoading) return <Loader />;
+  if (isLoading || topics.isLoading) return <Loader label="Loading lesson CMS..." />;
 
   const lessons = data?.lessons || [];
+  const errorMessage = topics.error?.message || createLesson.error?.message || updateLesson.error?.message || updateStatus.error?.message || archiveLesson.error?.message;
   const submit = (payload) => {
     if (editing) updateLesson.mutate({ id: editing._id, payload }, { onSuccess: () => setEditing(null) });
     else createLesson.mutate(payload);
   };
 
-  const publishLesson = (lesson) => {
-    const confirmed = window.confirm(`Publish “${lesson.title}”? Learners may see it immediately in active roadmap flows.`);
-    if (!confirmed) return;
-    updateStatus.mutate({ id: lesson._id, status: 'published', confirmPublish: true });
-  };
-
   const columns = [
-    { key: 'lesson', header: 'Lesson', render: (lesson) => <div><b>{lesson.title}</b><p className="line-clamp-2 max-w-xs text-xs text-slate-500">{lesson.theory}</p></div> },
+    { key: 'lesson', header: 'Lesson', render: (lesson) => <div><b className="text-foreground">{lesson.title}</b><p className="line-clamp-2 max-w-xs text-xs text-muted-foreground">{lesson.theory}</p></div> },
     { key: 'topic', header: 'Topic', render: (lesson) => lesson.topic?.title || 'No topic' },
     { key: 'difficulty', header: 'Level', render: (lesson) => <span className="capitalize">{lesson.difficulty}</span> },
     { key: 'status', header: 'Status', render: (lesson) => <StatusPill status={lesson.status} /> },
@@ -49,28 +47,49 @@ export default function LessonsPage() {
       key: 'actions',
       header: 'Actions',
       cellClassName: 'px-4 py-3 text-right',
-      render: (lesson) => {
-        const publishing = updateStatus.isPending && updateStatus.variables?.id === lesson._id;
-        return <div className="flex flex-wrap justify-end gap-2">
-          {lesson.status !== 'archived' && <Button type="button" variant="ghost" onClick={() => setEditing(lesson)}>Edit</Button>}
-          {lesson.status === 'draft' && <Button type="button" variant="secondary" disabled={publishing} onClick={() => publishLesson(lesson)}>{publishing ? 'Publishing...' : 'Publish'}</Button>}
-          {lesson.status !== 'archived' && <Button type="button" variant="secondary" onClick={() => setConfirmArchive(lesson)}>Archive</Button>}
-        </div>;
-      }
+      render: (lesson) => <div className="flex flex-wrap justify-end gap-2">
+        {lesson.status !== 'archived' ? <Button type="button" variant="ghost" onClick={() => setEditing(lesson)}>Edit</Button> : null}
+        {lesson.status === 'draft' ? <Button type="button" variant="secondary" onClick={() => setPublishTarget(lesson)}>Publish</Button> : null}
+        {lesson.status !== 'archived' ? <Button type="button" variant="secondary" onClick={() => setArchiveTarget(lesson)}>Archive</Button> : null}
+      </div>
     }
   ];
 
   return <PageShell>
-    <PageHeader eyebrow="Admin CMS" title="Lesson CMS" description="Create reviewed drafts, publish validated lessons, and archive retired content." />
+    <PageHeader eyebrow="Admin CMS" title="Lesson CMS" description="Create reviewed drafts, publish validated lessons, and preserve retired content as read-only history." />
+    <AdminLifecycleGuide />
+    <ErrorMessage message={errorMessage} />
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.2fr]">
-      <Card><SectionHeader title={editing ? 'Edit lesson' : 'Create lesson draft'} description="New lessons remain drafts until they pass publish checks." /><div className="mt-4"><LessonForm topics={topics.data?.topics || []} initialData={editing} onSubmit={submit} onCancel={editing ? () => setEditing(null) : null} isLoading={createLesson.isPending || updateLesson.isPending} /></div></Card>
       <Card>
-        <SectionHeader title="Lessons" description={`${data?.pagination?.total || 0} lessons in content library.`} />
+        <SectionHeader title={editing ? 'Edit lesson' : 'Create lesson draft'} description="Publishing checks the topic, theory, code explanation, and interview Q&A integrity." />
+        <div className="mt-4"><LessonForm topics={topics.data?.topics || []} initialData={editing} onSubmit={submit} onCancel={editing ? () => setEditing(null) : null} isLoading={createLesson.isPending || updateLesson.isPending} /></div>
+      </Card>
+      <Card>
+        <SectionHeader title="Lessons" description={`${data?.pagination?.total || 0} lessons in the content library.`} />
         <div className="mt-4"><AdminFilters filters={filters} setFilters={setFilters} topics={topics.data?.topics || []} /></div>
-        <div className="mt-4"><DataTable columns={columns} rows={lessons} emptyTitle="No lessons found" emptyDescription="Create a lesson or adjust your filters." minWidth={900} /></div>
+        <div className="mt-4"><DataTable columns={columns} rows={lessons} emptyTitle="No lessons found" emptyDescription="Create a lesson or adjust the filters." minWidth={900} /></div>
         <PaginationControls pagination={data?.pagination} setFilters={setFilters} />
       </Card>
     </div>
-    <ConfirmDialog open={Boolean(confirmArchive)} title="Archive lesson?" description={`This will hide “${confirmArchive?.title}” from learner-facing flows but keep it available in admin history.`} confirmLabel="Archive lesson" isLoading={archiveLesson.isPending} onCancel={() => setConfirmArchive(null)} onConfirm={() => archiveLesson.mutate(confirmArchive._id, { onSuccess: () => setConfirmArchive(null) })} />
+
+    <ConfirmDialog
+      open={Boolean(publishTarget)}
+      title="Publish lesson?"
+      description={`Publish “${publishTarget?.title}” after the backend validates its topic and required learning content. Learners may use it immediately in active flows.`}
+      confirmLabel="Publish lesson"
+      tone="primary"
+      isLoading={updateStatus.isPending}
+      onCancel={() => setPublishTarget(null)}
+      onConfirm={() => updateStatus.mutate({ id: publishTarget._id, status: 'published', confirmPublish: true }, { onSuccess: () => setPublishTarget(null) })}
+    />
+    <ConfirmDialog
+      open={Boolean(archiveTarget)}
+      title="Archive lesson?"
+      description={`This hides “${archiveTarget?.title}” from learner-facing flows and keeps it as read-only admin history.`}
+      confirmLabel="Archive lesson"
+      isLoading={archiveLesson.isPending}
+      onCancel={() => setArchiveTarget(null)}
+      onConfirm={() => archiveLesson.mutate(archiveTarget._id, { onSuccess: () => setArchiveTarget(null) })}
+    />
   </PageShell>;
 }

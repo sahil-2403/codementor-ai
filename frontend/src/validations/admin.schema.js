@@ -14,7 +14,7 @@ export const lessonFormSchema = z.object({
   interviewQuestions: z.string().default(''),
   practiceTask: z.string().default(''),
   tags: z.string().default(''),
-  estimatedMinutes: z.coerce.number().min(5).max(300),
+  estimatedMinutes: z.coerce.number().min(5).max(300)
 });
 
 export const questionFormSchema = z.object({
@@ -26,7 +26,17 @@ export const questionFormSchema = z.object({
   options: z.string().default(''),
   correctAnswer: z.string().trim().min(1, 'Correct answer is required'),
   explanation: z.string().default(''),
-  tags: z.string().default(''),
+  tags: z.string().default('')
+});
+
+export const interviewQuestionFormSchema = z.object({
+  question: z.string().trim().min(5, 'Question is required'),
+  topic: z.string().trim().min(2, 'Topic is required'),
+  type: z.enum(['definition', 'concept', 'output', 'scenario', 'debugging', 'system_design_lite']),
+  difficulty: difficultyEnum,
+  expectedAnswer: z.string().trim().min(1, 'Expected answer is required'),
+  answerChecklist: z.string().default(''),
+  tags: z.string().default('')
 });
 
 const roadmapModuleSchema = z.object({
