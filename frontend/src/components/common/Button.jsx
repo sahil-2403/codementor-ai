@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { cn } from '../../utils/cn.js';
 
 const variants = {
@@ -7,13 +8,16 @@ const variants = {
   danger: 'ui-button--danger'
 };
 
-export default function Button({ children, className = '', variant = 'primary', isLoading = false, disabled = false, ...props }) {
+const Button = forwardRef(function Button({ children, className = '', variant = 'primary', isLoading = false, loadingLabel = 'Loading...', disabled = false, ...props }, ref) {
   return <button
+    ref={ref}
     className={cn('ui-button', variants[variant] || variants.primary, className)}
     disabled={disabled || isLoading}
     aria-busy={isLoading || undefined}
     {...props}
   >
-    {isLoading ? <><span className="ui-spinner ui-spinner--sm" aria-hidden="true" /> Loading...</> : children}
+    {isLoading ? <><span className="ui-spinner ui-spinner--sm" aria-hidden="true" /> {loadingLabel}</> : children}
   </button>;
-}
+});
+
+export default Button;

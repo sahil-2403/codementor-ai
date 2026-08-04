@@ -1,9 +1,11 @@
-export default function SectionHeader({ title, description, actions = null }) {
-  return <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-    <div>
-      <h2 className="text-2xl font-black text-slate-950">{title}</h2>
-      {description && <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>}
+import { cn } from '../../utils/cn.js';
+
+export default function SectionHeader({ title, description, actions = null, className = '', ...props }) {
+  return <div className={cn('ui-section-header', className)} {...props}>
+    <div className="min-w-0">
+      <h2 className="ui-section-title">{title}</h2>
+      {description && <p className="ui-section-description">{description}</p>}
     </div>
-    {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+    {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
   </div>;
 }

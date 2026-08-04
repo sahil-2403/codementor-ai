@@ -1,7 +1,9 @@
-export default function Input({ label, error, ...props }) {
+import { cn } from '../../utils/cn.js';
+
+export default function Input({ label, error, className = '', ...props }) {
   return <label className="block space-y-1.5">
-    {label && <span className="text-sm font-semibold text-slate-700">{label}</span>}
-    <input className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" {...props} />
-    {error && <span className="text-sm text-rose-600">{error}</span>}
+    {label && <span className="ui-field-label">{label}</span>}
+    <input className={cn('ui-field-control', className)} aria-invalid={Boolean(error)} {...props} />
+    {error && <span className="ui-field-error">{error}</span>}
   </label>;
 }
