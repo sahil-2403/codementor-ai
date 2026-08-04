@@ -22,10 +22,6 @@ export const loginFormSchema = z.object({
   password: z.string().min(1, 'Password is required')
 });
 
-export const verifyEmailFormSchema = z.object({
-  token: z.string().trim().min(20, 'Verification token is required')
-});
-
 export const forgotPasswordSchema = z.object({
   email: z.string().trim().email('Enter a valid email')
 });

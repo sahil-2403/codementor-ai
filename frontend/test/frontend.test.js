@@ -146,3 +146,21 @@ test('status presentation covers valid non-terminal API states', () => {
   assert.equal(getStatusTone('not_required'), 'neutral');
   assert.equal(formatDomainLabel('assessment_ai_personalized'), 'assessment ai personalized');
 });
+
+test('legacy frontend exports and unused API wrappers stay removed', async () => {
+  const [onboarding, authSchema, keys, projectQueries, projectApiSource, adminApiSource] = await Promise.all([
+    readFrontend('src/constants/onboardingSteps.js'),
+    readFrontend('src/validations/auth.schema.js'),
+    readFrontend('src/constants/queryKeys.js'),
+    readFrontend('src/queries/projectQueries.js'),
+    readFrontend('src/api/projectApi.js'),
+    readFrontend('src/api/adminApi.js')
+  ]);
+  assert.doesNotMatch(onboarding, /accountJourneySteps/);
+  assert.doesNotMatch(authSchema, /verifyEmailFormSchema/);
+  assert.doesNotMatch(keys, /auth:\s*\['auth'\]|projectSubmissions/);
+  assert.doesNotMatch(projectQueries, /useProjectSubmissions|queryKeys\.projectSubmissions/);
+  assert.doesNotMatch(projectApiSource, /^\s*submissions:/m);
+  assert.doesNotMatch(adminApiSource, /^\s*lesson:|^\s*interviewQuestion:/m);
+  assert.match(projectQueries, /\['project-tasks'\]/);
+});

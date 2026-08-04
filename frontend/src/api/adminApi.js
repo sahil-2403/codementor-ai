@@ -9,7 +9,6 @@ export const adminApi = {
   deleteTopic: (id) => api.delete(`/admin/topics/${id}`).then((res) => res.data.data),
 
   lessons: (params) => api.get('/admin/lessons', withParams(params)).then((res) => res.data.data),
-  lesson: (id) => api.get(`/admin/lessons/${id}`).then((res) => res.data.data),
   createLesson: (payload) => api.post('/admin/lessons', payload).then((res) => res.data.data),
   updateLesson: ({ id, payload }) => api.patch(`/admin/lessons/${id}`, payload).then((res) => res.data.data),
   updateLessonStatus: ({ id, status, confirmPublish = false }) => api.patch(`/admin/lessons/${id}/status`, { status, confirmPublish }).then((res) => res.data.data),
@@ -22,7 +21,6 @@ export const adminApi = {
   archiveQuestion: (id) => api.delete(`/admin/questions/${id}`).then((res) => res.data.data),
 
   interviewQuestions: (params) => api.get('/admin/interview-questions', withParams(params)).then((res) => res.data.data),
-  interviewQuestion: (id) => api.get(`/admin/interview-questions/${id}`).then((res) => res.data.data),
   createInterviewQuestion: (payload) => api.post('/admin/interview-questions', payload).then((res) => res.data.data),
   updateInterviewQuestion: ({ id, payload }) => api.patch(`/admin/interview-questions/${id}`, payload).then((res) => res.data.data),
   updateInterviewQuestionStatus: ({ id, status, confirmPublish = false }) => api.patch(`/admin/interview-questions/${id}/status`, { status, confirmPublish }).then((res) => res.data.data),

@@ -1,5 +1,4 @@
 export const queryKeys = {
-  auth: ['auth'],
   dashboard: ['dashboard'],
   onboardingStatus: ['onboarding-status'],
   roadmap: ['roadmap'],
@@ -11,7 +10,6 @@ export const queryKeys = {
   mentorSuggestions: (lessonId) => ['mentor-suggestions', lessonId],
   projectTasks: (params = {}) => ['project-tasks', params],
   projectTask: (taskId) => ['project-task', taskId],
-  projectSubmissions: ['project-submissions'],
   interviewQuestions: (params = {}) => ['interview-questions', params],
   interviewAttempts: ['interview-attempts'],
   adminTopics: (params = {}) => ['admin-topics', params],

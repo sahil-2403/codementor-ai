@@ -1,11 +1,3 @@
-export const accountJourneySteps = [
-  { key: 'account', label: 'Account' },
-  { key: 'verify', label: 'Verify' },
-  { key: 'goal', label: 'Goal' },
-  { key: 'level', label: 'Level' },
-  { key: 'roadmap', label: 'Roadmap' }
-];
-
 export const onboardingSteps = [
   { key: 'goal', label: 'Goal', helper: 'Choose your learning path' },
   { key: 'level', label: 'Level', helper: 'Set current ability' },
