@@ -1,50 +1,123 @@
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useId, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { BrainCircuit, Menu, X } from 'lucide-react';
-import { useState } from 'react';
 import Button from '../common/Button.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
+import { cn } from '../../utils/cn.js';
 
 const learnerLinks = [
-  ['Dashboard', '/dashboard'], ['Roadmap', '/roadmap'], ['Projects', '/projects'], ['Interview', '/interview'], ['Mentor', '/mentor'], ['Progress', '/progress']
+  ['Dashboard', '/dashboard'],
+  ['Roadmap', '/roadmap'],
+  ['Projects', '/projects'],
+  ['Interview', '/interview'],
+  ['Mentor', '/mentor'],
+  ['Progress', '/progress']
 ];
-const adminLinks = [['Content', '/admin'], ['Topics', '/admin/topics'], ['Lessons', '/admin/lessons'], ['Questions', '/admin/questions'], ['Templates', '/admin/templates']];
 
-function NavItem({ label, href, onClick }) {
-  return <NavLink onClick={onClick} to={href} className={({ isActive }) => `rounded-full px-4 py-2 text-sm font-bold ${isActive ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{label}</NavLink>;
+const adminLinks = [
+  ['Content', '/admin'],
+  ['Topics', '/admin/topics'],
+  ['Lessons', '/admin/lessons'],
+  ['Questions', '/admin/questions'],
+  ['Templates', '/admin/templates']
+];
+
+function NavItem({ label, href, onClick, mobile = false }) {
+  return <NavLink
+    onClick={onClick}
+    to={href}
+    end={href === '/admin' || href === '/dashboard'}
+    className={({ isActive }) => cn(
+      'rounded-control px-3 py-2 text-sm font-semibold transition duration-200',
+      mobile && 'w-full',
+      isActive
+        ? 'bg-primary-soft text-primary-strong'
+        : 'text-muted-foreground hover:bg-surface-secondary hover:text-foreground'
+    )}
+  >
+    {label}
+  </NavLink>;
 }
 
 export default function TopNavbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const mobileNavId = useId();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const learner = user?.role !== 'admin';
   const links = learner ? learnerLinks : adminLinks;
+  const homePath = user ? (user.role === 'admin' ? '/admin' : '/dashboard') : '/';
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setMobileOpen(false);
+    };
+
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [mobileOpen]);
 
   const handleLogout = async () => {
-    await logout();
-    setMobileOpen(false);
-    navigate('/login');
+    try {
+      setIsLoggingOut(true);
+      await logout();
+      navigate('/login');
+    } finally {
+      setIsLoggingOut(false);
+      setMobileOpen(false);
+    }
   };
 
-  return <header className="sticky top-0 z-50 border-b border-white/40 bg-white/80 backdrop-blur-xl">
-    <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-      <Link to={user ? (user.role === 'admin' ? '/admin' : '/dashboard') : '/'} className="flex items-center gap-2 font-black text-slate-950">
-        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-slate-950 text-white"><BrainCircuit size={20} /></span>
-        CodeMentor AI
+  return <header className="sticky top-0 z-50 border-b border-border bg-surface/95 backdrop-blur-xl">
+    <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+      <Link to={homePath} className="flex min-w-0 items-center gap-2.5 font-bold text-foreground" aria-label="CodeMentor AI home">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-control bg-primary text-white shadow-sm" aria-hidden="true">
+          <BrainCircuit size={19} />
+        </span>
+        <span className="truncate">CodeMentor AI</span>
       </Link>
 
-      {user && <nav className="hidden items-center gap-1 lg:flex">
+      {user && <nav className="hidden items-center gap-1 lg:flex" aria-label={learner ? 'Learner navigation' : 'Admin navigation'}>
         {links.map(([label, href]) => <NavItem key={href} label={label} href={href} />)}
       </nav>}
 
-      <div className="flex items-center gap-3">
-        {user ? <><span className="hidden text-sm font-bold text-slate-600 md:block">{user.name}</span><Button variant="secondary" onClick={handleLogout}>Logout</Button><button className="rounded-2xl border border-slate-200 bg-white p-2 lg:hidden" onClick={() => setMobileOpen((value) => !value)}>{mobileOpen ? <X size={18} /> : <Menu size={18} />}</button></> : <><Link to="/login"><Button variant="ghost">Login</Button></Link><Link to="/register"><Button>Start</Button></Link></>}
+      <div className="flex shrink-0 items-center gap-2">
+        {user ? <>
+          <div className="hidden max-w-40 text-right md:block">
+            <p className="truncate text-sm font-semibold text-foreground">{user.name}</p>
+            <p className="text-xs capitalize text-muted-foreground">{user.role || 'learner'}</p>
+          </div>
+          <Button variant="secondary" onClick={handleLogout} isLoading={isLoggingOut} loadingLabel="Logging out..." className="hidden sm:inline-flex">Logout</Button>
+          <button
+            type="button"
+            className="ui-button ui-button--secondary min-h-10 w-10 p-0 lg:hidden"
+            onClick={() => setMobileOpen((value) => !value)}
+            aria-expanded={mobileOpen}
+            aria-controls={mobileNavId}
+            aria-label={mobileOpen ? 'Close navigation menu' : 'Open navigation menu'}
+          >
+            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
+        </> : <>
+          <Link to="/login" className="ui-button ui-button--ghost min-h-9 px-3">Login</Link>
+          <Link to="/register" className="ui-button ui-button--primary min-h-9 px-3">Start</Link>
+        </>}
       </div>
     </div>
-    {user && mobileOpen && <div className="border-t border-slate-100 bg-white px-4 py-4 lg:hidden">
-      <div className="mx-auto grid max-w-7xl gap-2">
-        {links.map(([label, href]) => <NavItem key={href} label={label} href={href} onClick={() => setMobileOpen(false)} />)}
-      </div>
+
+    {user && mobileOpen && <div id={mobileNavId} className="border-t border-border bg-surface px-4 py-4 sm:px-6 lg:hidden">
+      <nav className="mx-auto grid max-w-7xl gap-1" aria-label={learner ? 'Mobile learner navigation' : 'Mobile admin navigation'}>
+        {links.map(([label, href]) => <NavItem key={href} label={label} href={href} mobile />)}
+        <Button variant="ghost" onClick={handleLogout} isLoading={isLoggingOut} loadingLabel="Logging out..." className="mt-2 w-full justify-start sm:hidden">Logout</Button>
+      </nav>
     </div>}
   </header>;
 }
