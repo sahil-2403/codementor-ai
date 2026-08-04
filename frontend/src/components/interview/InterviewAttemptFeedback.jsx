@@ -1,3 +1,4 @@
+import { REVIEW_MODE, REVIEW_STATUS } from '../../constants/domainEnums.js';
 import Badge from '../common/Badge.jsx';
 import Button from '../common/Button.jsx';
 import InlineAlert from '../common/InlineAlert.jsx';
@@ -5,8 +6,8 @@ import StatusPill from '../common/StatusPill.jsx';
 import { formatDate } from '../../utils/formatDate.js';
 
 export default function InterviewAttemptFeedback({ attempt, attemptNumber, isRetrying = false, onRetry }) {
-  const fallback = attempt.feedbackMode === 'fallback' || attempt.status === 'review_unavailable';
-  const aiReviewed = attempt.feedbackMode === 'ai' && attempt.status === 'reviewed';
+  const fallback = attempt.feedbackMode === REVIEW_MODE.FALLBACK || attempt.status === REVIEW_STATUS.UNAVAILABLE;
+  const aiReviewed = attempt.feedbackMode === REVIEW_MODE.AI && attempt.status === REVIEW_STATUS.REVIEWED;
   const expectedAnswer = attempt.aiFeedback?.expectedAnswer || attempt.question?.expectedAnswer;
   const strengths = attempt.aiFeedback?.strengths || [];
   const improvements = attempt.aiFeedback?.improvements || [];
@@ -33,7 +34,7 @@ export default function InterviewAttemptFeedback({ attempt, attemptNumber, isRet
       Your answer is safely stored. The comparison below comes from the published expected answer and does not include an AI score or new weak-topic signal.
     </InlineAlert> : null}
 
-    {attempt.status === 'reviewing' ? <InlineAlert className="mt-4" title="Review in progress">
+    {attempt.status === REVIEW_STATUS.REVIEWING ? <InlineAlert className="mt-4" title="Review in progress">
       This saved answer is already being reviewed. Refresh the page before requesting another review.
     </InlineAlert> : null}
 

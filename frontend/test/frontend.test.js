@@ -5,6 +5,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { onboardingCopyByLevel, onboardingSteps } from '../src/constants/onboardingSteps.js';
 import { queryKeys } from '../src/constants/queryKeys.js';
+import { ASSESSMENT_STATUS, CONTENT_STATUS, COURSE_STATUS, formatDomainLabel, getStatusTone, JOB_STATUS, LEARNING_ITEM_STATUS, ONBOARDING_STATE, REVIEW_MODE, REVIEW_STATUS, REVISION_STATUS, ROADMAP_TYPE, SEVERITY } from '../src/constants/domainEnums.js';
 import { cn } from '../src/utils/cn.js';
 import { formatDate } from '../src/utils/formatDate.js';
 
@@ -69,7 +70,7 @@ test('fallback review states stay scoreless and progress-neutral', async () => {
   ]);
   assert.match(projectSource, /has no score/);
   assert.match(projectSource, /!fallback\s*&&\s*feedback\.weakTopicsDetected/);
-  assert.match(interviewSource, /feedbackMode === 'fallback'/);
+  assert.match(interviewSource, /REVIEW_MODE\.FALLBACK/);
   assert.match(interviewSource, /aiReviewed\s*&&\s*typeof attempt\.score === 'number'/);
 });
 
@@ -96,4 +97,52 @@ test('admin publishing uses the shared confirmed lifecycle', async () => {
     assert.match(source, /ConfirmDialog/);
     assert.match(source, /confirmPublish:\s*true/);
   }
+});
+
+test('frontend enum values match backend API contracts', async () => {
+  assert.deepEqual(Object.values(CONTENT_STATUS), ['draft', 'published', 'archived']);
+  assert.deepEqual(Object.values(REVIEW_STATUS), ['submitted', 'reviewing', 'reviewed', 'review_unavailable']);
+  assert.deepEqual(Object.values(REVIEW_MODE), ['ai', 'fallback', 'none']);
+  assert.deepEqual(Object.values(JOB_STATUS), ['queued', 'processing', 'completed', 'failed']);
+  assert.deepEqual(Object.values(REVISION_STATUS), ['pending', 'completed', 'skipped']);
+  assert.deepEqual(Object.values(SEVERITY), ['low', 'medium', 'high', 'critical']);
+  assert.deepEqual(Object.values(ROADMAP_TYPE), ['template', 'template_ai_adjusted', 'assessment_ai_personalized']);
+  assert.deepEqual(Object.values(COURSE_STATUS), ['generating', 'active', 'failed', 'archived']);
+  assert.deepEqual(Object.values(LEARNING_ITEM_STATUS), ['locked', 'available', 'in_progress', 'completed']);
+  assert.deepEqual(Object.values(ASSESSMENT_STATUS), ['not_required', 'skipped', 'completed']);
+  assert.equal(Object.values(ONBOARDING_STATE).length, 10);
+
+  const sources = await Promise.all([
+    readRepo('backend/src/models/ProjectSubmission.js'),
+    readRepo('backend/src/models/InterviewAttempt.js'),
+    readRepo('backend/src/models/AIJob.js'),
+    readRepo('backend/src/models/RevisionItem.js'),
+    readRepo('backend/src/models/CoursePlan.js'),
+    readRepo('backend/src/constants/onboardingStates.js'),
+    readRepo('backend/src/constants/roadmapTypes.js'),
+    readRepo('backend/src/services/adminContent/common.js')
+  ]);
+  const combined = sources.join('\n');
+  const frontendValues = [
+    ...Object.values(CONTENT_STATUS),
+    ...Object.values(COURSE_STATUS),
+    ...Object.values(LEARNING_ITEM_STATUS),
+    ...Object.values(REVIEW_STATUS),
+    ...Object.values(REVIEW_MODE),
+    ...Object.values(JOB_STATUS),
+    ...Object.values(REVISION_STATUS),
+    ...Object.values(SEVERITY),
+    ...Object.values(ROADMAP_TYPE),
+    ...Object.values(ONBOARDING_STATE)
+  ];
+  for (const value of frontendValues) assert.match(combined, new RegExp(`[\"']${value}[\"']`));
+});
+
+test('status presentation covers valid non-terminal API states', () => {
+  assert.equal(getStatusTone('available'), 'info');
+  assert.equal(getStatusTone('in_progress'), 'warning');
+  assert.equal(getStatusTone('generating'), 'info');
+  assert.equal(getStatusTone('review_unavailable'), 'warning');
+  assert.equal(getStatusTone('not_required'), 'neutral');
+  assert.equal(formatDomainLabel('assessment_ai_personalized'), 'assessment ai personalized');
 });

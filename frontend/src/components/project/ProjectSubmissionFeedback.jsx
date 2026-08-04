@@ -1,8 +1,9 @@
 import { CheckCircle2 } from 'lucide-react';
+import { REVIEW_MODE, REVIEW_STATUS } from '../../constants/domainEnums.js';
 import Badge from '../common/Badge.jsx';
 import InlineAlert from '../common/InlineAlert.jsx';
 
-const isFallbackReview = (submission) => submission.reviewMode === 'fallback' || submission.status === 'review_unavailable';
+const isFallbackReview = (submission) => submission.reviewMode === REVIEW_MODE.FALLBACK || submission.status === REVIEW_STATUS.UNAVAILABLE;
 
 export default function ProjectSubmissionFeedback({ submission }) {
   const fallback = isFallbackReview(submission);

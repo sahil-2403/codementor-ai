@@ -2,6 +2,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Loader from '../components/common/Loader.jsx';
 import { onboardingApi } from '../api/onboardingApi.js';
+import { ONBOARDING_STATE, ROADMAP_SETUP_STATES } from '../constants/domainEnums.js';
 import { queryKeys } from '../constants/queryKeys.js';
 import { useAuth } from '../hooks/useAuth.js';
 
@@ -25,10 +26,10 @@ export default function OnboardingGuard({ mode = 'needs-onboarding' }) {
   }
 
   if (mode === 'needs-onboarding' && !hasActiveCourse) {
-    if (data?.state === 'goal_pending' && location.pathname !== '/onboarding/goal') {
+    if (data?.state === ONBOARDING_STATE.GOAL_PENDING && location.pathname !== '/onboarding/goal') {
       return <Navigate to="/onboarding/goal" replace />;
     }
-    if (['roadmap_pending', 'roadmap_generating', 'roadmap_failed'].includes(data?.state) && location.pathname !== '/onboarding/generating') {
+    if (ROADMAP_SETUP_STATES.includes(data?.state) && location.pathname !== '/onboarding/generating') {
       return <Navigate to={data?.nextPath || '/onboarding/generating'} replace />;
     }
   }
