@@ -45,8 +45,9 @@ test('auth transport keeps cookie, CSRF, and refresh contracts', async () => {
 
 test('password recovery uses a generic non-enumerating success message', async () => {
   const source = await readFrontend('src/pages/public/ForgotPasswordPage.jsx');
-  assert.match(source, /If the email exists/i);
-  assert.doesNotMatch(source, /account exists|email is registered/i);
+  assert.match(source, /If\b[^'\"]*\baccount exists\b[^'\"]*\bpassword reset link\b/i);
+  assert.match(source, /same whether or not an account exists/i);
+  assert.doesNotMatch(source, /(?:we found|we confirmed)\s+(?:an?\s+)?account|email is registered/i);
 });
 
 test('onboarding navigation is driven by server status', async () => {
