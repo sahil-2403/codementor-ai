@@ -1,4 +1,13 @@
 import { cn } from '../../utils/cn.js';
-export default function Badge({ children, className = '' }) {
-  return <span className={cn('inline-flex items-center rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700', className)}>{children}</span>;
+
+const variants = {
+  info: 'ui-badge--info',
+  success: 'ui-badge--success',
+  warning: 'ui-badge--warning',
+  danger: 'ui-badge--danger',
+  neutral: 'ui-badge--neutral'
+};
+
+export default function Badge({ children, className = '', variant = 'info', ...props }) {
+  return <span className={cn('ui-badge', variants[variant] || variants.info, className)} {...props}>{children}</span>;
 }

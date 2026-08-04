@@ -2,26 +2,224 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+@layer base {
+  :root {
+    color-scheme: light;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+    --color-page: 247 248 250;
+    --color-surface: 255 255 255;
+    --color-surface-secondary: 241 243 246;
+    --color-foreground: 17 24 39;
+    --color-muted-foreground: 102 112 133;
+    --color-border: 228 231 236;
+    --color-primary: 99 91 255;
+    --color-primary-strong: 76 68 230;
+    --color-primary-soft: 238 240 255;
+    --color-success: 22 163 106;
+    --color-success-soft: 234 248 241;
+    --color-warning: 217 119 6;
+    --color-warning-soft: 255 247 230;
+    --color-error: 220 76 100;
+    --color-error-soft: 255 240 243;
+    --color-focus: 99 91 255;
+  }
+
+  * {
+    box-sizing: border-box;
+    border-color: rgb(var(--color-border));
+  }
+
+  html {
+    min-height: 100%;
+    background: rgb(var(--color-page));
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background: rgb(var(--color-page));
+    color: rgb(var(--color-foreground));
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgb(var(--color-primary-soft));
+    color: rgb(var(--color-foreground));
+  }
+
+  :where(h1, h2, h3, h4) {
+    color: rgb(var(--color-foreground));
+    letter-spacing: -0.025em;
+  }
+
+  :where(p) {
+    text-wrap: pretty;
+  }
+
+  :where(code, kbd, samp, pre) {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  :where(button, input, textarea, select) {
+    font: inherit;
+  }
+
+  :where(a, button, input, textarea, select, [role='button']):focus-visible {
+    outline: 3px solid rgb(var(--color-focus) / 0.38);
+    outline-offset: 2px;
+  }
+
+  :where(button, input, textarea, select):disabled {
+    cursor: not-allowed;
+  }
 }
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: radial-gradient(circle at top left, #e0f2fe 0, transparent 36%),
-    radial-gradient(circle at top right, #ede9fe 0, transparent 38%),
-    linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
-  color: #0f172a;
-}
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8;
+  }
 
-.glass {
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(148, 163, 184, 0.22);
+  .surface {
+    @apply rounded-surface border border-border bg-surface shadow-soft;
+  }
+
+  .glass {
+    background: rgb(var(--color-surface) / 0.94);
+    border: 1px solid rgb(var(--color-border));
+    backdrop-filter: blur(12px);
+  }
+
+  .ui-button {
+    @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-control border border-transparent px-4 py-2.5 text-sm font-semibold transition duration-200 ease-calm disabled:pointer-events-none disabled:opacity-55;
+  }
+
+  .ui-button--primary {
+    @apply bg-primary text-white hover:bg-primary-strong;
+  }
+
+  .ui-button--secondary {
+    @apply border-border bg-surface text-foreground shadow-sm hover:bg-surface-secondary;
+  }
+
+  .ui-button--ghost {
+    @apply text-muted-foreground hover:bg-surface-secondary hover:text-foreground;
+  }
+
+  .ui-button--danger {
+    @apply bg-error text-white hover:bg-error/90;
+  }
+
+  .ui-card {
+    @apply rounded-panel border border-border bg-surface p-6 shadow-soft;
+  }
+
+  .ui-badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold leading-none;
+  }
+
+  .ui-badge--info {
+    @apply bg-primary-soft text-primary-strong;
+  }
+
+  .ui-badge--success {
+    @apply bg-success-soft text-success;
+  }
+
+  .ui-badge--warning {
+    @apply bg-warning-soft text-warning;
+  }
+
+  .ui-badge--danger {
+    @apply bg-error-soft text-error;
+  }
+
+  .ui-badge--neutral {
+    @apply bg-surface-secondary text-muted-foreground;
+  }
+
+  .ui-field-label {
+    @apply text-sm font-semibold text-foreground;
+  }
+
+  .ui-field-control {
+    @apply w-full rounded-control border border-border bg-surface px-3.5 py-3 text-sm text-foreground shadow-sm outline-none transition duration-200 placeholder:text-muted-foreground/70 hover:border-slate-300 focus:border-primary focus:ring-4 focus:ring-primary-soft disabled:bg-surface-secondary disabled:text-muted-foreground;
+  }
+
+  .ui-field-control[aria-invalid='true'] {
+    @apply border-error focus:border-error focus:ring-error-soft;
+  }
+
+  .ui-field-error {
+    @apply text-sm font-medium text-error;
+  }
+
+  .ui-input-shell {
+    @apply flex items-center rounded-control border border-border bg-surface shadow-sm transition duration-200 hover:border-slate-300 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary-soft;
+  }
+
+  .ui-input-shell--error {
+    @apply border-error focus-within:border-error focus-within:ring-error-soft;
+  }
+
+  .ui-input-action {
+    @apply rounded-control px-3.5 py-3 text-muted-foreground transition hover:bg-surface-secondary hover:text-foreground;
+  }
+
+  .ui-alert {
+    @apply rounded-surface border px-4 py-3 text-sm font-medium;
+  }
+
+  .ui-alert--info {
+    @apply border-primary/20 bg-primary-soft text-primary-strong;
+  }
+
+  .ui-alert--success {
+    @apply border-success/20 bg-success-soft text-success;
+  }
+
+  .ui-alert--warning {
+    @apply border-warning/20 bg-warning-soft text-warning;
+  }
+
+  .ui-alert--error {
+    @apply border-error/20 bg-error-soft text-error;
+  }
+
+  .ui-skeleton {
+    @apply animate-pulse rounded-control bg-surface-secondary;
+  }
+
+  .ui-spinner {
+    @apply inline-block h-10 w-10 animate-spin rounded-full border-[3px] border-border border-t-primary;
+  }
+
+  .ui-spinner--sm {
+    @apply h-4 w-4 border-2;
+  }
 }
 
 .prose-code pre {
   white-space: pre-wrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
