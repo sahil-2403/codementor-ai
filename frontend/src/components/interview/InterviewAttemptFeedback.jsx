@@ -22,7 +22,7 @@ export default function InterviewAttemptFeedback({ attempt, attemptNumber, isRet
         </div>
         <p className="mt-1 text-sm text-muted-foreground">Saved {formatDate(attempt.createdAt)}</p>
       </div>
-      {fallback ? <Button type="button" variant="secondary" isLoading={isRetrying} loadingLabel="Retrying review..." onClick={onRetry}>Retry Gemini review</Button> : null}
+      {fallback ? <Button type="button" variant="secondary" isLoading={isRetrying} loadingLabel="Retrying review..." onClick={onRetry}>Retry review</Button> : null}
     </div>
 
     <div className="mt-4 rounded-2xl bg-surface-secondary p-4">
@@ -30,16 +30,16 @@ export default function InterviewAttemptFeedback({ attempt, attemptNumber, isRet
       <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-foreground">{attempt.answer}</p>
     </div>
 
-    {fallback ? <InlineAlert className="mt-4" tone="warning" title="Gemini feedback unavailable">
-      Your answer is safely stored. The comparison below comes from the published expected answer and does not include an AI score or new weak-topic signal.
+    {fallback ? <InlineAlert className="mt-4" tone="warning" title="Detailed feedback unavailable">
+      Your answer is saved. The comparison below uses the expected answer and does not include a score or add new practice topics.
     </InlineAlert> : null}
 
     {attempt.status === REVIEW_STATUS.REVIEWING ? <InlineAlert className="mt-4" title="Review in progress">
-      This saved answer is already being reviewed. Refresh the page before requesting another review.
+      Your saved answer is being reviewed. Refresh the page before trying again.
     </InlineAlert> : null}
 
     {attempt.aiFeedback?.summary ? <div className="mt-4 rounded-2xl bg-primary-soft p-4 text-sm leading-7 text-primary-strong">
-      <p className="font-black">{aiReviewed ? 'Gemini feedback' : 'Review guidance'}</p>
+      <p className="font-black">{aiReviewed ? 'Personalized feedback' : 'Review guidance'}</p>
       <p className="mt-1">{attempt.aiFeedback.summary}</p>
     </div> : null}
 
@@ -50,11 +50,11 @@ export default function InterviewAttemptFeedback({ attempt, attemptNumber, isRet
 
     {strengths.length || improvements.length ? <div className="mt-4 grid gap-4 md:grid-cols-2">
       {strengths.length ? <div className="rounded-2xl bg-success-soft p-4 text-sm text-success">
-        <p className="font-black">Strengths</p>
+        <p className="font-black">What you did well</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">{strengths.map((item) => <li key={item}>{item}</li>)}</ul>
       </div> : null}
       {improvements.length ? <div className="rounded-2xl bg-error-soft p-4 text-sm text-error">
-        <p className="font-black">Improvements</p>
+        <p className="font-black">What to improve</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">{improvements.map((item) => <li key={item}>{item}</li>)}</ul>
       </div> : null}
     </div> : null}

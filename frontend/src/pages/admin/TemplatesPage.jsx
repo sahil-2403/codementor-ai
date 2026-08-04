@@ -41,12 +41,12 @@ export default function TemplatesPage() {
   const update = (key, value) => setFilters((previous) => ({ ...previous, [key]: value, page: 1 }));
 
   return <PageShell>
-    <PageHeader eyebrow="Admin CMS" title="Roadmap template CMS" description="Maintain one validated published template for each goal and level combination." />
+    <PageHeader eyebrow="Content administration" title="Roadmap templates" description="Create and maintain the roadmap structure for each learning goal and level." />
     <AdminLifecycleGuide />
     <ErrorMessage message={errorMessage} />
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <Card>
-        <SectionHeader title={editing ? 'Edit template' : 'Create template draft'} description="Publishing resolves lesson slugs and quiz tags against published content and validates module ordering." />
+        <SectionHeader title={editing ? 'Edit template' : 'Create template draft'} description="Arrange modules in order and connect each one to the correct lessons and quizzes before publishing." />
         <div className="mt-4"><TemplateForm initialData={editing} onSubmit={submit} onCancel={editing ? () => setEditing(null) : null} isLoading={createTemplate.isPending || updateTemplate.isPending} /></div>
       </Card>
       <Card>
@@ -83,7 +83,7 @@ export default function TemplatesPage() {
     <ConfirmDialog
       open={Boolean(publishTarget)}
       title="Publish roadmap template?"
-      description={`Publish “${publishTarget?.title}” after every lesson slug, quiz tag, module order, and goal-level uniqueness rule passes validation.`}
+      description={`Publish “${publishTarget?.title}” after checking all linked lessons and quizzes, the module order, and the selected goal and level.`}
       confirmLabel="Publish template"
       tone="primary"
       isLoading={updateStatus.isPending}
@@ -93,7 +93,7 @@ export default function TemplatesPage() {
     <ConfirmDialog
       open={Boolean(archiveTarget)}
       title="Archive roadmap template?"
-      description={`This removes “${archiveTarget?.title}” from active template selection and preserves it as read-only history.`}
+      description={`This removes “${archiveTarget?.title}” from new roadmap choices and keeps it as read-only history.`}
       confirmLabel="Archive template"
       isLoading={archiveTemplate.isPending}
       onCancel={() => setArchiveTarget(null)}

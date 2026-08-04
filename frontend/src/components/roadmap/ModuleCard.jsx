@@ -19,9 +19,9 @@ export default function ModuleCard({ module, index = 0 }) {
         <div className="flex flex-wrap items-center gap-2"><Badge variant="neutral">Module {index + 1}</Badge><StatusPill status={module.status} /></div>
         <h2 className="mt-3 text-2xl font-bold text-foreground">{module.title}</h2>
         {module.description && <p className="mt-2 max-w-3xl leading-7 text-muted-foreground">{module.description}</p>}
-        <p className="mt-3 text-sm font-semibold text-muted-foreground">{completed}/{total} lessons completed{Number(module.durationDays) > 0 ? ` · ${module.durationDays} days planned` : ''}</p>
+        <p className="mt-3 text-sm font-semibold text-muted-foreground">{completed}/{total} lessons completed{Number(module.durationDays) > 0 ? ` · About ${module.durationDays} days` : ''}</p>
       </div>
-      {locked ? <span className="ui-button ui-button--secondary cursor-not-allowed" aria-disabled="true"><LockKeyhole size={17} aria-hidden="true" /> Module locked</span> : hasQuiz ? <Link to={`/quizzes/${module._id}`} className="ui-button ui-button--secondary shrink-0">Take module quiz</Link> : <Badge variant="neutral">No published quiz</Badge>}
+      {locked ? <span className="ui-button ui-button--secondary cursor-not-allowed" aria-disabled="true"><LockKeyhole size={17} aria-hidden="true" /> Module locked</span> : hasQuiz ? <Link to={`/quizzes/${module._id}`} className="ui-button ui-button--secondary shrink-0">Take module quiz</Link> : <Badge variant="neutral">Quiz coming soon</Badge>}
     </div>
 
     <div className="mt-5 h-2 overflow-hidden rounded-full bg-surface-secondary" role="progressbar" aria-label={`${module.title} completion`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={completion}>

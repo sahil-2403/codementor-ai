@@ -42,20 +42,20 @@ export default function GoalPage() {
     }
   };
 
-  if (isLoading) return <Loader label="Loading onboarding..." />;
-  if (statusError) return <EmptyState title="Onboarding is unavailable" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
+  if (isLoading) return <Loader label="Loading your setup..." />;
+  if (statusError) return <EmptyState title="Your setup could not load" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
 
   return <OnboardingShell
     current="goal"
     eyebrow="Step 1 · Learning goal"
-    title="Choose the path you want to master."
-    description="Start with one focused path so lessons, quizzes, projects, interview practice, and mentor support remain connected."
+    title="Choose the path you want to master"
+    description="Start with one focused path so your lessons, quizzes, projects, interviews, and mentor help stay connected."
     aside={<>
-      <OnboardingInsightCard title="Why one path first?" badge="Quality first" items={[
-        { title: 'Deeper content', description: 'One complete path is more useful than several shallow paths without enough lessons or practice.' },
-        { title: 'Clear personalization', description: 'Assessment and recommendations are easier to explain when the topic graph is controlled.' }
+      <OnboardingInsightCard title="Why choose one path?" badge="Stay focused" items={[
+        { title: 'Learn in depth', description: 'A focused path gives you enough lessons and practice to build real confidence.' },
+        { title: 'Get clearer guidance', description: 'Keeping one goal makes it easier to recommend the right lessons and practice.' }
       ]} />
-      <Card className="bg-primary-soft"><Compass className="text-primary" /><p className="mt-3 font-bold text-foreground">More paths later</p><p className="mt-2 text-sm leading-6 text-muted-foreground">The same template system can support additional learning paths after the MERN experience is complete.</p></Card>
+      <Card className="bg-primary-soft"><Compass className="text-primary" /><p className="mt-3 font-bold text-foreground">More paths are coming</p><p className="mt-2 text-sm leading-6 text-muted-foreground">You can explore more learning paths when they become available.</p></Card>
     </>}
   >
     <ErrorMessage message={error} />

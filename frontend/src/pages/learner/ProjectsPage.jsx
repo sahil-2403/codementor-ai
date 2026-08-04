@@ -11,8 +11,8 @@ import { useProjectTasks } from '../../queries/projectQueries.js';
 
 const reviewLabel = (submission) => {
   if (!submission) return null;
-  if (submission.reviewMode === 'ai' && submission.status === 'reviewed') return { label: 'Gemini reviewed', variant: 'success' };
-  if (submission.reviewMode === 'fallback' || submission.status === 'review_unavailable') return { label: 'Review unavailable', variant: 'warning' };
+  if (submission.reviewMode === 'ai' && submission.status === 'reviewed') return { label: 'Review complete', variant: 'success' };
+  if (submission.reviewMode === 'fallback' || submission.status === 'review_unavailable') return { label: 'Detailed review unavailable', variant: 'warning' };
   if (submission.status === 'reviewing') return { label: 'Reviewing', variant: 'info' };
   return { label: 'Submission saved', variant: 'neutral' };
 };
@@ -30,10 +30,10 @@ export default function ProjectsPage() {
   }, {});
 
   return <PageShell>
-    <PageHeader eyebrow="Project-based learning" title="Practice projects" description="Apply roadmap concepts through published tasks. Submissions are stored before Gemini review, and unavailable review states remain honest." />
-    {!tasks.length ? <EmptyState title="No project tasks yet" description="Published practice tasks will appear here when they are available for your learning path." /> : <div className="space-y-10">
+    <PageHeader eyebrow="Project practice" title="Practice projects" description="Apply what you learn through coding tasks, save your solutions, and review available feedback." />
+    {!tasks.length ? <EmptyState title="No project tasks yet" description="Project tasks will appear here when they are available for your learning path." /> : <div className="space-y-10">
       {Object.entries(grouped).map(([moduleTitle, moduleTasks]) => <section key={moduleTitle} aria-labelledby={`projects-${moduleTitle.replaceAll(' ', '-').toLowerCase()}`}>
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><p className="ui-eyebrow">Roadmap practice</p><h2 id={`projects-${moduleTitle.replaceAll(' ', '-').toLowerCase()}`} className="ui-section-title">{moduleTitle}</h2></div><Badge variant="neutral">{moduleTasks.length} task(s)</Badge></div>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><p className="ui-eyebrow">Roadmap practice</p><h2 id={`projects-${moduleTitle.replaceAll(' ', '-').toLowerCase()}`} className="ui-section-title">{moduleTitle}</h2></div><Badge variant="neutral">{moduleTasks.length} {moduleTasks.length === 1 ? 'task' : 'tasks'}</Badge></div>
         <div className="grid gap-5 md:grid-cols-2">
           {moduleTasks.map((task) => {
             const review = reviewLabel(task.latestSubmission);

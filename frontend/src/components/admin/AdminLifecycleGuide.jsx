@@ -1,9 +1,9 @@
 import { Archive, FilePenLine, Send } from 'lucide-react';
 
 const stages = [
-  { title: 'Draft', description: 'Editable working content. Learners cannot use it yet.', icon: FilePenLine },
-  { title: 'Published', description: 'Validated content available to learner-facing flows.', icon: Send },
-  { title: 'Archived', description: 'Read-only history. It cannot be edited or republished.', icon: Archive }
+  { title: 'Draft', description: 'Editable work in progress. Learners cannot see it yet.', icon: FilePenLine },
+  { title: 'Published', description: 'Reviewed content that learners can use.', icon: Send },
+  { title: 'Archived', description: 'Read-only history that cannot be edited or published again.', icon: Archive }
 ];
 
 export default function AdminLifecycleGuide() {

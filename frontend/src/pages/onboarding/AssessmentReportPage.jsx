@@ -14,6 +14,12 @@ import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import { queryKeys } from '../../constants/queryKeys.js';
 
+const roadmapRecommendationLabel = (value) => ({
+  assessment_ai_personalized: 'Personalized roadmap',
+  template_ai_adjusted: 'Adjusted roadmap',
+  template: 'Recommended roadmap'
+}[value] || 'Personalized roadmap');
+
 export default function AssessmentReportPage() {
   const { assessmentId } = useParams();
   const navigate = useNavigate();
@@ -59,7 +65,7 @@ export default function AssessmentReportPage() {
       const learningGoalId = report?.learningGoalId;
 
       if (!learningGoalId) {
-        setError('Learning goal was not found. Please restart onboarding.');
+        setError('Learning goal was not found. Please restart setup.');
         return;
       }
 
@@ -84,45 +90,45 @@ export default function AssessmentReportPage() {
       await refreshLearningState();
       navigate('/onboarding/generating', { replace: true });
     } catch (err) {
-      setError(err?.message || 'Could not generate your roadmap. Please try again.');
+      setError(err?.message || 'Could not create your roadmap. Please try again.');
     } finally {
       setCreating(false);
     }
   };
 
-  if (isLoading) return <Loader label="Preparing diagnostic report..." />;
+  if (isLoading) return <Loader label="Preparing your results..." />;
   if (!assessmentId || reportError || !report) {
     return <EmptyState
-      title="Diagnostic report is unavailable"
-      description={reportError?.message || 'The assessment report could not be found. Complete the diagnostic again or return to your dashboard.'}
-      actionLabel={isPersonalizeFlow ? 'Back to dashboard' : 'Back to diagnostic'}
+      title="Skill-check results unavailable"
+      description={reportError?.message || 'Your results could not be found. Take the skill check again or return to your dashboard.'}
+      actionLabel={isPersonalizeFlow ? 'Back to dashboard' : 'Back to skill check'}
       onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : `/onboarding/assessment${personalizeQuery}`)}
     />;
   }
 
   return <OnboardingShell
     current="roadmap"
-    eyebrow="Step 4 · Diagnostic report"
-    title={`Your assessment score is ${report.score || 0}%`}
-    description={report.summary || 'Review your stored strengths and weak topics before generating the personalized roadmap.'}
+    eyebrow="Step 4 · Your results"
+    title={`You scored ${report.score || 0}%`}
+    description={report.summary || 'Review your stronger areas and the topics that need more practice before creating your roadmap.'}
     backTo={`/onboarding/assessment${personalizeQuery}`}
     aside={<>
-      <OnboardingInsightCard title="Roadmap recommendation" badge={report.recommendedLevel || 'Review'} items={[
+      <OnboardingInsightCard title="Recommended next step" badge={report.recommendedLevel || 'Review'} items={[
         {
-          title: String(report.suggestedRoadmapType || 'personalized roadmap').replaceAll('_', ' '),
-          description: 'This recommendation comes from the saved assessment score and weak-topic distribution.'
+          title: roadmapRecommendationLabel(report.suggestedRoadmapType),
+          description: 'This recommendation is based on your topic scores and the areas that need more practice.'
         },
         {
-          title: 'Roadmap version',
+          title: isPersonalizeFlow ? 'Update your roadmap' : 'Create your roadmap',
           description: isPersonalizeFlow
-            ? 'A newer personalized version will become active while your earlier roadmap stays in version history.'
-            : 'This will create your active roadmap and then open the learner dashboard.'
+            ? 'Your updated roadmap will become active while your earlier progress stays available.'
+            : 'Your roadmap will open as soon as it is ready.'
         }
       ]} />
       <Card className="bg-primary-soft">
         <BarChart3 className="text-primary" aria-hidden="true" />
-        <p className="mt-3 font-bold text-foreground">Explainable personalization</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">The category results below explain why specific topics may appear earlier in your roadmap.</p>
+        <p className="mt-3 font-bold text-foreground">Why these topics come first</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">Your category scores help place the topics that need more practice earlier in your roadmap.</p>
       </Card>
     </>}
   >
@@ -130,7 +136,7 @@ export default function AssessmentReportPage() {
 
     <div className="grid gap-5 lg:grid-cols-2">
       <Card>
-        <h2 className="flex items-center gap-2 text-xl font-bold text-foreground"><BarChart3 size={20} aria-hidden="true" /> Category scores</h2>
+        <h2 className="flex items-center gap-2 text-xl font-bold text-foreground"><BarChart3 size={20} aria-hidden="true" /> Topic scores</h2>
         <div className="mt-5 space-y-4">
           {(report.categoryScores || []).length ? report.categoryScores.map((item) => {
             const score = Math.max(0, Math.min(100, Number(item.score) || 0));
@@ -140,22 +146,22 @@ export default function AssessmentReportPage() {
                 <div className="h-full rounded-full bg-primary" style={{ width: `${score}%` }} />
               </div>
             </div>;
-          }) : <p className="text-sm text-muted-foreground">No category breakdown was returned for this assessment.</p>}
+          }) : <p className="text-sm text-muted-foreground">No topic breakdown is available for this result.</p>}
         </div>
       </Card>
 
       <div className="space-y-5">
         <Card>
-          <h2 className="flex items-center gap-2 text-xl font-bold text-foreground"><AlertTriangle size={20} aria-hidden="true" /> Weak topics to prioritize</h2>
+          <h2 className="flex items-center gap-2 text-xl font-bold text-foreground"><AlertTriangle size={20} aria-hidden="true" /> Topics to practise first</h2>
           <div className="mt-4 flex flex-wrap gap-2">
-            {report.weakTopics?.length ? report.weakTopics.map((item) => <Badge key={item.topic} variant="danger">{item.topic} · {item.score}%</Badge>) : <p className="text-sm text-muted-foreground">No major weak topic was detected.</p>}
+            {report.weakTopics?.length ? report.weakTopics.map((item) => <Badge key={item.topic} variant="danger">{item.topic} · {item.score}%</Badge>) : <p className="text-sm text-muted-foreground">No topic needs urgent attention.</p>}
           </div>
         </Card>
 
         <Card>
-          <h2 className="flex items-center gap-2 text-xl font-bold text-foreground"><CheckCircle2 size={20} aria-hidden="true" /> Strong topics</h2>
+          <h2 className="flex items-center gap-2 text-xl font-bold text-foreground"><CheckCircle2 size={20} aria-hidden="true" /> Stronger topics</h2>
           <div className="mt-4 flex flex-wrap gap-2">
-            {report.strongTopics?.length ? report.strongTopics.map((item) => <Badge key={item.topic} variant="success">{item.topic} · {item.score}%</Badge>) : <p className="text-sm text-muted-foreground">No strong-topic signal was recorded.</p>}
+            {report.strongTopics?.length ? report.strongTopics.map((item) => <Badge key={item.topic} variant="success">{item.topic} · {item.score}%</Badge>) : <p className="text-sm text-muted-foreground">Complete more questions to identify your strongest topics.</p>}
           </div>
         </Card>
       </div>
@@ -163,11 +169,11 @@ export default function AssessmentReportPage() {
 
     <Card className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div>
-        <h2 className="text-2xl font-bold text-foreground">Generate personalized roadmap</h2>
-        <p className="mt-2 max-w-2xl text-muted-foreground">The saved diagnostic report will be used as the trusted source for roadmap generation. Existing or already-running work will be reused by the backend.</p>
+        <h2 className="text-2xl font-bold text-foreground">{isPersonalizeFlow ? 'Create your updated roadmap' : 'Create your roadmap'}</h2>
+        <p className="mt-2 max-w-2xl text-muted-foreground">Your results will help move the topics that need more practice earlier in your learning plan.</p>
       </div>
-      <Button onClick={generateRoadmap} isLoading={creating} loadingLabel="Generating roadmap..." className="shrink-0 px-6">
-        Generate roadmap <ArrowRight size={18} aria-hidden="true" />
+      <Button onClick={generateRoadmap} isLoading={creating} loadingLabel="Creating roadmap..." className="shrink-0 px-6">
+        Create roadmap <ArrowRight size={18} aria-hidden="true" />
       </Button>
     </Card>
   </OnboardingShell>;

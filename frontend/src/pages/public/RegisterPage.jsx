@@ -40,8 +40,8 @@ export default function RegisterPage() {
   return <AuthShell
     icon={UserPlus}
     eyebrow="Create account"
-    title="Start with a verified identity"
-    description="Your account is created before email delivery is attempted. Verification is still required before login."
+    title="Create your learning account"
+    description="Verify your email before you log in and start your roadmap."
     footer={<span>Already have an account? <Link className="auth-link" to="/login">Log in</Link></span>}
   >
     <form onSubmit={handleSubmit(submit)} className="space-y-4">

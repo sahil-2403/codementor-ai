@@ -30,44 +30,44 @@ export default function AssessmentIntroPage() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus });
       navigate('/onboarding/generating');
     } catch (err) {
-      setError(err?.message || 'Could not save your assessment choice.');
+      setError(err?.message || 'Could not save your choice.');
     } finally {
       setSkipping(false);
     }
   };
 
-  if (isLoading) return <Loader label="Loading assessment options..." />;
-  if (statusError) return <EmptyState title="Assessment options are unavailable" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
+  if (isLoading) return <Loader label="Loading your options..." />;
+  if (statusError) return <EmptyState title="Your options could not load" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
 
   return <OnboardingShell
     current="setup"
-    eyebrow="Step 3 · Diagnostic choice"
-    title={`${copy.title}: choose your setup path.`}
-    description="Start with a published level-based template, or take a diagnostic to detect weak topics before roadmap generation."
+    eyebrow="Step 3 · Choose your setup"
+    title={`${copy.title}: choose how to begin`}
+    description="Start now with the recommended roadmap, or take a short skill check to focus on topics that need more practice."
     backTo="/onboarding/level"
     aside={<>
-      <OnboardingInsightCard title="Recommendation" badge={copy.badge} items={[
-        { title: 'Take diagnostic', description: 'Useful when you are unsure about gaps or want a targeted roadmap.' },
-        { title: 'Skip for now', description: 'Useful when you want to start quickly. A later diagnostic can create a newer roadmap version.' }
+      <OnboardingInsightCard title="Choose what suits you" badge={copy.badge} items={[
+        { title: 'Take the skill check', description: 'Useful when you are unsure about your gaps or want a more focused roadmap.' },
+        { title: 'Start now', description: 'Useful when you want to begin learning immediately. You can take the skill check later.' }
       ]} />
-      <Card className="bg-primary-soft"><ShieldCheck className="text-primary" /><p className="mt-3 font-bold text-foreground">No lock-in</p><p className="mt-2 text-sm leading-6 text-muted-foreground">Skipping creates a template roadmap. A later assessment preserves the old version while creating a personalized one.</p></Card>
+      <Card className="bg-primary-soft"><ShieldCheck className="text-primary" /><p className="mt-3 font-bold text-foreground">You can change later</p><p className="mt-2 text-sm leading-6 text-muted-foreground">Taking a skill check later can update your roadmap without removing your earlier progress.</p></Card>
     </>}
   >
     <ErrorMessage message={error} />
     <div className="grid gap-5 md:grid-cols-2">
       <Card className="border-primary/20 bg-primary-soft">
         <span className="grid h-14 w-14 place-items-center rounded-surface bg-primary text-white" aria-hidden="true"><ClipboardCheck /></span>
-        <h3 className="mt-5 text-2xl font-bold text-foreground">Take diagnostic</h3>
-        <p className="mt-3 leading-7 text-muted-foreground">Answer curated MERN questions, then review category scores, weak topics, and the roadmap recommendation before generation.</p>
-        <Button className="mt-6 w-full" onClick={() => navigate('/onboarding/assessment')}>Start diagnostic</Button>
+        <h3 className="mt-5 text-2xl font-bold text-foreground">Take a skill check</h3>
+        <p className="mt-3 leading-7 text-muted-foreground">Answer MERN questions, review your topic scores, and see which areas to prioritise before creating your roadmap.</p>
+        <Button className="mt-6 w-full" onClick={() => navigate('/onboarding/assessment')}>Start skill check</Button>
       </Card>
       <Card>
         <span className="grid h-14 w-14 place-items-center rounded-surface bg-surface-secondary text-foreground" aria-hidden="true"><FastForward /></span>
-        <h3 className="mt-5 text-2xl font-bold text-foreground">Use template roadmap</h3>
-        <p className="mt-3 leading-7 text-muted-foreground">Start with the published {level} template now. The app will not invent assessment scores or weak topics.</p>
-        <Button variant="secondary" className="mt-6 w-full" onClick={skip} isLoading={skipping} loadingLabel="Saving choice...">Skip diagnostic</Button>
+        <h3 className="mt-5 text-2xl font-bold text-foreground">Start with the recommended roadmap</h3>
+        <p className="mt-3 leading-7 text-muted-foreground">Begin with a roadmap designed for the {level} level and adjust it later as your skills grow.</p>
+        <Button variant="secondary" className="mt-6 w-full" onClick={skip} isLoading={skipping} loadingLabel="Saving choice...">Start now</Button>
       </Card>
     </div>
-    <Card className="bg-foreground text-white"><BrainCircuit aria-hidden="true" /><p className="mt-3 text-xl font-bold text-white">Flexible setup</p><p className="mt-2 leading-7 text-slate-300">Both paths remain explainable: one uses published template content, while the other adds real diagnostic evidence.</p></Card>
+    <Card className="bg-foreground text-white"><BrainCircuit aria-hidden="true" /><p className="mt-3 text-xl font-bold text-white">Both choices keep you moving</p><p className="mt-2 leading-7 text-slate-300">You can begin immediately or use the skill check for extra guidance. Your learning history stays available either way.</p></Card>
   </OnboardingShell>;
 }

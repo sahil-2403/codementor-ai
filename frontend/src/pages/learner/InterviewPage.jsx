@@ -77,8 +77,8 @@ export default function InterviewPage() {
       reset({ answer: '' });
       setActiveTab('attempts');
       setNotice(result?.attempt?.status === 'reviewed'
-        ? { tone: 'success', title: 'Answer reviewed', message: 'Gemini feedback and a score were saved for this attempt.' }
-        : { tone: 'warning', title: 'Answer saved', message: 'Gemini feedback is currently unavailable. Your answer and deterministic comparison were preserved.' });
+        ? { tone: 'success', title: 'Answer reviewed', message: 'Personalized feedback and a score were added to this attempt.' }
+        : { tone: 'warning', title: 'Answer saved', message: 'Detailed feedback is temporarily unavailable. Your answer and comparison were saved.' });
     } catch (err) {
       setError('root', { message: err.message });
     }
@@ -90,8 +90,8 @@ export default function InterviewPage() {
       setNotice(null);
       const result = await retryMutation.mutateAsync(attemptId);
       setNotice(result?.attempt?.status === 'reviewed'
-        ? { tone: 'success', title: 'Review completed', message: 'Gemini feedback was added to the existing saved attempt.' }
-        : { tone: 'warning', title: 'Review still unavailable', message: 'The original answer remains saved and no additional attempt was consumed.' });
+        ? { tone: 'success', title: 'Review completed', message: 'Feedback was added to your saved attempt.' }
+        : { tone: 'warning', title: 'Review still unavailable', message: 'Your original answer remains saved, and no extra attempt was used.' });
     } catch (err) {
       setError('root', { message: err.message });
     } finally {
@@ -106,15 +106,15 @@ export default function InterviewPage() {
     <PageHeader
       eyebrow="Interview practice"
       title="Build stronger coding answers"
-      description="Practice published questions by topic. Each answer is stored before review, and every question allows up to two attempts."
+      description="Practise questions by topic, compare your answer with an example, and improve across two attempts."
     />
 
-    {!questions.length ? <EmptyState title="No interview questions available" description="Published questions will appear here when the course team adds them." /> : <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+    {!questions.length ? <EmptyState title="No interview questions available" description="Interview questions will appear here when they are added." /> : <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
       <Card>
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-black text-foreground">Question bank</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Choose a topic, then a published question.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Choose a topic, then choose a question.</p>
           </div>
           <Badge>{questions.length} questions</Badge>
         </div>
@@ -172,14 +172,14 @@ export default function InterviewPage() {
           <div className="mt-5 flex flex-wrap gap-2" role="tablist" aria-label="Interview question workspace">
             <Button type="button" role="tab" aria-selected={activeTab === 'answer'} variant={activeTab === 'answer' ? 'primary' : 'secondary'} onClick={() => setActiveTab('answer')}>Write answer</Button>
             <Button type="button" role="tab" aria-selected={activeTab === 'attempts'} variant={activeTab === 'attempts' ? 'primary' : 'secondary'} onClick={() => setActiveTab('attempts')}>Saved attempts</Button>
-            {selectedAttempts.length ? <Button type="button" role="tab" aria-selected={activeTab === 'expected'} variant={activeTab === 'expected' ? 'primary' : 'secondary'} onClick={() => setActiveTab('expected')}>Expected answer</Button> : null}
+            {selectedAttempts.length ? <Button type="button" role="tab" aria-selected={activeTab === 'expected'} variant={activeTab === 'expected' ? 'primary' : 'secondary'} onClick={() => setActiveTab('expected')}>Example answer</Button> : null}
           </div>
 
           {notice ? <InlineAlert className="mt-4" tone={notice.tone} title={notice.title}>{notice.message}</InlineAlert> : null}
           <ErrorMessage message={errors.root?.message} />
 
           {activeTab === 'answer' ? <form onSubmit={handleSubmit(submit)} className="mt-5 space-y-4">
-            {!canSubmit ? <InlineAlert tone="warning" title="Attempt limit reached">You have used both attempts for this question. Review the saved feedback and expected answer instead.</InlineAlert> : null}
+            {!canSubmit ? <InlineAlert tone="warning" title="Attempt limit reached">You have used both attempts for this question. Review your saved feedback and the example answer instead.</InlineAlert> : null}
             <FormTextarea
               label="Your interview answer"
               className="min-h-64"
@@ -189,7 +189,7 @@ export default function InterviewPage() {
               disabled={!canSubmit}
             />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">Your answer is saved before Gemini review begins.</p>
+              <p className="text-sm text-muted-foreground">Your answer is saved before the review begins.</p>
               <Button type="submit" disabled={!canSubmit || isSubmitting} isLoading={submitMutation.isPending} loadingLabel="Saving and reviewing...">Submit answer</Button>
             </div>
           </form> : null}
@@ -201,13 +201,13 @@ export default function InterviewPage() {
               attemptNumber={selectedAttempts.length - index}
               isRetrying={retryingId === attempt._id}
               onRetry={() => retryReview(attempt._id)}
-            />) : <EmptyState title="No attempts yet" description="Write your first answer to unlock the expected answer and feedback history." />}
+            />) : <EmptyState title="No attempts yet" description="Write your first answer to unlock the example answer and feedback history." />}
           </div> : null}
 
           {activeTab === 'expected' ? <div className="mt-5 rounded-[1.75rem] border border-border bg-surface-secondary p-5">
-            <p className="font-black text-foreground">Published expected answer</p>
-            <p className="mt-3 text-sm leading-7 text-muted-foreground">{expectedAnswer || 'The expected answer is available in your saved attempt feedback.'}</p>
-            <p className="mt-4 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Unlocked after your first saved attempt</p>
+            <p className="font-black text-foreground">Example answer</p>
+            <p className="mt-3 text-sm leading-7 text-muted-foreground">{expectedAnswer || 'The example answer is available in your saved feedback.'}</p>
+            <p className="mt-4 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Unlocked after your first attempt</p>
           </div> : null}
         </> : <EmptyState title="Choose a question" description="Select a topic and question to begin interview practice." />}
       </Card>

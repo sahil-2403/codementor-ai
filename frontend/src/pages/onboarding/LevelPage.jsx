@@ -44,21 +44,21 @@ export default function LevelPage() {
     }
   };
 
-  if (isLoading) return <Loader label="Loading your onboarding progress..." />;
-  if (statusError) return <EmptyState title="Onboarding progress is unavailable" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
+  if (isLoading) return <Loader label="Loading your setup..." />;
+  if (statusError) return <EmptyState title="Your setup could not load" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
 
   return <OnboardingShell
     current="level"
     eyebrow="Step 2 · Current level"
-    title="Choose the workflow that matches your current skill."
-    description="Beginners start without a test. Intermediate and advanced learners can use a template or take a diagnostic for deeper personalization."
+    title="Choose the starting point that fits you"
+    description="Beginners can start right away. Intermediate and advanced learners can also take an optional skill check for a more focused roadmap."
     backTo="/onboarding/goal"
     aside={<>
       <OnboardingInsightCard title={selectedCopy.title} badge={selectedCopy.badge} items={[
         { title: 'What happens next?', description: selectedCopy.description },
-        { title: 'Can I change later?', description: 'Yes. A later diagnostic can create a new roadmap version without deleting your history.' }
+        { title: 'Can I change this later?', description: 'Yes. You can take a skill check later and update your roadmap without losing your progress.' }
       ]} />
-      <Card><p className="font-bold text-foreground">How this works</p><p className="mt-2 text-sm leading-6 text-muted-foreground">Your level selects the default roadmap depth. Assessment remains optional for intermediate and advanced learners.</p></Card>
+      <Card><p className="font-bold text-foreground">How your level helps</p><p className="mt-2 text-sm leading-6 text-muted-foreground">Your level decides how deeply each topic is covered and where your roadmap begins.</p></Card>
     </>}
   >
     <ErrorMessage message={error} />

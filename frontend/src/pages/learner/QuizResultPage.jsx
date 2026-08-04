@@ -23,7 +23,7 @@ export default function QuizResultPage() {
   if (attemptError) return <EmptyState title="Quiz result is unavailable" description={attemptError.message} actionLabel="Back to roadmap" onAction={() => navigate('/roadmap')} />;
 
   const attempt = data?.attempt;
-  if (!attempt) return <EmptyState title="Quiz attempt not found" description="This result was not returned for your account." actionLabel="Try again" onAction={() => refetch()} />;
+  if (!attempt) return <EmptyState title="Quiz attempt not found" description="This result is not available for your account." actionLabel="Try again" onAction={() => refetch()} />;
 
   const hasExplanation = Boolean(attempt.aiExplanation?.summary);
   const aiAvailable = attempt.aiExplanation?.aiAvailable === true;
@@ -33,7 +33,7 @@ export default function QuizResultPage() {
       setError('');
       await explainMutation.mutateAsync();
     } catch (err) {
-      setError(err?.message || 'Could not prepare the mistake explanation.');
+      setError(err?.message || 'Could not prepare the explanation.');
     }
   };
 
@@ -43,21 +43,21 @@ export default function QuizResultPage() {
 
     <Card>
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div><div className="flex flex-wrap gap-2"><Badge variant={hasExplanation ? (aiAvailable ? 'info' : 'warning') : 'neutral'}>{hasExplanation ? (aiAvailable ? 'Gemini explanation' : 'Stored fallback explanation') : 'Optional explanation'}</Badge></div><h2 className="mt-3 text-xl font-bold text-foreground">Mistake explanation</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">Gemini can explain wrong answers using trusted context. If it is unavailable, the backend stores a fallback built from quiz and lesson explanations.</p></div>
-        <Button onClick={explainMistakes} disabled={hasExplanation} isLoading={explainMutation.isPending} loadingLabel="Preparing explanation...">{hasExplanation ? 'Explanation saved' : 'Explain mistakes'}</Button>
+        <div><div className="flex flex-wrap gap-2"><Badge variant={hasExplanation ? (aiAvailable ? 'info' : 'warning') : 'neutral'}>{hasExplanation ? (aiAvailable ? 'AI explanation' : 'Standard explanation') : 'Extra explanation'}</Badge></div><h2 className="mt-3 text-xl font-bold text-foreground">Understand your mistakes</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">Request an extra explanation for the questions you answered incorrectly.</p></div>
+        <Button onClick={explainMistakes} disabled={hasExplanation} isLoading={explainMutation.isPending} loadingLabel="Preparing explanation...">{hasExplanation ? 'Explanation ready' : 'Explain mistakes'}</Button>
       </div>
 
       {hasExplanation ? <div className={`mt-5 rounded-panel border p-5 ${aiAvailable ? 'border-primary/20 bg-primary-soft' : 'border-warning/20 bg-warning-soft'}`}>
-        {!aiAvailable && <p className="mb-3 font-semibold text-warning">Gemini was unavailable. This is the stored fallback explanation.</p>}
+        {!aiAvailable && <p className="mb-3 font-semibold text-warning">A personalised explanation is unavailable, so this explanation uses the lesson and quiz guidance.</p>}
         <p className="whitespace-pre-line leading-7 text-foreground">{attempt.aiExplanation.summary}</p>
-      </div> : <p className="mt-5 rounded-surface bg-surface-secondary p-4 text-sm leading-6 text-muted-foreground">No optional mistake explanation has been requested yet. The deterministic score and stored per-question explanations are already available below.</p>}
+      </div> : <p className="mt-5 rounded-surface bg-surface-secondary p-4 text-sm leading-6 text-muted-foreground">Your score and answer-by-answer explanations are already available below.</p>}
 
       {attempt.aiExplanation?.sources?.length ? <div className="mt-4 flex flex-wrap gap-2">{attempt.aiExplanation.sources.map((source, index) => <Badge key={`${sourceLabel(source)}-${index}`} variant="neutral">{sourceLabel(source)}</Badge>)}</div> : null}
     </Card>
 
     <Card>
       <h2 className="text-xl font-bold text-foreground">Answer review</h2>
-      <p className="mt-1 text-sm leading-6 text-muted-foreground">Correct answers and explanations come from the published quiz question records.</p>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">Compare your answer with the correct answer and read the explanation for each question.</p>
       <ol className="mt-5 space-y-4">{attempt.answers?.map((answer, index) => <li key={answer._id || `${answer.question?._id || index}-${index}`} className={`rounded-surface border p-4 ${answer.isCorrect ? 'border-success/20 bg-success-soft' : 'border-error/20 bg-error-soft'}`}>
         <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-semibold text-foreground">{index + 1}. {answer.question?.question || 'Quiz question'}</p><Badge variant={answer.isCorrect ? 'success' : 'danger'}>{answer.isCorrect ? 'Correct' : 'Incorrect'}</Badge></div>
         <dl className="mt-3 grid gap-2 text-sm">

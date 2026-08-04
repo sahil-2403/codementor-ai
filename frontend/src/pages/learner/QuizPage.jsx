@@ -50,7 +50,7 @@ export default function QuizPage() {
 
   if (isLoading) return <Loader label="Loading quiz..." />;
   if (quizError) return <EmptyState title="Quiz is unavailable" description={quizError.message} actionLabel="Back to roadmap" onAction={() => navigate('/roadmap')} />;
-  if (!quiz || !questions.length) return <EmptyState title="No published quiz questions" description="This module does not currently have an available quiz question set." actionLabel="Try again" onAction={() => refetch()} />;
+  if (!quiz || !questions.length) return <EmptyState title="No quiz available" description="This module does not have a quiz yet." actionLabel="Try again" onAction={() => refetch()} />;
 
   const submit = async () => {
     try {
@@ -69,15 +69,15 @@ export default function QuizPage() {
 
   return <div className="mx-auto max-w-4xl space-y-5">
     <Card>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><Badge variant="neutral">Deterministic scoring</Badge><h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground">{quiz.moduleTitle || 'Module quiz'}</h1><p className="mt-2 leading-7 text-muted-foreground">Every published question is required. Stored correct answers determine the score and weak-topic signals.</p></div><Button type="button" variant="ghost" onClick={() => navigate('/roadmap')}>Exit quiz</Button></div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><Badge variant="neutral">Module quiz</Badge><h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground">{quiz.moduleTitle || 'Module quiz'}</h1><p className="mt-2 leading-7 text-muted-foreground">Answer every question. Your result will show your score, correct answers, and topics to review.</p></div><Button type="button" variant="ghost" onClick={() => navigate('/roadmap')}>Exit quiz</Button></div>
       <div className="mt-5"><QuizProgress current={answeredCount} total={questions.length} /></div>
-      {draftKey && <p className="mt-3 text-xs text-muted-foreground">Answers are saved locally in this browser until submission.</p>}
+      {draftKey && <p className="mt-3 text-xs text-muted-foreground">Your answers are saved in this browser until you submit the quiz.</p>}
     </Card>
 
     <ErrorMessage message={error || submitQuiz.error?.message} />
     {questions.map((question, index) => <QuizQuestionCard key={question._id} question={question} index={index} value={answers[question._id]} onChange={(value) => setAnswers((current) => ({ ...current, [question._id]: value }))} />)}
     <Card className="sticky bottom-4 z-10 flex flex-col gap-4 bg-surface/95 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-      <div><p className="font-semibold text-foreground">{answeredCount}/{questions.length} questions answered</p><p className="mt-1 text-sm text-muted-foreground">Review selections before submitting; the backend requires the exact published question set.</p></div>
+      <div><p className="font-semibold text-foreground">{answeredCount}/{questions.length} questions answered</p><p className="mt-1 text-sm text-muted-foreground">Review your answers before submitting.</p></div>
       <Button className="shrink-0 px-6" onClick={submit} disabled={answeredCount !== questions.length} isLoading={submitQuiz.isPending} loadingLabel="Submitting quiz...">Submit quiz</Button>
     </Card>
   </div>;

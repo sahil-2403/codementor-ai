@@ -38,7 +38,7 @@ export default function AssessmentPage() {
   const completion = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
   const backTo = isPersonalizeFlow ? '/dashboard' : '/onboarding/assessment-intro';
 
-  if (statusLoading || isLoading) return <Loader label="Loading diagnostic assessment..." />;
+  if (statusLoading || isLoading) return <Loader label="Loading your skill check..." />;
 
   const submit = async () => {
     try {
@@ -49,27 +49,27 @@ export default function AssessmentPage() {
       const result = await assessmentApi.submit({ learningGoalId, sessionId: data?.sessionId, answers: payload });
       navigate(`/onboarding/assessment-report/${result.assessment._id}${personalizeQuery}`);
     } catch (err) {
-      setError(err?.message || 'Could not submit the assessment.');
+      setError(err?.message || 'Could not submit your answers.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (statusError) return <EmptyState title="Onboarding status is unavailable" description={statusError.message} actionLabel="Back to dashboard" onAction={() => navigate('/dashboard')} />;
-  if (level === 'beginner') return <EmptyState title="No diagnostic is required" description="Beginner onboarding uses your learning preferences instead of inventing an assessment score." actionLabel="Continue setup" onAction={() => navigate('/onboarding/preferences')} />;
-  if (!learningGoalId) return <EmptyState title="Learning goal not found" description="Restart onboarding so the diagnostic can be connected to a real learning goal." actionLabel="Restart onboarding" onAction={() => navigate('/onboarding/goal')} />;
-  if (assessmentError || !questions.length) return <EmptyState title="Diagnostic is unavailable" description={assessmentError?.message || 'No published diagnostic questions are available for this level yet.'} actionLabel="Back to options" onAction={() => navigate(backTo)} />;
+  if (statusError) return <EmptyState title="Your setup could not load" description={statusError.message} actionLabel="Back to dashboard" onAction={() => navigate('/dashboard')} />;
+  if (level === 'beginner') return <EmptyState title="No skill check is required" description="Beginner setup uses your learning preferences to create a foundation-first roadmap." actionLabel="Continue setup" onAction={() => navigate('/onboarding/preferences')} />;
+  if (!learningGoalId) return <EmptyState title="Learning goal not found" description="Restart setup so this skill check can be connected to your learning goal." actionLabel="Restart setup" onAction={() => navigate('/onboarding/goal')} />;
+  if (assessmentError || !questions.length) return <EmptyState title="Skill check unavailable" description={assessmentError?.message || 'No skill-check questions are available for this level yet.'} actionLabel="Back to options" onAction={() => navigate(backTo)} />;
 
   return <OnboardingShell
     current="setup"
-    eyebrow="Diagnostic assessment"
+    eyebrow="Skill check"
     title={`${level} MERN skill check`}
-    description="Answer every published question. You will review the report before deciding whether to generate a personalized roadmap."
+    description="Answer every question, then review your topic scores before updating your roadmap."
     backTo={backTo}
     aside={<>
-      <OnboardingInsightCard title="Assessment progress" badge={`${completion}%`} items={[
-        { title: `${answeredCount}/${questions.length} answered`, description: 'All questions are required so category scores use a complete and consistent question set.' },
-        { title: 'After submission', description: 'You will see stored category scores, strong topics, weak topics, and the roadmap recommendation.' }
+      <OnboardingInsightCard title="Your progress" badge={`${completion}%`} items={[
+        { title: `${answeredCount}/${questions.length} answered`, description: 'Answer every question to get a complete result.' },
+        { title: 'After submission', description: 'You will see your topic scores, stronger areas, topics to practise, and a roadmap recommendation.' }
       ]} />
       <Card>
         <div className="mb-2 flex justify-between text-sm font-semibold text-muted-foreground"><span>Completion</span><span>{completion}%</span></div>
@@ -84,8 +84,8 @@ export default function AssessmentPage() {
       {questions.map((question, index) => <QuizQuestionCard key={question._id} question={question} index={index} value={answers[question._id]} onChange={(value) => setAnswers((current) => ({ ...current, [question._id]: value }))} />)}
     </div>
     <Card className="sticky bottom-4 z-10 flex flex-col gap-4 bg-surface/95 backdrop-blur md:flex-row md:items-center md:justify-between">
-      <div><p className="font-bold text-foreground">Ready to create your report?</p><p className="text-sm text-muted-foreground">Answer every question before submitting.</p></div>
-      <Button onClick={submit} disabled={answeredCount !== questions.length} isLoading={submitting} loadingLabel="Creating report..." className="px-6">Submit assessment</Button>
+      <div><p className="font-bold text-foreground">Ready to see your results?</p><p className="text-sm text-muted-foreground">Answer every question before submitting.</p></div>
+      <Button onClick={submit} disabled={answeredCount !== questions.length} isLoading={submitting} loadingLabel="Preparing results..." className="px-6">Submit answers</Button>
     </Card>
   </OnboardingShell>;
 }

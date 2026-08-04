@@ -57,7 +57,7 @@ export default function QuestionsPage() {
   const updateInterviewStatus = useUpdateInterviewQuestionStatus();
   const archiveInterview = useArchiveInterviewQuestion();
 
-  if (quizQuery.isLoading || interviewQuery.isLoading || topicsQuery.isLoading || lessonsQuery.isLoading) return <Loader label="Loading question banks..." />;
+  if (quizQuery.isLoading || interviewQuery.isLoading || topicsQuery.isLoading || lessonsQuery.isLoading) return <Loader label="Loading questions..." />;
 
   const quizQuestions = quizQuery.data?.questions || [];
   const interviewQuestions = interviewQuery.data?.interviewQuestions || [];
@@ -114,7 +114,7 @@ export default function QuestionsPage() {
     { key: 'question', header: 'Question', render: (question) => <div><b className="text-foreground">{question.question}</b><p className="line-clamp-2 max-w-sm text-xs text-muted-foreground">{question.expectedAnswer}</p></div> },
     { key: 'topic', header: 'Topic', render: (question) => question.topic || 'No topic' },
     { key: 'type', header: 'Type', render: (question) => <span className="capitalize">{String(question.type).replaceAll('_', ' ')}</span> },
-    { key: 'checklist', header: 'Checklist', render: (question) => `${question.answerChecklist?.length || 0} item(s)` },
+    { key: 'checklist', header: 'Review points', render: (question) => `${question.answerChecklist?.length || 0} item(s)` },
     { key: 'status', header: 'Status', render: (question) => <StatusPill status={question.status} /> },
     {
       key: 'actions',
@@ -135,36 +135,36 @@ export default function QuestionsPage() {
 
   return <PageShell>
     <PageHeader
-      eyebrow="Admin CMS"
+      eyebrow="Content administration"
       title="Question banks"
-      description="Manage deterministic quiz grading and interview-practice content as separate reviewed banks."
+      description="Manage quiz, skill-check, and interview questions in separate reviewed collections."
     />
     <AdminLifecycleGuide />
     <ErrorMessage message={errorMessage} />
 
     <div className="flex flex-wrap gap-2" role="tablist" aria-label="Admin question banks">
-      <Button type="button" role="tab" aria-selected={bank === 'quiz'} variant={bank === 'quiz' ? 'primary' : 'secondary'} onClick={() => switchBank('quiz')}>Quiz and assessment</Button>
+      <Button type="button" role="tab" aria-selected={bank === 'quiz'} variant={bank === 'quiz' ? 'primary' : 'secondary'} onClick={() => switchBank('quiz')}>Quiz and skill checks</Button>
       <Button type="button" role="tab" aria-selected={bank === 'interview'} variant={bank === 'interview' ? 'primary' : 'secondary'} onClick={() => switchBank('interview')}>Interview practice</Button>
     </div>
 
     {bank === 'quiz' ? <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
       <Card>
-        <SectionHeader title={editingQuiz ? 'Edit quiz question' : 'Create quiz-question draft'} description="MCQ answers must match an option exactly. Unsupported short-answer grading remains draft-only." />
+        <SectionHeader title={editingQuiz ? 'Edit quiz question' : 'Create quiz-question draft'} description="For multiple-choice questions, the correct answer must exactly match one option. Short-answer questions cannot be published yet." />
         <div className="mt-4"><QuestionForm topics={topicsQuery.data?.topics || []} lessons={lessonsQuery.data?.lessons || []} initialData={editingQuiz} onSubmit={submitQuiz} onCancel={editingQuiz ? () => setEditingQuiz(null) : null} isLoading={createQuiz.isPending || updateQuiz.isPending} /></div>
       </Card>
       <Card>
-        <SectionHeader title="Quiz and assessment questions" description={`${quizQuery.data?.pagination?.total || 0} questions in this bank.`} />
+        <SectionHeader title="Quiz and skill-check questions" description={`${quizQuery.data?.pagination?.total || 0} questions in this bank.`} />
         <div className="mt-4"><AdminFilters filters={quizFilters} setFilters={setQuizFilters} topics={topicsQuery.data?.topics || []} includeType /></div>
         <div className="mt-4"><DataTable columns={quizColumns} rows={quizQuestions} emptyTitle="No quiz questions found" emptyDescription="Create a draft or adjust the filters." minWidth={900} /></div>
         <PaginationControls pagination={quizQuery.data?.pagination} setFilters={setQuizFilters} />
       </Card>
     </div> : <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
       <Card>
-        <SectionHeader title={editingInterview ? 'Edit interview question' : 'Create interview-question draft'} description="Expected answers stay hidden from learners until they submit their first attempt." />
+        <SectionHeader title={editingInterview ? 'Edit interview question' : 'Create interview-question draft'} description="The example answer remains hidden until a learner submits the first attempt." />
         <div className="mt-4"><InterviewQuestionForm initialData={editingInterview} onSubmit={submitInterview} onCancel={editingInterview ? () => setEditingInterview(null) : null} isLoading={createInterview.isPending || updateInterview.isPending} /></div>
       </Card>
       <Card>
-        <SectionHeader title="Interview-practice questions" description={`${interviewQuery.data?.pagination?.total || 0} questions in this bank.`} />
+        <SectionHeader title="Interview questions" description={`${interviewQuery.data?.pagination?.total || 0} questions in this bank.`} />
         <div className="mt-4 grid gap-3 rounded-panel bg-surface-secondary p-4 md:grid-cols-2 xl:grid-cols-3">
           <Input label="Search" value={interviewFilters.search} onChange={(event) => setInterviewFilters((previous) => ({ ...previous, search: event.target.value, page: 1 }))} />
           <Input label="Topic" value={interviewFilters.topic} onChange={(event) => setInterviewFilters((previous) => ({ ...previous, topic: event.target.value, page: 1 }))} />
@@ -188,8 +188,8 @@ export default function QuestionsPage() {
       open={Boolean(publishTarget)}
       title={`Publish ${publishLabel}?`}
       description={publishTarget?.kind === 'interview'
-        ? 'Publishing requires an expected answer of at least 20 characters and at least one answer-checklist item.'
-        : 'Publishing validates the exact answer format, topic, related lesson, and supported grading type.'}
+        ? 'Add an example answer of at least 20 characters and at least one review point before publishing.'
+        : 'Check the answer, topic, related lesson, and question type before publishing.'}
       confirmLabel={`Publish ${publishLabel}`}
       tone="primary"
       isLoading={publishMutation.isPending}
@@ -199,7 +199,7 @@ export default function QuestionsPage() {
     <ConfirmDialog
       open={Boolean(archiveTarget)}
       title={`Archive ${archiveLabel}?`}
-      description="Archived content is removed from learner-facing flows and remains read-only in admin history."
+      description="Archived questions are removed from learner pages and kept as read-only history."
       confirmLabel={`Archive ${archiveLabel}`}
       isLoading={archiveMutation.isPending}
       onCancel={() => setArchiveTarget(null)}

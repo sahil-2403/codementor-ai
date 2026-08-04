@@ -31,13 +31,13 @@ export default function ResetPasswordPage() {
 
   return <AuthShell
     icon={ShieldCheck}
-    eyebrow="Secure reset"
+    eyebrow="Password reset"
     title="Choose a new password"
-    description="Use a strong password you have not used before. A successful reset invalidates existing sessions."
+    description="Choose a strong password you have not used before. You will need to log in again on your devices."
     footer={<Link className="auth-link" to="/login">Back to login</Link>}
   >
     {!token && <AuthNotice tone="warning" className="mb-4">
-      The reset token is missing. <Link className="font-semibold underline" to="/forgot-password">Request a new reset link</Link>.
+      This reset link is missing or incomplete. <Link className="font-semibold underline" to="/forgot-password">Request a new reset link</Link>.
     </AuthNotice>}
     <form onSubmit={handleSubmit(submit)} className="space-y-4">
       <ErrorMessage message={errors.root?.message} />

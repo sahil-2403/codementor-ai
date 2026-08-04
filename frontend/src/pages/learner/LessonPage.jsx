@@ -21,7 +21,7 @@ export default function LessonPage() {
   if (error) return <EmptyState title="Lesson is unavailable" description={error.message} actionLabel="Back to roadmap" onAction={() => navigate('/roadmap')} />;
 
   const lesson = data?.lesson;
-  if (!lesson) return <EmptyState title="Lesson not found" description="This lesson was not returned for your active roadmap." actionLabel="Try again" onAction={() => refetch()} />;
+  if (!lesson) return <EmptyState title="Lesson not found" description="This lesson is not available in your current roadmap." actionLabel="Try again" onAction={() => refetch()} />;
 
   const isCompleted = Boolean(data?.isCompleted);
   const mentorLink = `/mentor?lessonId=${lesson._id}`;
@@ -46,10 +46,10 @@ export default function LessonPage() {
     <ErrorMessage message={completeMutation.error?.message} />
 
     <Card className="border-primary/20 bg-primary-soft">
-      <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-surface bg-primary text-white" aria-hidden="true"><MessagesSquare size={20} /></span><div><h2 className="text-xl font-bold text-foreground">Mentor help for this lesson</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">Open the mentor with this lesson as trusted context. When Gemini is unavailable, the mentor screen reports that state instead of fabricating an answer.</p></div></div>
+      <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-surface bg-primary text-white" aria-hidden="true"><MessagesSquare size={20} /></span><div><h2 className="text-xl font-bold text-foreground">Need help with this lesson?</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">Ask for a simpler explanation, an interview-ready answer, or another practice question based on this topic.</p></div></div>
       <div className="mt-4 flex flex-wrap gap-2">
         <Button type="button" variant="secondary" onClick={() => sendLessonPrompt('simple_explanation')}>Explain simply</Button>
-        <Button type="button" variant="secondary" onClick={() => sendLessonPrompt('interview_answer')}>Frame an interview answer</Button>
+        <Button type="button" variant="secondary" onClick={() => sendLessonPrompt('interview_answer')}>Prepare an interview answer</Button>
         <Button type="button" variant="secondary" onClick={() => sendLessonPrompt('practice_question')}>Create a practice question</Button>
       </div>
     </Card>

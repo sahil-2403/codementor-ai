@@ -66,42 +66,43 @@ export default function PreferencesPage() {
   };
 
   if (isLoading) return <Loader label="Loading your learning preferences..." />;
-  if (statusError) return <EmptyState title="Learning preferences are unavailable" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
+  if (statusError) return <EmptyState title="Your preferences could not load" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
 
   return <OnboardingShell
     current="setup"
     eyebrow="Step 3 · Beginner setup"
-    title="Set your pace without taking a test."
-    description="Your available time, target duration, and preferred learning style shape the roadmap pace without inventing skill scores."
+    title="Set a learning pace that works for you"
+    description="Tell us how much time you have, how quickly you want to progress, and how you prefer to learn."
     backTo="/onboarding/level"
     aside={<>
-      <OnboardingInsightCard title="Your roadmap will adjust" badge="Beginner" items={[
-        { title: 'Pace', description: `${dailyTime || 0} minutes per day across ${targetDays || 0} days controls lesson density and revision spacing.` },
-        { title: 'Focus', description: 'Job preparation emphasizes interview practice; project building emphasizes implementation milestones.' }
+      <OnboardingInsightCard title="Your plan will adjust" badge="Beginner" items={[
+        { title: 'Pace', description: `${dailyTime || 0} minutes per day across ${targetDays || 0} days helps decide how much to study each week.` },
+        { title: 'Focus', description: 'Job preparation adds more interview practice, while project building adds more implementation work.' }
       ]} />
-      <Card className="bg-success-soft"><ListChecks className="text-success" /><p className="mt-3 font-bold text-foreground">No assessment required</p><p className="mt-2 text-sm leading-6 text-muted-foreground">You can take a diagnostic later after completing foundation modules.</p></Card>
+      <Card className="bg-success-soft"><ListChecks className="text-success" /><p className="mt-3 font-bold text-foreground">No skill check required</p><p className="mt-2 text-sm leading-6 text-muted-foreground">You can take an optional skill check later after completing the foundations.</p></Card>
     </>}
   >
     <Card>
       <form onSubmit={handleSubmit(submit)} className="space-y-5">
         <ErrorMessage message={errors.root?.message} />
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="rounded-surface bg-surface-secondary p-4"><Clock className="text-primary" aria-hidden="true" /><FormInput className="mt-3" label="Daily study time in minutes" type="number" min="15" max="600" registration={register('dailyStudyTime')} error={errors.dailyStudyTime?.message} /></div>
-          <div className="rounded-surface bg-surface-secondary p-4"><Target className="text-primary" aria-hidden="true" /><FormInput className="mt-3" label="Target duration in days" type="number" min="7" max="365" registration={register('targetDurationDays')} error={errors.targetDurationDays?.message} /></div>
+          <div className="rounded-surface bg-surface-secondary p-4"><Clock className="text-primary" aria-hidden="true" /><FormInput className="mt-3" label="Minutes available per day" type="number" min="15" max="600" registration={register('dailyStudyTime')} error={errors.dailyStudyTime?.message} /></div>
+          <div className="rounded-surface bg-surface-secondary p-4"><Target className="text-primary" aria-hidden="true" /><FormInput className="mt-3" label="Goal timeframe in days" type="number" min="7" max="365" registration={register('targetDurationDays')} error={errors.targetDurationDays?.message} /></div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <Select label="Learning style" {...register('learningStyle')} error={errors.learningStyle?.message}>
-            <option value="project-based">Project based</option>
-            <option value="theory-first">Theory first</option>
-            <option value="interview-focused">Interview focused</option>
+            <option value="project-based">Learn through projects</option>
+            <option value="theory-first">Learn concepts first</option>
+            <option value="interview-focused">Focus on interviews</option>
           </Select>
-          <Select label="Main focus" {...register('mainFocus')} error={errors.mainFocus?.message}>
-            <option value="job-preparation">Job preparation</option>
-            <option value="project-building">Project building</option>
-            <option value="interview-revision">Interview revision</option>
+          <Select label="Main goal" {...register('mainFocus')} error={errors.mainFocus?.message}>
+            <option value="job-preparation">Prepare for a job</option>
+            <option value="project-building">Build stronger projects</option>
+            <option value="interview-revision">Revise for interviews</option>
           </Select>
         </div>
-        <FormInput label="Known basics, comma separated" registration={register('knownBasics')} error={errors.knownBasics?.message} placeholder="HTML, CSS, Basic JavaScript" />
+        <FormInput label="Skills you already know" registration={register('knownBasics')} error={errors.knownBasics?.message} placeholder="HTML, CSS, Basic JavaScript" />
+        <p className="-mt-3 text-xs text-muted-foreground">Separate multiple skills with commas.</p>
         <Button type="submit" className="w-full" isLoading={isSubmitting} loadingLabel="Saving setup...">Continue to roadmap</Button>
       </form>
     </Card>

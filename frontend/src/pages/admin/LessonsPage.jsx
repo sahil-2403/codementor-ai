@@ -28,7 +28,7 @@ export default function LessonsPage() {
   const updateStatus = useUpdateLessonStatus();
   const archiveLesson = useArchiveLesson();
 
-  if (isLoading || topics.isLoading) return <Loader label="Loading lesson CMS..." />;
+  if (isLoading || topics.isLoading) return <Loader label="Loading lessons..." />;
 
   const lessons = data?.lessons || [];
   const errorMessage = topics.error?.message || createLesson.error?.message || updateLesson.error?.message || updateStatus.error?.message || archiveLesson.error?.message;
@@ -56,12 +56,12 @@ export default function LessonsPage() {
   ];
 
   return <PageShell>
-    <PageHeader eyebrow="Admin CMS" title="Lesson CMS" description="Create reviewed drafts, publish validated lessons, and preserve retired content as read-only history." />
+    <PageHeader eyebrow="Content administration" title="Lessons" description="Create, review, publish, and archive the lessons learners see in their roadmaps." />
     <AdminLifecycleGuide />
     <ErrorMessage message={errorMessage} />
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.2fr]">
       <Card>
-        <SectionHeader title={editing ? 'Edit lesson' : 'Create lesson draft'} description="Publishing checks the topic, theory, code explanation, and interview Q&A integrity." />
+        <SectionHeader title={editing ? 'Edit lesson' : 'Create lesson draft'} description="Add a topic, clear lesson content, code guidance, and interview questions before publishing." />
         <div className="mt-4"><LessonForm topics={topics.data?.topics || []} initialData={editing} onSubmit={submit} onCancel={editing ? () => setEditing(null) : null} isLoading={createLesson.isPending || updateLesson.isPending} /></div>
       </Card>
       <Card>
@@ -75,7 +75,7 @@ export default function LessonsPage() {
     <ConfirmDialog
       open={Boolean(publishTarget)}
       title="Publish lesson?"
-      description={`Publish “${publishTarget?.title}” after the backend validates its topic and required learning content. Learners may use it immediately in active flows.`}
+      description={`Publish “${publishTarget?.title}” after checking its topic and required learning content. Learners can use it immediately.`}
       confirmLabel="Publish lesson"
       tone="primary"
       isLoading={updateStatus.isPending}
@@ -85,7 +85,7 @@ export default function LessonsPage() {
     <ConfirmDialog
       open={Boolean(archiveTarget)}
       title="Archive lesson?"
-      description={`This hides “${archiveTarget?.title}” from learner-facing flows and keeps it as read-only admin history.`}
+      description={`This hides “${archiveTarget?.title}” from learners and keeps it as read-only history.`}
       confirmLabel="Archive lesson"
       isLoading={archiveLesson.isPending}
       onCancel={() => setArchiveTarget(null)}

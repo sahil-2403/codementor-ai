@@ -1,24 +1,24 @@
 export const onboardingSteps = [
   { key: 'goal', label: 'Goal', helper: 'Choose your learning path' },
-  { key: 'level', label: 'Level', helper: 'Set current ability' },
-  { key: 'setup', label: 'Setup', helper: 'Preferences or diagnostic' },
-  { key: 'roadmap', label: 'Roadmap', helper: 'Create your plan' }
+  { key: 'level', label: 'Level', helper: 'Choose your starting point' },
+  { key: 'setup', label: 'Setup', helper: 'Set your pace or check your skills' },
+  { key: 'roadmap', label: 'Roadmap', helper: 'Create your learning plan' }
 ];
 
 export const onboardingCopyByLevel = {
   beginner: {
     title: 'Beginner path',
-    description: 'No test. We start with fundamentals, then personalize pace from your preferences.',
+    description: 'Start with the fundamentals and set a pace that fits your schedule.',
     badge: 'No assessment required'
   },
   intermediate: {
     title: 'Intermediate path',
-    description: 'Start quickly with a template, or take a diagnostic to detect weak topics before roadmap generation.',
+    description: 'Start with the recommended roadmap or take an optional skill check to focus on gaps.',
     badge: 'Assessment optional'
   },
   advanced: {
     title: 'Advanced path',
-    description: 'Use an advanced template immediately, or take a deeper diagnostic for targeted interview and architecture prep.',
+    description: 'Start with an advanced roadmap or take an optional skill check for more focused preparation.',
     badge: 'Diagnostic optional'
   }
 };

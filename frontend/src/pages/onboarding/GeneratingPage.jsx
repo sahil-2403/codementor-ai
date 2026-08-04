@@ -14,10 +14,10 @@ import { onboardingApi } from '../../api/onboardingApi.js';
 import { queryKeys } from '../../constants/queryKeys.js';
 
 const statusMeta = {
-  completed: { icon: CheckCircle2, title: 'Roadmap is ready', iconClass: 'bg-success-soft text-success' },
-  failed: { icon: XCircle, title: 'Roadmap setup needs attention', iconClass: 'bg-error-soft text-error' },
-  processing: { icon: RotateCw, title: 'Preparing roadmap', iconClass: 'bg-primary-soft text-primary' },
-  queued: { icon: Clock3, title: 'Roadmap is queued', iconClass: 'bg-primary-soft text-primary-strong' }
+  completed: { icon: CheckCircle2, title: 'Your roadmap is ready', iconClass: 'bg-success-soft text-success' },
+  failed: { icon: XCircle, title: 'We could not finish your roadmap', iconClass: 'bg-error-soft text-error' },
+  processing: { icon: RotateCw, title: 'Building your roadmap', iconClass: 'bg-primary-soft text-primary' },
+  queued: { icon: Clock3, title: 'Your roadmap is waiting to start', iconClass: 'bg-primary-soft text-primary-strong' }
 };
 
 export default function GeneratingPage() {
@@ -71,7 +71,7 @@ export default function GeneratingPage() {
     }
 
     if (!['roadmap_pending', 'roadmap_failed'].includes(onboardingStatus?.state)) {
-      setLocalError('Finish the current onboarding step before generating a roadmap.');
+      setLocalError('Finish your current setup step before creating a roadmap.');
       return;
     }
 
@@ -90,9 +90,9 @@ export default function GeneratingPage() {
           return;
         }
 
-        setLocalError('Roadmap setup started, but no status was returned. Please try again.');
+        setLocalError('We started creating your roadmap, but could not check its progress. Please try again.');
       },
-      onError: (error) => setLocalError(error?.message || 'Could not start roadmap setup. Please try again.')
+      onError: (error) => setLocalError(error?.message || 'Could not start creating your roadmap. Please try again.')
     });
   }, [jobId, onboardingStatus?.state, onboardingStatus?.hasActiveCourse, onboardingStatus?.roadmapJob?._id, onboardingStatusQuery.isLoading, isPersonalizeFlow]);
 
@@ -136,7 +136,7 @@ export default function GeneratingPage() {
     || jobQuery.error?.message
     || currentRoadmapQuery.error?.message;
 
-  if (onboardingStatusQuery.isLoading || (!jobId && generateMutation.isPending)) return <Loader label="Preparing your roadmap..." />;
+  if (onboardingStatusQuery.isLoading || (!jobId && generateMutation.isPending)) return <Loader label="Creating your roadmap..." />;
 
   const retryRoadmap = () => {
     setLocalError('');
@@ -155,23 +155,23 @@ export default function GeneratingPage() {
         await refreshLearningQueries();
         navigate(`/onboarding/generating?jobId=${nextJobId}${isPersonalizeFlow ? '&personalize=true' : ''}`, { replace: true });
       },
-      onError: (error) => setLocalError(error?.message || 'Could not retry roadmap setup.')
+      onError: (error) => setLocalError(error?.message || 'Could not try again. Please check your connection and retry.')
     });
   };
 
   return <OnboardingShell
     current="roadmap"
-    eyebrow="Step 4 · Roadmap setup"
-    title="Preparing your learning roadmap"
-    description="Your lessons, quizzes, projects, and practice flow are being connected. The dashboard opens automatically when the roadmap is ready."
+    eyebrow="Step 4 · Create your roadmap"
+    title="Creating your learning roadmap"
+    description="We’re organising your lessons, quizzes, projects, and practice in the order that best fits your starting point."
     aside={<>
-      <OnboardingInsightCard title="What happens here?" badge="Roadmap" items={[
-        { title: 'Course structure', description: 'Published modules, lessons, quizzes, and practice tasks are connected to your selected learning path.' },
-        { title: 'Honest fallback', description: 'When Gemini is unavailable, the backend can use a curated published template instead of inventing personalized content.' }
+      <OnboardingInsightCard title="What is being prepared?" badge="Roadmap" items={[
+        { title: 'Your learning plan', description: 'Modules, lessons, quizzes, and projects are arranged into a clear sequence.' },
+        { title: 'A reliable starting point', description: 'If personalised suggestions are unavailable, you will still receive a reviewed roadmap for your level.' }
       ]} />
       <Card>
-        <p className="font-bold text-foreground">Your work is reusable</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">Existing courses and matching generation jobs are reused, so refreshing this screen should not create duplicate roadmaps.</p>
+        <p className="font-bold text-foreground">Your progress is protected</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">Refreshing this page will continue the same roadmap instead of starting over.</p>
       </Card>
     </>}
   >
@@ -180,23 +180,23 @@ export default function GeneratingPage() {
         <Icon className={job?.status === 'processing' || !job?.status ? 'animate-spin' : ''} aria-hidden="true" />
       </div>
       <h2 className="mt-5 text-3xl font-bold text-foreground">{meta.title}</h2>
-      <p className="mt-3 text-muted-foreground">{job ? `Current status: ${String(job.status).replaceAll('_', ' ')}` : 'Roadmap setup has started. Status updates will appear here.'}</p>
+      <p className="mt-3 text-muted-foreground">{job ? `Status: ${String(job.status).replaceAll('_', ' ')}` : 'Your roadmap is being prepared. Updates will appear here.'}</p>
       <div className="mt-5"><ErrorMessage message={displayedError} /></div>
 
       {job && <div className="mt-6 rounded-panel bg-surface-secondary p-5 text-left">
-        <div className="flex items-center justify-between gap-4"><b className="text-foreground">Setup status</b><StatusPill status={job.status} /></div>
-        <p className="mt-2 text-sm text-muted-foreground">Type: {job.type || 'roadmap generation'} · Attempts: {job.attempts || 0}</p>
-        {job.error && <div className="ui-alert ui-alert--error mt-3" role="alert">{job.error}</div>}
+        <div className="flex items-center justify-between gap-4"><b className="text-foreground">Roadmap status</b><StatusPill status={job.status} /></div>
+        <p className="mt-2 text-sm text-muted-foreground">This page updates automatically while your roadmap is being created.</p>
+        {job.error && <div className="ui-alert ui-alert--error mt-3" role="alert">We could not finish your roadmap. Please try again.</div>}
       </div>}
 
       {showSlowHint && !currentCourse && job?.status !== 'failed' && <div className="ui-alert ui-alert--info mt-6 text-left">
-        Setup is taking longer than usual. This page continues checking the saved job, and refreshing it will reuse the same active work rather than create a duplicate.
+        This is taking longer than usual. You can keep this page open or refresh it; your progress will continue.
       </div>}
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {(currentCourse || jobCourse || job?.status === 'completed') && <Button onClick={redirectToDashboard}>Open dashboard</Button>}
         {job?.status === 'failed' && <>
-          <Button onClick={retryRoadmap} isLoading={retryMutation.isPending} loadingLabel="Retrying roadmap...">Retry roadmap setup</Button>
+          <Button onClick={retryRoadmap} isLoading={retryMutation.isPending} loadingLabel="Trying again...">Try again</Button>
           <Link to={isPersonalizeFlow ? '/dashboard' : '/onboarding/preferences'} className="ui-button ui-button--secondary">{isPersonalizeFlow ? 'Back to dashboard' : 'Back to setup'}</Link>
         </>}
       </div>

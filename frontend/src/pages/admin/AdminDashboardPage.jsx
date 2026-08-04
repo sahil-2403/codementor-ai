@@ -6,22 +6,22 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 
 const sections = [
-  { title: 'Topics', description: 'Organize skills and metadata used by lessons and quiz questions.', href: '/admin/topics', icon: Tags },
-  { title: 'Lessons', description: 'Create, validate, publish, and archive learner-facing content.', href: '/admin/lessons', icon: BookOpen },
-  { title: 'Question banks', description: 'Manage quiz, assessment, and interview-practice questions.', href: '/admin/questions', icon: FileQuestion },
-  { title: 'Roadmap templates', description: 'Maintain validated module structures for each goal and level.', href: '/admin/templates', icon: Layers3 }
+  { title: 'Topics', description: 'Organise the skills used across lessons, questions, and recommendations.', href: '/admin/topics', icon: Tags },
+  { title: 'Lessons', description: 'Create, review, publish, and archive lessons.', href: '/admin/lessons', icon: BookOpen },
+  { title: 'Question banks', description: 'Manage quiz, skill-check, and interview questions.', href: '/admin/questions', icon: FileQuestion },
+  { title: 'Roadmap templates', description: 'Maintain the module structure for each learning goal and level.', href: '/admin/templates', icon: Layers3 }
 ];
 
 export default function AdminDashboardPage() {
   return <PageShell>
     <PageHeader
-      eyebrow="Admin CMS"
-      title="Content management"
-      description="Manage only the reviewed learning content that powers learner roadmaps, lessons, quizzes, projects, and interview practice."
+      eyebrow="Content administration"
+      title="Manage learning content"
+      description="Create and maintain the lessons, questions, and roadmaps learners use throughout the platform."
     />
 
-    <InlineAlert title="Deliberately limited admin scope">
-      User management, billing, email operations, AI usage dashboards, job monitoring, and fake platform analytics are outside this CMS.
+    <InlineAlert title="Learning content only">
+      This area is for managing topics, lessons, questions, and roadmap templates.
     </InlineAlert>
 
     <AdminLifecycleGuide />
