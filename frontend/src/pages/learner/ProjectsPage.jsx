@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
+import { Code2, LockKeyhole } from 'lucide-react';
 import Loader from '../../components/common/Loader.jsx';
 import Card from '../../components/common/Card.jsx';
-import Button from '../../components/common/Button.jsx';
 import Badge from '../../components/common/Badge.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
@@ -9,45 +9,44 @@ import EmptyState from '../../components/common/EmptyState.jsx';
 import StatusPill from '../../components/common/StatusPill.jsx';
 import { useProjectTasks } from '../../queries/projectQueries.js';
 
-const difficultyStyle = {
-  beginner: 'bg-emerald-50 text-emerald-700',
-  intermediate: 'bg-indigo-50 text-indigo-700',
-  advanced: 'bg-rose-50 text-rose-700'
+const reviewLabel = (submission) => {
+  if (!submission) return null;
+  if (submission.reviewMode === 'ai' && submission.status === 'reviewed') return { label: 'Gemini reviewed', variant: 'success' };
+  if (submission.reviewMode === 'fallback' || submission.status === 'review_unavailable') return { label: 'Review unavailable', variant: 'warning' };
+  if (submission.status === 'reviewing') return { label: 'Reviewing', variant: 'info' };
+  return { label: 'Submission saved', variant: 'neutral' };
 };
 
 export default function ProjectsPage() {
-  const { data, isLoading } = useProjectTasks();
+  const { data, isLoading, error, refetch } = useProjectTasks();
   if (isLoading) return <Loader label="Loading project tasks..." />;
+  if (error) return <EmptyState title="Projects are unavailable" description={error.message} actionLabel="Try again" onAction={() => refetch()} />;
+
   const tasks = data?.tasks || [];
-  const grouped = tasks.reduce((acc, task) => {
+  const grouped = tasks.reduce((groups, task) => {
     const key = task.moduleTitle || 'Practice projects';
-    acc[key] = acc[key] || [];
-    acc[key].push(task);
-    return acc;
+    groups[key] = [...(groups[key] || []), task];
+    return groups;
   }, {});
 
   return <PageShell>
-    <PageHeader eyebrow="Project-based learning" title="Practice Projects" description="Apply coding concepts through practical tasks. Projects unlock based on your current level so you can focus on the right challenge at the right time." />
-    {!tasks.length ? <EmptyState title="No project tasks yet" description="Practice tasks will appear here after course content is added." /> : <div className="space-y-8">
-      {Object.entries(grouped).map(([topic, topicTasks]) => <section key={topic}>
-        <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-black text-slate-950">{topic}</h2><span className="text-sm font-bold text-slate-500">{topicTasks.length} task(s)</span></div>
+    <PageHeader eyebrow="Project-based learning" title="Practice projects" description="Apply roadmap concepts through published tasks. Submissions are stored before Gemini review, and unavailable review states remain honest." />
+    {!tasks.length ? <EmptyState title="No project tasks yet" description="Published practice tasks will appear here when they are available for your learning path." /> : <div className="space-y-10">
+      {Object.entries(grouped).map(([moduleTitle, moduleTasks]) => <section key={moduleTitle} aria-labelledby={`projects-${moduleTitle.replaceAll(' ', '-').toLowerCase()}`}>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3"><div><p className="ui-eyebrow">Roadmap practice</p><h2 id={`projects-${moduleTitle.replaceAll(' ', '-').toLowerCase()}`} className="ui-section-title">{moduleTitle}</h2></div><Badge variant="neutral">{moduleTasks.length} task(s)</Badge></div>
         <div className="grid gap-5 md:grid-cols-2">
-          {topicTasks.map((task) => <Card key={task._id} className={`transition hover:-translate-y-1 hover:shadow-soft ${task.isLocked ? 'opacity-70' : ''}`}>
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="flex flex-wrap gap-2"><Badge className={difficultyStyle[task.difficulty] || difficultyStyle.beginner}>{task.difficulty}</Badge>{task.isLocked && <StatusPill status="locked" />}</div>
-                <h3 className="mt-3 text-xl font-black text-slate-950">{task.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{task.description}</p>
+          {moduleTasks.map((task) => {
+            const review = reviewLabel(task.latestSubmission);
+            return <Card key={task._id} className={task.isLocked ? 'opacity-80' : 'transition hover:-translate-y-0.5 hover:border-primary/30'}>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0"><div className="flex flex-wrap gap-2"><Badge variant="neutral">{task.difficulty}</Badge>{task.isLocked && <StatusPill status="locked" />}{review && <Badge variant={review.variant}>{review.label}</Badge>}</div><h3 className="mt-3 text-xl font-bold text-foreground">{task.title}</h3><p className="mt-2 text-sm leading-6 text-muted-foreground">{task.description}</p></div>
+                {typeof task.bestScore === 'number' && <Badge variant="success">Best {task.bestScore}%</Badge>}
               </div>
-              {task.bestScore !== null && task.bestScore !== undefined ? <Badge className="bg-emerald-50 text-emerald-700">Best {task.bestScore}%</Badge> : task.latestSubmission ? <Badge className="bg-cyan-50 text-cyan-700">{task.latestSubmission.reviewMode === 'fallback' ? 'Checklist reviewed' : task.latestSubmission.status}</Badge> : null}
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">{(task.tags || []).slice(0, 4).map((tag) => <span key={tag} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">#{tag}</span>)}</div>
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-              <span className="text-sm font-bold text-slate-500">{task.estimatedMinutes} min · Attempts {task.attemptsUsed || 0}/{task.maxAttempts || 2}</span>
-              {task.isLocked ? <Button disabled variant="secondary">Locked</Button> : <Link to={`/projects/${task._id}`}><Button>Open task</Button></Link>}
-            </div>
-            {task.isLocked && <p className="mt-3 rounded-2xl bg-slate-50 p-3 text-sm font-semibold text-slate-600">{task.lockedReason}</p>}
-          </Card>)}
+              <div className="mt-4 flex flex-wrap gap-2">{(task.tags || []).slice(0, 4).map((tag) => <Badge key={tag} variant="neutral">#{tag}</Badge>)}</div>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><span className="text-sm font-semibold text-muted-foreground">{Number(task.estimatedMinutes) > 0 ? `${task.estimatedMinutes} min · ` : ''}Attempts {task.attemptsUsed || 0}/{task.maxAttempts || 2}</span>{task.isLocked ? <span className="ui-button ui-button--secondary cursor-not-allowed" aria-disabled="true"><LockKeyhole size={16} aria-hidden="true" /> Locked</span> : <Link to={`/projects/${task._id}`} className="ui-button ui-button--primary"><Code2 size={16} aria-hidden="true" /> Open task</Link>}</div>
+              {task.isLocked && <p className="mt-3 rounded-surface bg-surface-secondary p-3 text-sm leading-6 text-muted-foreground">{task.lockedReason}</p>}
+            </Card>;
+          })}
         </div>
       </section>)}
     </div>}

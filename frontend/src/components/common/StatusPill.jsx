@@ -9,14 +9,18 @@ const statusTone = {
   draft: 'warning',
   queued: 'info',
   processing: 'warning',
+  reviewing: 'info',
+  submitted: 'neutral',
   pending: 'warning',
   blocked: 'warning',
+  review_unavailable: 'warning',
   failed: 'danger',
   archived: 'neutral',
   critical: 'danger',
   high: 'warning',
   medium: 'info',
-  low: 'neutral'
+  low: 'neutral',
+  locked: 'neutral'
 };
 
 export default function StatusPill({ status, tone, className = '' }) {

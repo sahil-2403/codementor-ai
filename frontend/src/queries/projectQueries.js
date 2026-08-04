@@ -13,5 +13,5 @@ export const useSubmitProjectTask = (taskId) => {
 };
 export const useReviewProjectSubmission = (taskId) => {
   const queryClient = useQueryClient();
-  return useMutation({ mutationFn: projectApi.review, onSuccess: () => invalidateMany(queryClient, [queryKeys.projectTask(taskId), queryKeys.projectSubmissions, queryKeys.dashboard]) });
+  return useMutation({ mutationFn: projectApi.review, onSuccess: () => invalidateMany(queryClient, [queryKeys.projectTask(taskId), ['project-tasks'], queryKeys.projectSubmissions, queryKeys.dashboard]) });
 };

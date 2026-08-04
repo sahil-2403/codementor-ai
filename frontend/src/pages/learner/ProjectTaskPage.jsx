@@ -1,113 +1,112 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { CheckCircle2, Code2, FileText } from 'lucide-react';
 import Loader from '../../components/common/Loader.jsx';
+import EmptyState from '../../components/common/EmptyState.jsx';
 import Card from '../../components/common/Card.jsx';
 import Button from '../../components/common/Button.jsx';
 import Badge from '../../components/common/Badge.jsx';
+import StatusPill from '../../components/common/StatusPill.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import InlineAlert from '../../components/common/InlineAlert.jsx';
+import PageShell from '../../components/common/PageShell.jsx';
+import PageHeader from '../../components/common/PageHeader.jsx';
 import FormTextarea from '../../components/form/FormTextarea.jsx';
 import { useProjectTask, useReviewProjectSubmission, useSubmitProjectTask } from '../../queries/projectQueries.js';
 import { projectSubmissionSchema } from '../../validations/project.schema.js';
+import { formatDate } from '../../utils/formatDate.js';
+import ProjectSubmissionFeedback from '../../components/project/ProjectSubmissionFeedback.jsx';
+
+const isFallbackReview = (submission) => submission.reviewMode === 'fallback' || submission.status === 'review_unavailable';
+const isAiReview = (submission) => submission.reviewMode === 'ai' && submission.status === 'reviewed';
 
 export default function ProjectTaskPage() {
   const { taskId } = useParams();
-  const { data, isLoading } = useProjectTask(taskId);
+  const navigate = useNavigate();
+  const taskQuery = useProjectTask(taskId);
   const submitMutation = useSubmitProjectTask(taskId);
   const reviewMutation = useReviewProjectSubmission(taskId);
   const [reviewingId, setReviewingId] = useState(null);
   const [visibleSubmissionId, setVisibleSubmissionId] = useState(null);
   const [showSolution, setShowSolution] = useState(false);
-  const { register, handleSubmit, reset, setError, formState: { errors, isSubmitting } } = useForm({
-    resolver: zodResolver(projectSubmissionSchema),
-    defaultValues: { submittedCode: '', submittedExplanation: '' }
-  });
+  const { register, handleSubmit, reset, setError, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(projectSubmissionSchema), defaultValues: { submittedCode: '', submittedExplanation: '' } });
 
-  if (isLoading) return <Loader label="Loading project task..." />;
-  const task = data?.task;
-  const submissions = data?.submissions || [];
-  const maxAttempts = data?.maxAttempts || task?.maxAttempts || 2;
-  const attemptsUsed = data?.attemptsUsed ?? submissions.length;
-  const canSubmit = !task?.isLocked && attemptsUsed < maxAttempts;
+  if (taskQuery.isLoading) return <Loader label="Loading project task..." />;
+  if (taskQuery.error) return <EmptyState title="Project task is unavailable" description={taskQuery.error.message} actionLabel="Back to projects" onAction={() => navigate('/projects')} />;
+
+  const task = taskQuery.data?.task;
+  if (!task) return <EmptyState title="Project task not found" description="This published task was not returned for your account." actionLabel="Try again" onAction={() => taskQuery.refetch()} />;
+  const submissions = taskQuery.data?.submissions || [];
+  const maxAttempts = taskQuery.data?.maxAttempts || task.maxAttempts || 2;
+  const attemptsUsed = taskQuery.data?.attemptsUsed ?? submissions.length;
+  const canSubmit = !task.isLocked && attemptsUsed < maxAttempts;
 
   const submit = async (values) => {
     try {
       await submitMutation.mutateAsync({ projectTaskId: taskId, ...values });
       reset();
-    } catch (err) { setError('root', { message: err.message }); }
+    } catch (err) {
+      setError('root', { message: err?.message || 'Could not save your project submission.' });
+    }
   };
 
   const review = async (submissionId) => {
     try {
       setReviewingId(submissionId);
       await reviewMutation.mutateAsync(submissionId);
-    } catch (err) { setError('root', { message: err.message }); }
-    finally { setReviewingId(null); }
+    } finally {
+      setReviewingId(null);
+    }
   };
 
-  return <div className="space-y-6">
-    <Card>
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <Badge>{task?.difficulty}</Badge>
-          <h1 className="mt-3 text-4xl font-black text-slate-950">{task?.title}</h1>
-          <p className="mt-2 max-w-3xl text-slate-600">{task?.description}</p>
-          <p className="mt-3 text-sm font-bold text-slate-500">Attempts used: {attemptsUsed}/{maxAttempts}</p>
-        </div>
-        <Link to="/projects"><Button variant="secondary">All projects</Button></Link>
-      </div>
-      {task?.isLocked && <InlineAlert className="mt-5" tone="warning" title="Project locked">{task.lockedReason || 'This project is locked for your current learning level.'}</InlineAlert>}
-    </Card>
+  return <PageShell>
+    <PageHeader eyebrow={`Project task · ${task.difficulty}`} title={task.title} description={task.description} actions={<Link to="/projects" className="ui-button ui-button--secondary">All projects</Link>} />
+    <div className="flex flex-wrap gap-2"><Badge variant="neutral">{task.difficulty}</Badge>{Number(task.estimatedMinutes) > 0 && <Badge variant="neutral">{task.estimatedMinutes} minutes</Badge>}<Badge variant={canSubmit ? 'info' : 'warning'}>Attempts {attemptsUsed}/{maxAttempts}</Badge></div>
+    {task.isLocked && <InlineAlert tone="warning" title="Project locked">{task.lockedReason || 'This project is locked for your current learning level.'}</InlineAlert>}
 
     <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
       <Card>
-        <h2 className="text-xl font-black">Task requirements</h2>
-        <ul className="mt-4 space-y-2 text-sm text-slate-700">{task?.requirements?.map((item) => <li key={item} className="rounded-2xl bg-white/70 p-3">✓ {item}</li>)}</ul>
-        <h3 className="mt-6 font-black">Starter hints</h3>
-        <ul className="mt-3 space-y-2 text-sm text-slate-600">{task?.starterHints?.map((item) => <li key={item}>• {item}</li>)}</ul>
-        <h3 className="mt-6 font-black">Expected output</h3>
-        <p className="mt-2 text-sm leading-6 text-slate-600">{task?.expectedOutput}</p>
-        <Button type="button" variant="secondary" className="mt-5" onClick={() => setShowSolution((value) => !value)}>{showSolution ? 'Hide suggested solution' : 'View suggested solution'}</Button>
-        {showSolution && <div className="mt-4 rounded-3xl bg-amber-50 p-4 text-sm leading-7 text-amber-900"><p className="font-black">Try first, then compare.</p><p className="mt-2">You learn more when you attempt the task before checking the solution.</p><div className="mt-3 whitespace-pre-line">{task?.solution || 'Suggested solution will be added by the course team soon. For now, compare your answer with the task checklist.'}</div></div>}
+        <h2 className="text-xl font-bold text-foreground">Task requirements</h2>
+        {task.requirements?.length ? <ul className="mt-4 space-y-2">{task.requirements.map((item) => <li key={item} className="flex gap-3 rounded-surface bg-surface-secondary p-3 text-sm leading-6 text-muted-foreground"><CheckCircle2 className="mt-0.5 shrink-0 text-success" size={16} aria-hidden="true" /><span>{item}</span></li>)}</ul> : <p className="mt-3 text-sm text-muted-foreground">No requirement checklist was published for this task.</p>}
+        {task.starterHints?.length ? <div className="mt-6"><h3 className="font-bold text-foreground">Starter hints</h3><ul className="mt-3 space-y-2 text-sm leading-6 text-muted-foreground">{task.starterHints.map((item) => <li key={item} className="flex gap-2"><span aria-hidden="true">•</span><span>{item}</span></li>)}</ul></div> : null}
+        {task.expectedOutput && <div className="mt-6"><h3 className="font-bold text-foreground">Expected output</h3><p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">{task.expectedOutput}</p></div>}
+        {task.solution && <div className="mt-6"><Button type="button" variant="secondary" onClick={() => setShowSolution((value) => !value)}>{showSolution ? 'Hide suggested solution' : 'View suggested solution'}</Button>{showSolution && <div className="mt-4 rounded-panel border border-warning/20 bg-warning-soft p-4 text-sm leading-7 text-foreground"><p className="font-bold">Try the task first, then compare.</p><pre className="mt-3 overflow-auto whitespace-pre-wrap font-mono text-xs leading-6">{task.solution}</pre></div>}</div>}
       </Card>
 
       <Card>
-        <h2 className="text-xl font-black">Submit your solution</h2>
-        <p className="mt-1 text-sm text-slate-600">You get {maxAttempts} submissions per project. Use them thoughtfully.</p>
-        <ErrorMessage message={errors.root?.message || errors.submittedCode?.message} />
-        {!canSubmit && <InlineAlert className="mt-4" tone="warning" title="Submissions closed">{task?.isLocked ? 'Unlock this project before submitting.' : 'You have used both submissions for this project.'}</InlineAlert>}
-        <form onSubmit={handleSubmit(submit)} className="mt-4 space-y-4">
-          <FormTextarea className="min-h-48 font-mono" placeholder="Paste your code or pseudocode here..." registration={register('submittedCode')} error={errors.submittedCode?.message} disabled={!canSubmit} />
-          <FormTextarea className="min-h-28" placeholder="Explain your approach, edge cases, and decisions..." registration={register('submittedExplanation')} error={errors.submittedExplanation?.message} disabled={!canSubmit} />
-          <Button disabled={!canSubmit || isSubmitting || submitMutation.isPending}>{submitMutation.isPending ? 'Submitting...' : 'Save submission'}</Button>
+        <div className="flex items-start gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-surface bg-primary-soft text-primary" aria-hidden="true"><Code2 size={20} /></span><div><h2 className="text-xl font-bold text-foreground">Submit your solution</h2><p className="mt-1 text-sm leading-6 text-muted-foreground">The submission is saved before Gemini review. Use each of the two atomic attempt slots thoughtfully.</p></div></div>
+        <ErrorMessage message={errors.root?.message || submitMutation.error?.message} />
+        {!canSubmit && <InlineAlert className="mt-4" tone="warning" title="Submissions closed">{task.isLocked ? 'Unlock this project before submitting.' : 'Both submission slots have been used for this task.'}</InlineAlert>}
+        <form onSubmit={handleSubmit(submit)} className="mt-5 space-y-4">
+          <FormTextarea label="Code or pseudocode" className="min-h-52 font-mono text-xs" placeholder="Paste your code or pseudocode here..." registration={register('submittedCode')} error={errors.submittedCode?.message} disabled={!canSubmit} />
+          <FormTextarea label="Approach and tradeoffs" className="min-h-32" placeholder="Explain your approach, edge cases, and decisions..." registration={register('submittedExplanation')} error={errors.submittedExplanation?.message} disabled={!canSubmit} />
+          <Button type="submit" disabled={!canSubmit} isLoading={isSubmitting || submitMutation.isPending} loadingLabel="Saving submission...">Save submission</Button>
         </form>
       </Card>
     </div>
 
     <Card>
-      <h2 className="text-xl font-black">Submission history</h2>
-      <div className="mt-4 space-y-4">
+      <div><p className="ui-eyebrow">Attempt history</p><h2 className="ui-section-title">Saved submissions and reviews</h2><p className="ui-section-description">A submission can be reviewed again when a previous Gemini request was unavailable; this never consumes another submission slot.</p></div>
+      <ErrorMessage message={reviewMutation.error?.message} />
+      <div className="mt-5 space-y-4">
         {submissions.length ? submissions.map((submission) => {
-          const fallback = submission.reviewMode === 'fallback' || (submission.status === 'reviewed' && submission.score === null);
-          return <div key={submission._id} className="rounded-3xl border border-slate-100 bg-white/70 p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div><p className="font-black">{submission.status === 'reviewed' ? fallback ? 'Checklist feedback saved' : `AI reviewed · Score ${submission.score}%` : 'Submitted · Awaiting review'}</p><p className="text-sm text-slate-500">{new Date(submission.createdAt).toLocaleString()}</p></div>
-              <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => setVisibleSubmissionId(visibleSubmissionId === submission._id ? null : submission._id)}>View submitted answer</Button>{submission.status !== 'reviewed' && <Button variant="secondary" onClick={() => review(submission._id)} disabled={reviewingId === submission._id}>{reviewingId === submission._id ? 'Reviewing...' : 'AI review'}</Button>}</div>
+          const fallback = isFallbackReview(submission);
+          const aiReviewed = isAiReview(submission);
+          const canReview = ['submitted', 'review_unavailable'].includes(submission.status);
+          const isReviewing = reviewingId === submission._id || submission.status === 'reviewing';
+          return <article key={submission._id} className="rounded-panel border border-border bg-surface-secondary p-4 sm:p-5">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div><div className="flex flex-wrap items-center gap-2"><Badge variant="neutral">Attempt {submission.attemptNumber || '?'}</Badge><StatusPill status={submission.status} />{aiReviewed && <Badge variant="success">Gemini · {submission.score}%</Badge>}{fallback && <Badge variant="warning">Score unavailable</Badge>}</div><p className="mt-2 text-sm text-muted-foreground">Saved {formatDate(submission.createdAt)}</p></div>
+              <div className="flex flex-wrap gap-2"><Button type="button" variant="secondary" onClick={() => setVisibleSubmissionId(visibleSubmissionId === submission._id ? null : submission._id)}>{visibleSubmissionId === submission._id ? 'Hide answer' : 'View answer'}</Button>{canReview && <Button type="button" onClick={() => review(submission._id)} isLoading={isReviewing} loadingLabel="Requesting review...">{fallback ? 'Retry Gemini review' : 'Request Gemini review'}</Button>}</div>
             </div>
-            {visibleSubmissionId === submission._id && <div className="mt-4 rounded-3xl bg-slate-50 p-4 text-sm leading-7 text-slate-700 whitespace-pre-wrap">{submission.submittedCode || submission.submittedExplanation || 'No submitted text available.'}</div>}
-            {submission.aiFeedback?.summary && <div className={`mt-4 rounded-3xl p-4 text-sm leading-7 ${fallback ? 'bg-amber-50 text-amber-900' : 'bg-cyan-50 text-slate-800'}`}>
-              {fallback && <p className="mb-3 font-black">AI review is currently unavailable. Your submission was saved, and this checklist feedback can still help you improve.</p>}
-              {!fallback && <p className="font-bold">{submission.aiFeedback.summary}</p>}
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
-                {!fallback && <div><p className="font-black text-emerald-700">Strengths</p><ul className="mt-2 list-disc pl-5">{submission.aiFeedback.strengths?.map((item) => <li key={item}>{item}</li>)}</ul></div>}
-                <div><p className="font-black text-rose-700">Improvements</p><ul className="mt-2 list-disc pl-5">{submission.aiFeedback.improvements?.map((item) => <li key={item}>{item}</li>)}</ul></div>
-              </div>
-            </div>}
-          </div>;
-        }) : <p className="text-sm text-slate-500">No submissions yet.</p>}
+            {isReviewing && <InlineAlert className="mt-4" title="Review in progress">The saved submission is being reviewed. Retrying the page reuses this record rather than creating another attempt.</InlineAlert>}
+            {visibleSubmissionId === submission._id && <div className="mt-4 grid gap-4 lg:grid-cols-2"><div className="rounded-surface bg-slate-950 p-4 text-slate-100"><h3 className="flex items-center gap-2 text-sm font-bold"><Code2 size={16} aria-hidden="true" /> Submitted code</h3><pre className="mt-3 overflow-auto whitespace-pre-wrap font-mono text-xs leading-6">{submission.submittedCode || 'No code submitted.'}</pre></div><div className="rounded-surface border border-border bg-surface p-4"><h3 className="flex items-center gap-2 text-sm font-bold text-foreground"><FileText size={16} aria-hidden="true" /> Submitted explanation</h3><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{submission.submittedExplanation || 'No explanation submitted.'}</p></div></div>}
+            <ProjectSubmissionFeedback submission={submission} />
+          </article>;
+        }) : <EmptyState title="No submissions yet" description="Save your first solution when you are ready. The submission will remain available even if Gemini review is unavailable." />}
       </div>
     </Card>
-  </div>;
+  </PageShell>;
 }
