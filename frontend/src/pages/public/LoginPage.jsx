@@ -1,10 +1,11 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MailCheck } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
-import Card from '../../components/common/Card.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
+import AuthNotice from '../../components/auth/AuthNotice.jsx';
+import AuthShell from '../../components/auth/AuthShell.jsx';
 import FormInput from '../../components/form/FormInput.jsx';
 import PasswordInput from '../../components/form/PasswordInput.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
@@ -17,8 +18,9 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const verified = new URLSearchParams(location.search).get('verified') === 'true';
-  const reset = new URLSearchParams(location.search).get('reset') === 'true';
+  const params = new URLSearchParams(location.search);
+  const verified = params.get('verified') === 'true';
+  const reset = params.get('reset') === 'true';
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting }, setError } = useForm({
     resolver: zodResolver(loginFormSchema),
     defaultValues: { email: '', password: '' }
@@ -45,27 +47,36 @@ export default function LoginPage() {
     }
   };
 
-  return <div className="mx-auto max-w-md">
-    <Card>
-      <h1 className="text-3xl font-black">Welcome back</h1>
-      <p className="mt-2 text-slate-600">Log in with your verified CodeMentor AI account.</p>
-      {verified && <div className="mt-4 rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700"><MailCheck className="mr-2 inline" size={18} />Email verified. You can now log in.</div>}
-      {reset && <div className="mt-4 rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">Password reset successfully. Please log in.</div>}
-      <form onSubmit={handleSubmit(submit)} className="mt-6 space-y-4">
-        <ErrorMessage message={errors.root?.message} />
-        <FormInput label="Email" registration={register('email')} error={errors.email?.message} placeholder="you@example.com" />
-        <PasswordInput label="Password" registration={register('password')} error={errors.password?.message} placeholder="Your password" />
-        <div className="flex justify-end text-sm"><Link className="font-bold text-indigo-700" to="/forgot-password">Forgot password?</Link></div>
-        <Button className="w-full" disabled={isSubmitting}>{isSubmitting ? 'Logging in...' : 'Login'}</Button>
-      </form>
-      <p className="mt-5 text-sm text-slate-600">No account? <Link className="font-bold text-indigo-700" to="/register">Create one</Link></p>
-      {demoMode && <div className="mt-5 grid gap-2 rounded-2xl bg-slate-100 p-4 text-sm text-slate-600">
-        <p className="font-bold text-slate-900">Demo mode</p>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => fillDemo('learner')} className="rounded-full bg-white px-3 py-2 font-bold text-indigo-700">Use demo learner</button>
-          <button type="button" onClick={() => fillDemo('admin')} className="rounded-full bg-white px-3 py-2 font-bold text-indigo-700">Use demo admin</button>
-        </div>
-      </div>}
-    </Card>
-  </div>;
+  return <AuthShell
+    icon={LogIn}
+    eyebrow="Welcome back"
+    title="Continue your learning path"
+    description="Log in with your verified CodeMentor AI account. We will return you to the correct onboarding or learning step."
+    footer={<div className="flex flex-wrap items-center justify-between gap-3">
+      <span>No account? <Link className="auth-link" to="/register">Create one</Link></span>
+      <Link className="auth-link" to="/verify-email">Resend verification</Link>
+    </div>}
+  >
+    <div className="space-y-3">
+      {verified && <AuthNotice tone="success">Email verified. You can now log in.</AuthNotice>}
+      {reset && <AuthNotice tone="success">Password reset successfully. Log in with your new password.</AuthNotice>}
+    </div>
+
+    <form onSubmit={handleSubmit(submit)} className="mt-5 space-y-4">
+      <ErrorMessage message={errors.root?.message} />
+      <FormInput label="Email" type="email" autoComplete="email" registration={register('email')} error={errors.email?.message} placeholder="you@example.com" />
+      <PasswordInput label="Password" registration={register('password')} error={errors.password?.message} placeholder="Your password" />
+      <div className="flex justify-end text-sm"><Link className="auth-link" to="/forgot-password">Forgot password?</Link></div>
+      <Button type="submit" className="w-full" isLoading={isSubmitting} loadingLabel="Logging in...">Login</Button>
+    </form>
+
+    {demoMode && <div className="mt-5 rounded-surface border border-border bg-surface-secondary p-4 text-sm text-muted-foreground">
+      <p className="font-semibold text-foreground">Demo mode</p>
+      <p className="mt-1 text-xs">Fill a seeded account without changing production authentication behavior.</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button type="button" variant="secondary" onClick={() => fillDemo('learner')}>Use demo learner</Button>
+        <Button type="button" variant="secondary" onClick={() => fillDemo('admin')}>Use demo admin</Button>
+      </div>
+    </div>}
+  </AuthShell>;
 }

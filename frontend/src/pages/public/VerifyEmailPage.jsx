@@ -1,39 +1,58 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { MailCheck } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
-import Card from '../../components/common/Card.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
+import AuthNotice from '../../components/auth/AuthNotice.jsx';
+import AuthShell from '../../components/auth/AuthShell.jsx';
 import FormInput from '../../components/form/FormInput.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 
+const registrationNotice = ({ emailSent, deliveryMode }) => {
+  if (emailSent) return { tone: 'success', text: 'Account created. Check your inbox and open the verification link before logging in.' };
+  if (deliveryMode === 'development_link') return { tone: 'info', text: 'Account created. Email delivery is disabled in this development environment; use the verification link provided in the server log.' };
+  return { tone: 'warning', text: 'Account created, but the verification email could not be delivered. You can request another link below.' };
+};
+
 export default function VerifyEmailPage() {
   const [params] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { verifyEmail, resendVerification } = useAuth();
   const token = params.get('token');
-  const sent = params.get('sent') === 'true';
-  const [email, setEmail] = useState('');
+  const legacySent = params.get('sent') === 'true';
+  const registration = location.state?.registration;
+  const initialNotice = registration ? registrationNotice(registration) : legacySent ? registrationNotice({ emailSent: true }) : null;
+  const [email, setEmail] = useState(registration?.email || '');
   const [status, setStatus] = useState(token ? 'verifying' : 'idle');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [isResending, setIsResending] = useState(false);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token) return undefined;
+
     let active = true;
+    let redirectTimer;
     setStatus('verifying');
+    setError('');
+
     verifyEmail({ token })
       .then(() => {
         if (!active) return;
         setStatus('success');
-        setTimeout(() => navigate('/login?verified=true'), 1200);
+        redirectTimer = window.setTimeout(() => navigate('/login?verified=true', { replace: true }), 1400);
       })
       .catch((err) => {
         if (!active) return;
         setError(err.message);
         setStatus('error');
       });
-    return () => { active = false; };
+
+    return () => {
+      active = false;
+      if (redirectTimer) window.clearTimeout(redirectTimer);
+    };
   }, [token, verifyEmail, navigate]);
 
   const resend = async (event) => {
@@ -41,31 +60,42 @@ export default function VerifyEmailPage() {
     setError('');
     setMessage('');
     try {
+      setIsResending(true);
       await resendVerification({ email });
-      setMessage('If this email needs verification, a new verification link has been sent.');
+      setMessage('If this email still needs verification, a new verification link has been requested.');
     } catch (err) {
       setError(err.message);
+    } finally {
+      setIsResending(false);
     }
   };
 
-  return <div className="mx-auto max-w-md">
-    <Card>
-      <div className="grid h-12 w-12 place-items-center rounded-2xl bg-indigo-50 text-indigo-700"><MailCheck /></div>
-      <h1 className="mt-4 text-3xl font-black text-slate-950">Verify your email</h1>
-      {status === 'verifying' && <p className="mt-3 text-slate-600">Verifying your email link...</p>}
-      {status === 'success' && <p className="mt-3 rounded-2xl bg-emerald-50 p-4 font-bold text-emerald-700">Email verified successfully. Redirecting to login...</p>}
-      {sent && !token && <p className="mt-3 rounded-2xl bg-indigo-50 p-4 text-sm font-semibold text-indigo-800">Check your email and click the verification link to activate your account.</p>}
+  const canResend = !token || status === 'error';
+
+  return <AuthShell
+    icon={MailCheck}
+    eyebrow="Email verification"
+    title="Verify your email"
+    description="Verification protects your learner progress and must be completed before login."
+    footer={<div className="flex flex-wrap items-center justify-between gap-3">
+      <Link to="/login" className="auth-link">Back to login</Link>
+      <Link to="/register" className="auth-link">Create account</Link>
+    </div>}
+  >
+    <div className="space-y-3">
+      {initialNotice && !token && <AuthNotice tone={initialNotice.tone}>{initialNotice.text}</AuthNotice>}
+      {status === 'verifying' && <AuthNotice>Verifying your email link…</AuthNotice>}
+      {status === 'success' && <AuthNotice tone="success">Email verified successfully. Redirecting to login…</AuthNotice>}
       <ErrorMessage message={error} />
-      {!token && <form onSubmit={resend} className="mt-5 space-y-4">
-        <p className="text-sm text-slate-600">Didn’t receive the email? Enter your email to request a new verification link.</p>
-        <FormInput label="Email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
-        {message && <p className="rounded-2xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700">{message}</p>}
-        <Button className="w-full" disabled={!email}>Resend verification link</Button>
-      </form>}
-      <div className="mt-5 flex items-center justify-between text-sm">
-        <Link to="/login" className="font-bold text-slate-600">Back to login</Link>
-        <Link to="/register" className="font-bold text-indigo-700">Create account</Link>
-      </div>
-    </Card>
-  </div>;
+    </div>
+
+    {canResend && <form onSubmit={resend} className="mt-5 space-y-4">
+      <p className="text-sm leading-6 text-muted-foreground">Enter your email to request a new link. The response does not reveal whether the account exists.</p>
+      <FormInput label="Email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required />
+      {message && <AuthNotice tone="success">{message}</AuthNotice>}
+      <Button type="submit" className="w-full" disabled={!email.trim()} isLoading={isResending} loadingLabel="Sending link...">Resend verification link</Button>
+    </form>}
+
+    {status === 'success' && <Link to="/login?verified=true" replace className="ui-button ui-button--secondary mt-5 w-full">Continue to login</Link>}
+  </AuthShell>;
 }
