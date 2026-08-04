@@ -226,9 +226,10 @@ Never commit real secrets or production `.env` files.
 - Set `TRUST_PROXY` correctly behind a load balancer or reverse proxy.
 - Use strong, independent JWT access and refresh secrets.
 - Use Redis and a separately supervised worker process before enabling queues.
-- Run readiness checks, migrations, backend tests, frontend tests, and the frontend production build before release.
+- Run `node scripts/release-check.mjs`, readiness checks, migrations, and the manual release checklist before release.
 
 ## Further documentation
 
 - [Architecture and data flow](docs/ARCHITECTURE.md)
 - [Development and operations guide](docs/DEVELOPMENT.md)
+- [Release checklist](docs/RELEASE_CHECKLIST.md)
