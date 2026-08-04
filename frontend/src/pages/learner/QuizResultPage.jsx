@@ -43,13 +43,13 @@ export default function QuizResultPage() {
 
     <Card>
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div><div className="flex flex-wrap gap-2"><Bade variant={hasExplanation ? (aiAvailable ? 'info' : 'warning') : 'neutral'}>{hasExplanation ? (aiAvailable ? 'Gemini explanation' : 'Stored fallback explanation') : 'Optional explanation'}</Badge></div><h2 className="mt-3 text-xl font-bold text-foreground">Mistake explanation</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">Gemini can explain wrong answers using trusted context. If it is unavailable, the backend stores a fallback built from quiz and lesson explanations.</p></div>
+        <div><div className="flex flex-wrap gap-2"><Badge variant={hasExplanation ? (aiAvailable ? 'info' : 'warning') : 'neutral'}>{hasExplanation ? (aiAvailable ? 'Gemini explanation' : 'Stored fallback explanation') : 'Optional explanation'}</Badge></div><h2 className="mt-3 text-xl font-bold text-foreground">Mistake explanation</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">Gemini can explain wrong answers using trusted context. If it is unavailable, the backend stores a fallback built from quiz and lesson explanations.</p></div>
         <Button onClick={explainMistakes} disabled={hasExplanation} isLoading={explainMutation.isPending} loadingLabel="Preparing explanation...">{hasExplanation ? 'Explanation saved' : 'Explain mistakes'}</Button>
       </div>
 
       {hasExplanation ? <div className={`mt-5 rounded-panel border p-5 ${aiAvailable ? 'border-primary/20 bg-primary-soft' : 'border-warning/20 bg-warning-soft'}`}>
         {!aiAvailable && <p className="mb-3 font-semibold text-warning">Gemini was unavailable. This is the stored fallback explanation.</p>}
-        <p className="whitespace-pre-line leading-7 text-foreground">{attempt.aiExplaination.summary}</p>
+        <p className="whitespace-pre-line leading-7 text-foreground">{attempt.aiExplanation.summary}</p>
       </div> : <p className="mt-5 rounded-surface bg-surface-secondary p-4 text-sm leading-6 text-muted-foreground">No optional mistake explanation has been requested yet. The deterministic score and stored per-question explanations are already available below.</p>}
 
       {attempt.aiExplanation?.sources?.length ? <div className="mt-4 flex flex-wrap gap-2">{attempt.aiExplanation.sources.map((source, index) => <Badge key={`${sourceLabel(source)}-${index}`} variant="neutral">{sourceLabel(source)}</Badge>)}</div> : null}
