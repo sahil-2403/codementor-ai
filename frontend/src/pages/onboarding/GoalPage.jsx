@@ -1,29 +1,30 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowRight, CheckCircle2, Compass, Sparkles } from 'lucide-react';
+import { CheckCircle2, Compass, Sparkles } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import Button from '../../components/common/Button.jsx';
 import Badge from '../../components/common/Badge.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import Loader from '../../components/common/Loader.jsx';
+import EmptyState from '../../components/common/EmptyState.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import { goals } from '../../constants/goals.js';
 import { onboardingApi } from '../../api/onboardingApi.js';
 import { queryKeys } from '../../constants/queryKeys.js';
+import { cn } from '../../utils/cn.js';
 
 export default function GoalPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status });
+  const { data, isLoading, error: statusError, refetch } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status, retry: false });
   const [selected, setSelected] = useState(goals[0]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const currentKey = data?.currentGoal?.goalKey;
-    const current = goals.find((goal) => goal.key === currentKey);
+    const current = goals.find((goal) => goal.key === data?.currentGoal?.goalKey);
     if (current) setSelected(current);
   }, [data?.currentGoal?.goalKey]);
 
@@ -42,38 +43,50 @@ export default function GoalPage() {
   };
 
   if (isLoading) return <Loader label="Loading onboarding..." />;
+  if (statusError) return <EmptyState title="Onboarding is unavailable" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
 
   return <OnboardingShell
     current="goal"
     eyebrow="Step 1 · Learning goal"
     title="Choose the path you want to master."
-    description="Start with a focused learning path so your roadmap, lessons, quizzes, projects, interview practice, and mentor support stay connected."
+    description="Start with one focused path so lessons, quizzes, projects, interview practice, and mentor support remain connected."
     aside={<>
       <OnboardingInsightCard title="Why one path first?" badge="Quality first" items={[
-        { title: 'Deeper content', description: 'The app feels stronger when one path has real lessons, quizzes, projects, and interviews instead of many shallow paths.' },
-        { title: 'Better personalization', description: 'Assessment and recommendations become more meaningful when the topic graph is controlled.' }
+        { title: 'Deeper content', description: 'One complete path is more useful than several shallow paths without enough lessons or practice.' },
+        { title: 'Clear personalization', description: 'Assessment and recommendations are easier to explain when the topic graph is controlled.' }
       ]} />
-      <Card className="bg-indigo-50"><Compass className="text-indigo-700" /><p className="mt-3 font-black text-indigo-950">Coming later</p><p className="mt-2 text-sm leading-6 text-indigo-900">React, backend, JavaScript interview prep, and DSA paths can be added through the same roadmap template system.</p></Card>
+      <Card className="bg-primary-soft"><Compass className="text-primary" /><p className="mt-3 font-bold text-foreground">More paths later</p><p className="mt-2 text-sm leading-6 text-muted-foreground">The same template system can support additional learning paths after the MERN experience is complete.</p></Card>
     </>}
   >
     <ErrorMessage message={error} />
     <div className="grid gap-4 md:grid-cols-2">
       {goals.map((goal) => {
         const active = selected.key === goal.key;
-        return <button key={goal.key} disabled={!goal.available || saving} onClick={() => setSelected(goal)} className={`group rounded-[2rem] border p-6 text-left transition ${active ? 'border-indigo-500 bg-white shadow-soft' : 'border-slate-200 bg-white/65'} ${!goal.available ? 'opacity-55' : 'hover:-translate-y-0.5 hover:bg-white hover:shadow-soft'}`}>
+        return <button
+          type="button"
+          key={goal.key}
+          disabled={!goal.available || saving}
+          aria-pressed={active}
+          onClick={() => setSelected(goal)}
+          className={cn(
+            'rounded-panel border p-6 text-left transition duration-200',
+            active ? 'border-primary/50 bg-primary-soft shadow-soft' : 'border-border bg-surface',
+            !goal.available ? 'cursor-not-allowed opacity-55' : 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-soft'
+          )}
+        >
           <div className="flex items-start justify-between gap-4">
-            <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-950 text-white"><Sparkles size={18} /></div>
-            {active ? <CheckCircle2 className="text-indigo-600" /> : !goal.available && <Badge>Coming soon</Badge>}
+            <span className={cn('grid h-12 w-12 place-items-center rounded-surface', active ? 'bg-primary text-white' : 'bg-surface-secondary text-foreground')} aria-hidden="true"><Sparkles size={18} /></span>
+            {active ? <CheckCircle2 className="text-primary" aria-label="Selected" /> : !goal.available && <Badge variant="neutral">Coming soon</Badge>}
           </div>
-          <h3 className="mt-5 text-2xl font-black text-slate-950">{goal.title}</h3>
-          <p className="mt-2 leading-7 text-slate-600">{goal.description}</p>
-          {goal.available && <p className="mt-5 text-sm font-black text-indigo-700">Available now</p>}
+          <h3 className="mt-5 text-2xl font-bold text-foreground">{goal.title}</h3>
+          <p className="mt-2 leading-7 text-muted-foreground">{goal.description}</p>
+          {goal.available && <p className="mt-5 text-sm font-semibold text-primary-strong">Available now</p>}
         </button>;
       })}
     </div>
-    <Card className="flex flex-col gap-4 border border-indigo-100 bg-white md:flex-row md:items-center md:justify-between">
-      <div><p className="text-sm font-bold text-slate-500">Selected goal</p><p className="text-xl font-black text-slate-950">{selected.title}</p></div>
-      <Button onClick={continueNext} disabled={saving} className="px-6 py-3">{saving ? 'Saving...' : 'Continue to level'} <ArrowRight className="ml-2" size={18} /></Button>
+    <Card className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div><p className="text-sm font-semibold text-muted-foreground">Selected goal</p><p className="text-xl font-bold text-foreground">{selected.title}</p></div>
+      <Button onClick={continueNext} isLoading={saving} loadingLabel="Saving goal..." className="px-6">Continue to level</Button>
     </Card>
   </OnboardingShell>;
 }

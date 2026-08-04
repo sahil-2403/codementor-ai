@@ -9,7 +9,9 @@ import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import Loader from '../../components/common/Loader.jsx';
+import EmptyState from '../../components/common/EmptyState.jsx';
 import FormInput from '../../components/form/FormInput.jsx';
+import Select from '../../components/common/Select.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import { preferencesFormSchema } from '../../validations/onboarding.schema.js';
@@ -26,15 +28,11 @@ const defaults = {
 export default function PreferencesPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status });
-  const {
-    register,
-    handleSubmit,
-    setError,
-    watch,
-    reset,
-    formState: { errors, isSubmitting }
-  } = useForm({ resolver: zodResolver(preferencesFormSchema), defaultValues: defaults });
+  const { data, isLoading, error: statusError, refetch } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status, retry: false });
+  const { register, handleSubmit, setError, watch, reset, formState: { errors, isSubmitting } } = useForm({
+    resolver: zodResolver(preferencesFormSchema),
+    defaultValues: defaults
+  });
 
   useEffect(() => {
     const goal = data?.currentGoal;
@@ -68,37 +66,44 @@ export default function PreferencesPage() {
   };
 
   if (isLoading) return <Loader label="Loading your learning preferences..." />;
+  if (statusError) return <EmptyState title="Learning preferences are unavailable" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
 
-  return (
-    <OnboardingShell
-      current="setup"
-      eyebrow="Step 3 · Beginner setup"
-      title="Set your pace without taking a test."
-      description="Beginners should not be blocked by technical diagnostics. We use your time, goal, and learning style to create a safe roadmap and personalize the pace."
-      backTo="/onboarding/level"
-      aside={<>
-        <OnboardingInsightCard title="Your roadmap will adjust" badge="Beginner" items={[
-          { title: 'Pace', description: `${dailyTime || 0} minutes/day across ${targetDays || 0} days controls lesson density and revision spacing.` },
-          { title: 'Focus', description: 'Job preparation gets more interview questions. Project focus gets more task cards and integration milestones.' }
-        ]} />
-        <Card className="bg-emerald-50"><ListChecks className="text-emerald-700" /><p className="mt-3 font-black text-emerald-950">No assessment needed</p><p className="mt-2 text-sm leading-6 text-emerald-900">You can take diagnostics later after completing foundation modules.</p></Card>
-      </>}
-    >
-      <Card>
-        <form onSubmit={handleSubmit(submit)} className="space-y-5">
-          <ErrorMessage message={errors.root?.message} />
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-3xl bg-slate-50 p-4"><Clock className="text-indigo-600" /><FormInput className="mt-3" label="Daily study time in minutes" type="number" registration={register('dailyStudyTime')} error={errors.dailyStudyTime?.message} /></div>
-            <div className="rounded-3xl bg-slate-50 p-4"><Target className="text-indigo-600" /><FormInput className="mt-3" label="Target duration in days" type="number" registration={register('targetDurationDays')} error={errors.targetDurationDays?.message} /></div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="block space-y-1.5"><span className="text-sm font-semibold text-slate-700">Learning style</span><select className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" {...register('learningStyle')}><option value="project-based">Project based</option><option value="theory-first">Theory first</option><option value="interview-focused">Interview focused</option></select></label>
-            <label className="block space-y-1.5"><span className="text-sm font-semibold text-slate-700">Main focus</span><select className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100" {...register('mainFocus')}><option value="job-preparation">Job preparation</option><option value="project-building">Project building</option><option value="interview-revision">Interview revision</option></select></label>
-          </div>
-          <FormInput label="Known basics, comma separated" registration={register('knownBasics')} error={errors.knownBasics?.message} />
-          <Button className="w-full py-4" disabled={isSubmitting}>{isSubmitting ? 'Saving setup...' : 'Continue to roadmap'}</Button>
-        </form>
-      </Card>
-    </OnboardingShell>
-  );
+  return <OnboardingShell
+    current="setup"
+    eyebrow="Step 3 · Beginner setup"
+    title="Set your pace without taking a test."
+    description="Your available time, target duration, and preferred learning style shape the roadmap pace without inventing skill scores."
+    backTo="/onboarding/level"
+    aside={<>
+      <OnboardingInsightCard title="Your roadmap will adjust" badge="Beginner" items={[
+        { title: 'Pace', description: `${dailyTime || 0} minutes per day across ${targetDays || 0} days controls lesson density and revision spacing.` },
+        { title: 'Focus', description: 'Job preparation emphasizes interview practice; project building emphasizes implementation milestones.' }
+      ]} />
+      <Card className="bg-success-soft"><ListChecks className="text-success" /><p className="mt-3 font-bold text-foreground">No assessment required</p><p className="mt-2 text-sm leading-6 text-muted-foreground">You can take a diagnostic later after completing foundation modules.</p></Card>
+    </>}
+  >
+    <Card>
+      <form onSubmit={handleSubmit(submit)} className="space-y-5">
+        <ErrorMessage message={errors.root?.message} />
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-surface bg-surface-secondary p-4"><Clock className="text-primary" aria-hidden="true" /><FormInput className="mt-3" label="Daily study time in minutes" type="number" min="15" max="600" registration={register('dailyStudyTime')} error={errors.dailyStudyTime?.message} /></div>
+          <div className="rounded-surface bg-surface-secondary p-4"><Target className="text-primary" aria-hidden="true" /><FormInput className="mt-3" label="Target duration in days" type="number" min="7" max="365" registration={register('targetDurationDays')} error={errors.targetDurationDays?.message} /></div>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Select label="Learning style" {...register('learningStyle')} error={errors.learningStyle?.message}>
+            <option value="project-based">Project based</option>
+            <option value="theory-first">Theory first</option>
+            <option value="interview-focused">Interview focused</option>
+          </Select>
+          <Select label="Main focus" {...register('mainFocus')} error={errors.mainFocus?.message}>
+            <option value="job-preparation">Job preparation</option>
+            <option value="project-building">Project building</option>
+            <option value="interview-revision">Interview revision</option>
+          </Select>
+        </div>
+        <FormInput label="Known basics, comma separated" registration={register('knownBasics')} error={errors.knownBasics?.message} placeholder="HTML, CSS, Basic JavaScript" />
+        <Button type="submit" className="w-full" isLoading={isSubmitting} loadingLabel="Saving setup...">Continue to roadmap</Button>
+      </form>
+    </Card>
+  </OnboardingShell>;
 }

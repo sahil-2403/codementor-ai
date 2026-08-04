@@ -2,22 +2,36 @@ import { Check } from 'lucide-react';
 import { cn } from '../../utils/cn.js';
 
 export default function StepProgress({ steps = [], current = '' }) {
-  const currentIndex = Math.max(steps.findIndex((step) => step.key === current), 0);
-  return <div className="rounded-[2rem] border border-white/60 bg-white/75 p-4 shadow-soft backdrop-blur">
-    <div className="grid gap-3 sm:grid-cols-4">
+  const foundIndex = steps.findIndex((step) => step.key === current);
+  const currentIndex = foundIndex >= 0 ? foundIndex : 0;
+
+  return <nav className="rounded-panel border border-border bg-surface p-3 shadow-sm sm:p-4" aria-label="Onboarding progress">
+    <ol className="grid gap-2 sm:grid-cols-4">
       {steps.map((step, index) => {
         const complete = index < currentIndex;
         const active = index === currentIndex;
-        return <div key={step.key} className={cn('rounded-3xl border p-4 transition', active ? 'border-indigo-300 bg-indigo-50' : complete ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-white/70')}>
+        return <li
+          key={step.key}
+          aria-current={active ? 'step' : undefined}
+          className={cn(
+            'rounded-surface border p-3 transition sm:p-4',
+            active ? 'border-primary/30 bg-primary-soft' : complete ? 'border-success/20 bg-success-soft' : 'border-border bg-surface'
+          )}
+        >
           <div className="flex items-center gap-3">
-            <span className={cn('grid h-8 w-8 place-items-center rounded-2xl text-xs font-black', active ? 'bg-indigo-600 text-white' : complete ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-500')}>{complete ? <Check size={15} /> : index + 1}</span>
-            <div>
-              <p className="font-black text-slate-950">{step.label}</p>
-              {step.helper && <p className="text-xs font-semibold text-slate-500">{step.helper}</p>}
+            <span className={cn(
+              'grid h-8 w-8 shrink-0 place-items-center rounded-control text-xs font-bold',
+              active ? 'bg-primary text-white' : complete ? 'bg-success text-white' : 'bg-surface-secondary text-muted-foreground'
+            )} aria-hidden="true">
+              {complete ? <Check size={15} /> : index + 1}
+            </span>
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground">{step.label}</p>
+              {step.helper && <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{step.helper}</p>}
             </div>
           </div>
-        </div>;
+        </li>;
       })}
-    </div>
-  </div>;
+    </ol>
+  </nav>;
 }
