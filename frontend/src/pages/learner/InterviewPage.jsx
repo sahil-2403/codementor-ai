@@ -1,122 +1,216 @@
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import Loader from '../../components/common/Loader.jsx';
-import Card from '../../components/common/Card.jsx';
-import Button from '../../components/common/Button.jsx';
 import Badge from '../../components/common/Badge.jsx';
+import Button from '../../components/common/Button.jsx';
+import Card from '../../components/common/Card.jsx';
+import EmptyState from '../../components/common/EmptyState.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
+import InlineAlert from '../../components/common/InlineAlert.jsx';
+import Loader from '../../components/common/Loader.jsx';
+import PageHeader from '../../components/common/PageHeader.jsx';
+import PageShell from '../../components/common/PageShell.jsx';
 import FormTextarea from '../../components/form/FormTextarea.jsx';
-import { useInterviewAttempts, useInterviewQuestions, useSubmitInterviewAnswer } from '../../queries/interviewQueries.js';
+import InterviewAttemptFeedback from '../../components/interview/InterviewAttemptFeedback.jsx';
+import { useInterviewAttempts, useInterviewQuestions, useRetryInterviewReview, useSubmitInterviewAnswer } from '../../queries/interviewQueries.js';
 import { interviewAnswerSchema } from '../../validations/interview.schema.js';
+
+const MAX_ATTEMPTS = 2;
 
 export default function InterviewPage() {
   const [selectedTopic, setSelectedTopic] = useState('');
   const [selectedQuestionId, setSelectedQuestionId] = useState('');
   const [activeTab, setActiveTab] = useState('answer');
-  const { data, isLoading } = useInterviewQuestions();
-  const { data: attemptsData } = useInterviewAttempts();
+  const [notice, setNotice] = useState(null);
+  const [retryingId, setRetryingId] = useState(null);
+  const questionsQuery = useInterviewQuestions();
+  const attemptsQuery = useInterviewAttempts();
   const submitMutation = useSubmitInterviewAnswer();
-  const { register, handleSubmit, reset, setError, formState: { errors, isSubmitting } } = useForm({
+  const retryMutation = useRetryInterviewReview();
+  const { register, handleSubmit, reset, clearErrors, setError, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(interviewAnswerSchema),
     defaultValues: { answer: '' }
   });
-  const questions = data?.questions || [];
-  const attempts = attemptsData?.attempts || [];
-  const topics = useMemo(() => Object.entries(questions.reduce((acc, q) => {
-    acc[q.topic] = acc[q.topic] || [];
-    acc[q.topic].push(q);
-    return acc;
+
+  const questions = questionsQuery.data?.questions || [];
+  const attempts = attemptsQuery.data?.attempts || [];
+  const topics = useMemo(() => Object.entries(questions.reduce((groups, question) => {
+    groups[question.topic] = groups[question.topic] || [];
+    groups[question.topic].push(question);
+    return groups;
   }, {})), [questions]);
   const currentTopic = selectedTopic || topics[0]?.[0] || '';
   const topicQuestions = topics.find(([topic]) => topic === currentTopic)?.[1] || [];
-  const selectedQuestion = useMemo(() => questions.find((item) => item._id === selectedQuestionId) || topicQuestions[0], [questions, selectedQuestionId, topicQuestions]);
+  const selectedQuestion = useMemo(
+    () => questions.find((item) => item._id === selectedQuestionId) || topicQuestions[0],
+    [questions, selectedQuestionId, topicQuestions]
+  );
   const selectedAttempts = attempts.filter((attempt) => attempt.question?._id === selectedQuestion?._id);
   const attemptsUsed = selectedAttempts.length;
-  const canSubmit = selectedQuestion && attemptsUsed < 2;
+  const canSubmit = Boolean(selectedQuestion) && attemptsUsed < MAX_ATTEMPTS;
+  const expectedAnswer = selectedAttempts[0]?.aiFeedback?.expectedAnswer || selectedAttempts[0]?.question?.expectedAnswer || '';
+
+  const resetWorkspace = (tab = 'answer') => {
+    setActiveTab(tab);
+    setNotice(null);
+    clearErrors();
+    reset({ answer: '' });
+  };
 
   const chooseTopic = (topic) => {
     setSelectedTopic(topic);
-    const first = topics.find(([name]) => name === topic)?.[1]?.[0];
-    setSelectedQuestionId(first?._id || '');
-    setActiveTab('answer');
+    const firstQuestion = topics.find(([name]) => name === topic)?.[1]?.[0];
+    setSelectedQuestionId(firstQuestion?._id || '');
+    resetWorkspace();
   };
 
   const chooseQuestion = (questionId) => {
     setSelectedQuestionId(questionId);
-    setActiveTab('answer');
+    resetWorkspace();
   };
 
   const submit = async (values) => {
     if (!selectedQuestion?._id) return;
     try {
-      await submitMutation.mutateAsync({ questionId: selectedQuestion._id, answer: values.answer });
-      reset();
+      setNotice(null);
+      const result = await submitMutation.mutateAsync({ questionId: selectedQuestion._id, answer: values.answer });
+      reset({ answer: '' });
       setActiveTab('attempts');
-    } catch (err) { setError('root', { message: err.message }); }
+      setNotice(result?.attempt?.status === 'reviewed'
+        ? { tone: 'success', title: 'Answer reviewed', message: 'Gemini feedback and a score were saved for this attempt.' }
+        : { tone: 'warning', title: 'Answer saved', message: 'Gemini feedback is currently unavailable. Your answer and deterministic comparison were preserved.' });
+    } catch (err) {
+      setError('root', { message: err.message });
+    }
   };
 
-  if (isLoading) return <Loader label="Loading interview mode..." />;
+  const retryReview = async (attemptId) => {
+    try {
+      setRetryingId(attemptId);
+      setNotice(null);
+      const result = await retryMutation.mutateAsync(attemptId);
+      setNotice(result?.attempt?.status === 'reviewed'
+        ? { tone: 'success', title: 'Review completed', message: 'Gemini feedback was added to the existing saved attempt.' }
+        : { tone: 'warning', title: 'Review still unavailable', message: 'The original answer remains saved and no additional attempt was consumed.' });
+    } catch (err) {
+      setError('root', { message: err.message });
+    } finally {
+      setRetryingId(null);
+    }
+  };
 
-  return <div className="space-y-6">
-    <Card>
-      <Badge>Interview mode</Badge>
-      <h1 className="mt-3 text-4xl font-black text-slate-950">Coding Interview Practice</h1>
-      <p className="mt-2 max-w-3xl text-slate-600">Practice by topic, submit up to two answers per question, and compare with expected answers when AI feedback is unavailable.</p>
-    </Card>
+  if (questionsQuery.isLoading || attemptsQuery.isLoading) return <Loader label="Loading interview practice..." />;
+  if (questionsQuery.isError || attemptsQuery.isError) return <EmptyState title="Interview practice could not load" description={questionsQuery.error?.message || attemptsQuery.error?.message || 'Try refreshing the page.'} />;
 
-    <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
+  return <PageShell>
+    <PageHeader
+      eyebrow="Interview practice"
+      title="Build stronger coding answers"
+      description="Practice published questions by topic. Each answer is stored before review, and every question allows up to two attempts."
+    />
+
+    {!questions.length ? <EmptyState title="No interview questions available" description="Published questions will appear here when the course team adds them." /> : <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
       <Card>
-        <h2 className="text-xl font-black">Question bank by topic</h2>
-        <div className="mt-4 space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-black text-foreground">Question bank</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Choose a topic, then a published question.</p>
+          </div>
+          <Badge>{questions.length} questions</Badge>
+        </div>
+
+        <div className="mt-5 space-y-3">
           {topics.map(([topic, list]) => {
+            const open = currentTopic === topic;
             const topicAttempts = attempts.filter((attempt) => attempt.question?.topic === topic).length;
-            return <div key={topic} className="rounded-3xl border border-slate-100 bg-white/70 p-4">
-              <button onClick={() => chooseTopic(topic)} className="flex w-full items-center justify-between text-left">
-                <div><p className="font-black text-slate-950">{topic}</p><p className="text-sm text-slate-500">{list.length} question(s) · {topicAttempts} attempt(s)</p></div>
-                <Badge>{currentTopic === topic ? 'Open' : 'View'}</Badge>
+            return <section key={topic} className="rounded-[1.5rem] border border-border bg-surface p-4">
+              <button type="button" onClick={() => chooseTopic(topic)} aria-expanded={open} className="flex w-full items-center justify-between gap-4 text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-soft">
+                <div>
+                  <p className="font-black text-foreground">{topic}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{list.length} question{list.length === 1 ? '' : 's'} · {topicAttempts} saved attempt{topicAttempts === 1 ? '' : 's'}</p>
+                </div>
+                <Badge variant={open ? 'info' : 'neutral'}>{open ? 'Open' : 'View'}</Badge>
               </button>
-              {currentTopic === topic && <div className="mt-4 space-y-2">
-                {list.map((question) => <button key={question._id} onClick={() => chooseQuestion(question._id)} className={`w-full rounded-2xl p-3 text-left text-sm transition ${selectedQuestion?._id === question._id ? 'bg-slate-950 text-white' : 'bg-slate-50 hover:bg-indigo-50'}`}>
-                  <div className="flex flex-wrap gap-2"><span className="rounded-full bg-white/20 px-2 py-1 text-xs font-bold">{question.difficulty}</span><span className="rounded-full bg-white/20 px-2 py-1 text-xs font-bold">{question.type}</span></div>
-                  <p className="mt-2 font-bold">{question.question}</p>
-                </button>)}
-              </div>}
-            </div>;
+
+              {open ? <div className="mt-4 space-y-2">
+                {list.map((question) => {
+                  const active = selectedQuestion?._id === question._id;
+                  const questionAttempts = attempts.filter((attempt) => attempt.question?._id === question._id).length;
+                  return <button
+                    key={question._id}
+                    type="button"
+                    onClick={() => chooseQuestion(question._id)}
+                    aria-pressed={active}
+                    className={`w-full rounded-2xl border p-3 text-left text-sm transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-soft ${active ? 'border-primary bg-primary text-white' : 'border-border bg-surface-secondary text-foreground hover:border-primary/30 hover:bg-primary-soft'}`}
+                  >
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold">
+                      <span className="rounded-full bg-white/15 px-2 py-1 capitalize">{question.difficulty}</span>
+                      <span className="rounded-full bg-white/15 px-2 py-1 capitalize">{String(question.type).replaceAll('_', ' ')}</span>
+                      <span className="ml-auto">{questionAttempts}/{MAX_ATTEMPTS} attempts</span>
+                    </div>
+                    <p className="mt-2 font-bold leading-6">{question.question}</p>
+                  </button>;
+                })}
+              </div> : null}
+            </section>;
           })}
         </div>
       </Card>
 
       <Card>
-        <h2 className="text-xl font-black">Answer practice</h2>
         {selectedQuestion ? <>
-          <div className="mt-4 rounded-3xl bg-indigo-50 p-5">
-            <div className="flex flex-wrap gap-2"><Badge>{selectedQuestion.difficulty}</Badge><Badge>{selectedQuestion.type}</Badge><Badge>{attemptsUsed}/2 attempts</Badge></div>
-            <p className="mt-3 text-lg font-black text-slate-950">{selectedQuestion.question}</p>
-            <p className="mt-2 text-sm text-slate-600">Topic: {selectedQuestion.topic}</p>
+          <div className="rounded-[1.5rem] bg-primary-soft p-5">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge>{selectedQuestion.difficulty}</Badge>
+              <Badge>{String(selectedQuestion.type).replaceAll('_', ' ')}</Badge>
+              <Badge variant={canSubmit ? 'neutral' : 'warning'}>{attemptsUsed}/{MAX_ATTEMPTS} attempts</Badge>
+            </div>
+            <h2 className="mt-4 text-xl font-black leading-8 text-foreground">{selectedQuestion.question}</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Topic: {selectedQuestion.topic}</p>
           </div>
-          <div className="mt-4 flex gap-2"><Button variant={activeTab === 'answer' ? 'primary' : 'secondary'} onClick={() => setActiveTab('answer')}>Answer</Button><Button variant={activeTab === 'attempts' ? 'primary' : 'secondary'} onClick={() => setActiveTab('attempts')}>My attempts</Button><Button variant={activeTab === 'expected' ? 'primary' : 'secondary'} onClick={() => setActiveTab('expected')}>Expected answer</Button></div>
+
+          <div className="mt-5 flex flex-wrap gap-2" role="tablist" aria-label="Interview question workspace">
+            <Button type="button" role="tab" aria-selected={activeTab === 'answer'} variant={activeTab === 'answer' ? 'primary' : 'secondary'} onClick={() => setActiveTab('answer')}>Write answer</Button>
+            <Button type="button" role="tab" aria-selected={activeTab === 'attempts'} variant={activeTab === 'attempts' ? 'primary' : 'secondary'} onClick={() => setActiveTab('attempts')}>Saved attempts</Button>
+            {selectedAttempts.length ? <Button type="button" role="tab" aria-selected={activeTab === 'expected'} variant={activeTab === 'expected' ? 'primary' : 'secondary'} onClick={() => setActiveTab('expected')}>Expected answer</Button> : null}
+          </div>
+
+          {notice ? <InlineAlert className="mt-4" tone={notice.tone} title={notice.title}>{notice.message}</InlineAlert> : null}
           <ErrorMessage message={errors.root?.message} />
-          {activeTab === 'answer' && <form onSubmit={handleSubmit(submit)} className="mt-4 space-y-4">
-            {!canSubmit && <p className="rounded-2xl bg-amber-50 p-3 text-sm font-bold text-amber-700">You have used both attempts for this question.</p>}
-            <FormTextarea className="min-h-56" placeholder="Write your interview answer here. Try: definition → example → project use case → common mistake." registration={register('answer')} error={errors.answer?.message} disabled={!canSubmit} />
-            <Button disabled={!canSubmit || isSubmitting || submitMutation.isPending}>{submitMutation.isPending ? 'Reviewing...' : 'Submit answer'}</Button>
-          </form>}
-          {activeTab === 'attempts' && <div className="mt-4 space-y-4">{selectedAttempts.length ? selectedAttempts.map((attempt, index) => {
-            const fallback = attempt.feedbackMode === 'fallback' || attempt.score === null;
-            return <div key={attempt._id} className="rounded-3xl border border-slate-100 bg-white/70 p-4">
-              <div className="flex items-center justify-between"><p className="font-black">Attempt {selectedAttempts.length - index}</p>{!fallback && <Badge>{attempt.score}%</Badge>}</div>
-              <p className="mt-2 whitespace-pre-wrap rounded-2xl bg-slate-50 p-3 text-sm text-slate-700">{attempt.answer}</p>
-              <div className={`mt-3 rounded-2xl p-3 text-sm leading-6 ${fallback ? 'bg-amber-50 text-amber-900' : 'bg-cyan-50 text-slate-800'}`}>
-                {fallback && <p className="mb-2 font-black">AI feedback is currently unavailable. Compare your answer with the expected answer and improve the structure.</p>}
-                <p className="font-black">Expected answer</p><p>{attempt.aiFeedback?.expectedAnswer || attempt.question?.expectedAnswer}</p>
-                <p className="mt-2 font-black">Improvements</p><ul className="list-disc pl-5">{attempt.aiFeedback?.improvements?.map((item) => <li key={item}>{item}</li>)}</ul>
-              </div>
-            </div>;
-          }) : <p className="text-sm text-slate-500">No attempts for this question yet.</p>}</div>}
-          {activeTab === 'expected' && <div className="mt-4 rounded-3xl bg-slate-50 p-5 text-sm leading-7 text-slate-700"><p className="font-black text-slate-950">Expected answer</p><p className="mt-2">{selectedQuestion.expectedAnswer}</p></div>}
-        </> : <p className="mt-4 text-sm text-slate-500">No questions found.</p>}
+
+          {activeTab === 'answer' ? <form onSubmit={handleSubmit(submit)} className="mt-5 space-y-4">
+            {!canSubmit ? <InlineAlert tone="warning" title="Attempt limit reached">You have used both attempts for this question. Review the saved feedback and expected answer instead.</InlineAlert> : null}
+            <FormTextarea
+              label="Your interview answer"
+              className="min-h-64"
+              placeholder="Use a clear structure: definition, small example, real project use, and one common mistake."
+              registration={register('answer')}
+              error={errors.answer?.message}
+              disabled={!canSubmit}
+            />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">Your answer is saved before Gemini review begins.</p>
+              <Button type="submit" disabled={!canSubmit || isSubmitting} isLoading={submitMutation.isPending} loadingLabel="Saving and reviewing...">Submit answer</Button>
+            </div>
+          </form> : null}
+
+          {activeTab === 'attempts' ? <div className="mt-5 space-y-4">
+            {selectedAttempts.length ? selectedAttempts.map((attempt, index) => <InterviewAttemptFeedback
+              key={attempt._id}
+              attempt={attempt}
+              attemptNumber={selectedAttempts.length - index}
+              isRetrying={retryingId === attempt._id}
+              onRetry={() => retryReview(attempt._id)}
+            />) : <EmptyState title="No attempts yet" description="Write your first answer to unlock the expected answer and feedback history." />}
+          </div> : null}
+
+          {activeTab === 'expected' ? <div className="mt-5 rounded-[1.75rem] border border-border bg-surface-secondary p-5">
+            <p className="font-black text-foreground">Published expected answer</p>
+            <p className="mt-3 text-sm leading-7 text-muted-foreground">{expectedAnswer || 'The expected answer is available in your saved attempt feedback.'}</p>
+            <p className="mt-4 text-xs font-bold uppercase tracking-[0.12em] text-muted-foreground">Unlocked after your first saved attempt</p>
+          </div> : null}
+        </> : <EmptyState title="Choose a question" description="Select a topic and question to begin interview practice." />}
       </Card>
-    </div>
-  </div>;
+    </div>}
+  </PageShell>;
 }
