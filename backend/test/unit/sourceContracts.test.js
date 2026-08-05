@@ -28,3 +28,51 @@ test('roadmap models declare job locks and output idempotency indexes', () => {
   assert.match(courses, /course_generation_job_unique/);
   assert.match(courses, /course_generation_key_unique/);
 });
+
+test('roadmap worker records the correct terminal timestamp field', () => {
+  const worker = source('workers/roadmap.worker.js');
+  assert.match(worker, /completedAt:\s*hasMoreBullAttempts\s*\?\s*null\s*:\s*new Date\(\)/);
+  assert.doesNotMatch(worker, /completdAt/);
+});
+
+test('mentor context is restricted to active course lessons', () => {
+  const service = source('services/mentor.service.js');
+  const routes = source('routes/mentor.routes.js');
+  assert.match(service, /requireActiveCourseForUser/);
+  assert.match(service, /assertLessonBelongsToCourse/);
+  assert.match(service, /LESSON_NOT_AVAILABLE|CONTENT_LOCKED/);
+  assert.match(routes, /validate\(mentorSuggestionsSchema\)/);
+});
+
+test('auth and csrf cookies use one configured policy', () => {
+  const tokenService = source('services/token.service.js');
+  const csrf = source('middlewares/csrf.middleware.js');
+  const cookies = source('config/cookies.js');
+  assert.match(tokenService, /accessCookieOptions/);
+  assert.match(tokenService, /refreshCookieOptions/);
+  assert.match(csrf, /csrfCookieOptions/);
+  assert.match(csrf, /csrfHashCookieOptions/);
+  assert.doesNotMatch(csrf, /process\.env/);
+  assert.match(cookies, /env\.cookieSameSite/);
+  assert.match(cookies, /env\.cookieDomain/);
+  assert.match(cookies, /durationToMs\(env\.jwtAccessExpiresIn/);
+});
+
+test('weekly reports are unique per user course and UTC week', () => {
+  const model = source('models/WeeklyReport.js');
+  const service = source('services/report.service.js');
+  const routes = source('routes/report.routes.js');
+  assert.match(model, /weekly_report_period_unique/);
+  assert.match(model, /user:\s*1,\s*coursePlan:\s*1,\s*weekStart:\s*1/);
+  assert.match(service, /getUtcWeekStart/);
+  assert.match(service, /checkAIUsageLimit\(userId, AI_FEATURES\.WEEKLY_REPORT\)/);
+  assert.match(service, /\.limit\(Math\.min/);
+  assert.match(routes, /aiRouteLimiter, generateReport/);
+});
+
+test('interview list filters are validated and regex escaped', () => {
+  const routes = source('routes/interview.routes.js');
+  const service = source('services/interview.service.js');
+  assert.match(routes, /validate\(listInterviewQuestionsSchema\)/);
+  assert.match(service, /new RegExp\(escapeRegex\(topic\), 'i'\)/);
+});
