@@ -8,3 +8,9 @@ export const askMentorSchema = z.object({
     promptType: z.string().trim().max(60).optional()
   })
 });
+
+export const mentorSuggestionsSchema = z.object({
+  query: z.object({
+    lessonId: objectIdSchema.optional()
+  })
+});
