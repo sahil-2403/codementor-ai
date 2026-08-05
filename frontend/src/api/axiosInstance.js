@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const SESSION_EXPIRED_EVENT = 'auth:session-expired';
 
 const readCookie = (name) => {
   if (typeof document === 'undefined') return '';
@@ -8,6 +9,10 @@ const readCookie = (name) => {
     .split('; ')
     .find((row) => row.startsWith(`${name}=`))
     ?.split('=')[1] || '';
+};
+
+const notifySessionExpired = () => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
 };
 
 const csrfClient = axios.create({ baseURL, withCredentials: true });
@@ -32,6 +37,15 @@ const ensureCsrfToken = async ({ force = false } = {}) => {
   }
 };
 
+const refreshSession = async () => {
+  refreshPromise = refreshPromise || api.post('/auth/refresh-token');
+  try {
+    await refreshPromise;
+  } finally {
+    refreshPromise = null;
+  }
+};
+
 api.interceptors.request.use(async (config) => {
   const method = (config.method || 'get').toLowerCase();
   const isWrite = !['get', 'head', 'options'].includes(method);
@@ -52,12 +66,10 @@ api.interceptors.response.use(
     if (status === 401 && originalRequest && !originalRequest._retry && !originalRequest.url?.includes('/auth/refresh-token')) {
       originalRequest._retry = true;
       try {
-        refreshPromise = refreshPromise || api.post('/auth/refresh-token');
-        await refreshPromise;
-        refreshPromise = null;
+        await refreshSession();
         return api(originalRequest);
-      } catch (refreshError) {
-        refreshPromise = null;
+      } catch {
+        notifySessionExpired();
       }
     }
 
