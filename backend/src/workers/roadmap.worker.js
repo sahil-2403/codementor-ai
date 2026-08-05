@@ -128,7 +128,7 @@ export const startRoadmapWorker = () => {
               status: hasMoreBullAttempts ? 'processing' : 'failed',
               error: error.message,
               errorCode: error.code || 'ROADMAP_GENERATION_FAILED',
-              completdAt: hasMoreBullAttempts ? null : new Date()
+              completedAt: hasMoreBullAttempts ? null : new Date()
             },
             $max: { attempts: totalAttempt },
             ...(hasMoreBullAttempts ? {} : { $unset: { lockKey: 1 } })
