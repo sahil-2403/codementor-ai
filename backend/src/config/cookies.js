@@ -1,5 +1,24 @@
 import { env } from './env.js';
 
+const DURATION_UNITS_MS = Object.freeze({
+  ms: 1,
+  s: 1000,
+  m: 60 * 1000,
+  h: 60 * 60 * 1000,
+  d: 24 * 60 * 60 * 1000
+});
+
+export const durationToMs = (value, fallbackMs) => {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
+  const match = String(value || '').trim().match(/^(\d+)\s*(ms|s|m|h|d)$/i);
+  if (!match) return fallbackMs;
+  return Number(match[1]) * DURATION_UNITS_MS[match[2].toLowerCase()];
+};
+
+const accessMaxAgeMs = durationToMs(env.jwtAccessExpiresIn, 15 * 60 * 1000);
+const refreshMaxAgeMs = durationToMs(env.jwtRefreshExpiresIn, 7 * 24 * 60 * 60 * 1000);
+const csrfMaxAgeMs = 24 * 60 * 60 * 1000;
+
 const baseCookieOptions = ({ httpOnly, maxAge } = {}) => ({
   httpOnly: Boolean(httpOnly),
   sameSite: env.cookieSameSite,
@@ -11,22 +30,22 @@ const baseCookieOptions = ({ httpOnly, maxAge } = {}) => ({
 
 export const accessCookieOptions = () => baseCookieOptions({
   httpOnly: true,
-  maxAge: env.accessCookieMaxAgeMs
+  maxAge: accessMaxAgeMs
 });
 
 export const refreshCookieOptions = () => baseCookieOptions({
   httpOnly: true,
-  maxAge: env.refreshCookieMaxAgeMs
+  maxAge: refreshMaxAgeMs
 });
 
 export const csrfCookieOptions = () => baseCookieOptions({
   httpOnly: false,
-  maxAge: env.csrfCookieMaxAgeMs
+  maxAge: csrfMaxAgeMs
 });
 
 export const csrfHashCookieOptions = () => baseCookieOptions({
   httpOnly: true,
-  maxAge: env.csrfCookieMaxAgeMs
+  maxAge: csrfMaxAgeMs
 });
 
 export const clearCookieOptions = ({ httpOnly = true } = {}) =>
