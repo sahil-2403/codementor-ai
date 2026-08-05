@@ -11,10 +11,19 @@ import { mergeWeakTopics } from './progress.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
 import { createInAvailableAttemptSlot } from './attemptSlot.service.js';
+import { assertReviewCanStart } from '../domain/reviewPolicy.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 
 const difficultyRank = { beginner: 1, intermediate: 2, advanced: 3 };
 const allowedByLevel = (userLevel, difficulty) => difficultyRank[difficulty] <= difficultyRank[userLevel || 'beginner'];
+
+const runBestEffort = async (label, action) => {
+  try {
+    await action();
+  } catch (error) {
+    console.error(`${label} failed:`, error.message);
+  }
+};
 
 export const listProjectTasks = async ({ userId, difficulty, tag }) => {
   const filter = { status: 'published' };
@@ -93,7 +102,7 @@ export const reviewProjectSubmission = async ({ user, submissionId }) => {
   const submission = await ProjectSubmission.findOne({ _id: submissionId, user: user._id }).populate('projectTask');
   if (!submission) throw new ApiError(404, 'Project submission not found');
   if (submission.status === 'reviewed') return submission;
-  if (submission.status === 'reviewing') throw new ApiError(409, 'This project submission is already being reviewed', [], 'REVIEW_IN_PROGRESS');
+  assertReviewCanStart({ status: submission.status, reviewRequestedAt: submission.reviewRequestedAt, label: 'This project submission' });
 
   submission.status = 'reviewing';
   submission.reviewRequestedAt = new Date();
@@ -102,26 +111,59 @@ export const reviewProjectSubmission = async ({ user, submissionId }) => {
   await submission.save();
 
   const aiConfigured = isGeminiAvailable();
+  const course = await CoursePlan.findOne({ user: user._id, status: 'active', isActive: true });
+  const progress = course ? await Progress.findOne({ user: user._id, coursePlan: course._id }) : null;
+  const guardText = `${submission.projectTask?.title || ''} ${submission.submittedExplanation || ''} ${submission.submittedCode || ''}`;
   let promptFingerprint = '';
-  let progress = null;
+  let aiResult = null;
+  let reviewError = null;
 
   try {
     if (aiConfigured) await checkAIUsageLimit(user._id, AI_FEATURES.PROJECT_REVIEW);
-
-    const course = await CoursePlan.findOne({ user: user._id, status: 'active' });
-    progress = course ? await Progress.findOne({ user: user._id, coursePlan: course._id }) : null;
-    const guardText = `${submission.projectTask?.title || ''} ${submission.submittedExplanation || ''} ${submission.submittedCode || ''}`;
     const guarded = await guardAIRequest({ userId: user._id, feature: AI_FEATURES.PROJECT_REVIEW, text: guardText, maxChars: env.aiInputLimits.projectCodeChars + env.aiInputLimits.projectExplanationChars, metadata: { submissionId } });
     promptFingerprint = guarded.promptFingerprint;
 
     if (!aiConfigured) throw new Error('Gemini is not configured');
-    const aiResult = await aiProvider.reviewProjectSubmission({
+    aiResult = await aiProvider.reviewProjectSubmission({
       task: submission.projectTask,
       submission,
       userLevel: course?.level || 'learner',
       weakTopics: progress?.weakTopics || []
     });
+  } catch (error) {
+    reviewError = error;
+  }
 
+  if (reviewError) {
+    const fallback = projectReviewFallback({ task: submission.projectTask, submission });
+    submission.status = 'review_unavailable';
+    submission.reviewMode = 'fallback';
+    submission.reviewedAt = null;
+    submission.reviewErrorCode = reviewError.code || 'GEMINI_UNAVAILABLE';
+    submission.score = null;
+    submission.aiFeedback = {
+      summary: fallback.summary,
+      strengths: fallback.strengths || [],
+      improvements: fallback.improvements || [],
+      checklist: fallback.checklist || [],
+      weakTopicsDetected: [],
+      generatedAt: new Date()
+    };
+    await submission.save();
+
+    await runBestEffort('Project review failure logging', () => logAIUsage({
+      user: user._id,
+      feature: AI_FEATURES.PROJECT_REVIEW,
+      status: 'failed',
+      model: env.geminiModel,
+      provider: 'gemini',
+      latencyMs: Date.now() - startedAt,
+      promptFingerprint,
+      contextSources: [{ type: 'project_task', title: submission.projectTask?.title, refId: submission.projectTask?._id?.toString() }],
+      metadata: { submissionId, errorType: 'provider_failure' },
+      errorMessage: reviewError.message
+    }));
+  } else {
     submission.status = 'reviewed';
     submission.reviewMode = 'ai';
     submission.reviewedAt = new Date();
@@ -138,31 +180,24 @@ export const reviewProjectSubmission = async ({ user, submissionId }) => {
     await submission.save();
 
     if (progress && submission.aiFeedback.weakTopicsDetected.length) {
-      await mergeWeakTopics({ progress, weakTopics: submission.aiFeedback.weakTopicsDetected, source: 'project_submission' });
+      await runBestEffort('Project weak-topic update', () => mergeWeakTopics({ progress, weakTopics: submission.aiFeedback.weakTopicsDetected, source: 'project_submission' }));
     }
 
-    await logAIUsage({ user: user._id, feature: AI_FEATURES.PROJECT_REVIEW, model: aiResult.model || env.geminiModel, provider: 'gemini', inputTokens: aiResult.inputTokens || 0, outputTokens: aiResult.outputTokens || 0, latencyMs: Date.now() - startedAt, promptFingerprint, contextSources: [{ type: 'project_task', title: submission.projectTask?.title, refId: submission.projectTask?._id?.toString() }], metadata: { submissionId, score: submission.score } });
-  } catch (error) {
-    const fallback = projectReviewFallback({ task: submission.projectTask, submission });
-    submission.status = 'review_unavailable';
-    submission.reviewMode = 'fallback';
-    submission.reviewedAt = null;
-    submission.reviewErrorCode = error.code || 'GEMINI_UNAVAILABLE';
-    submission.score = null;
-    submission.aiFeedback = {
-      summary: fallback.summary,
-      strengths: fallback.strengths || [],
-      improvements: fallback.improvements || [],
-      checklist: fallback.checklist || [],
-      weakTopicsDetected: [],
-      generatedAt: new Date()
-    };
-    await submission.save();
-
-    await logAIUsage({ user: user._id, feature: AI_FEATURES.PROJECT_REVIEW, status: 'failed', model: env.geminiModel, provider: 'gemini', latencyMs: Date.now() - startedAt, promptFingerprint, contextSources: [{ type: 'project_task', title: submission.projectTask?.title, refId: submission.projectTask?._id?.toString() }], metadata: { submissionId, errorType: 'provider_failure' }, errorMessage: error.message });
+    await runBestEffort('Project review usage logging', () => logAIUsage({
+      user: user._id,
+      feature: AI_FEATURES.PROJECT_REVIEW,
+      model: aiResult.model || env.geminiModel,
+      provider: 'gemini',
+      inputTokens: aiResult.inputTokens || 0,
+      outputTokens: aiResult.outputTokens || 0,
+      latencyMs: Date.now() - startedAt,
+      promptFingerprint,
+      contextSources: [{ type: 'project_task', title: submission.projectTask?.title, refId: submission.projectTask?._id?.toString() }],
+      metadata: { submissionId, score: submission.score }
+    }));
   }
 
-  await invalidateUserLearningCache(user._id);
+  await runBestEffort('Project review cache invalidation', () => invalidateUserLearningCache(user._id));
   return submission;
 };
 
