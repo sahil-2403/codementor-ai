@@ -1,5 +1,4 @@
 import { MentorChat } from '../models/MentorChat.js';
-import { CoursePlan } from '../models/CoursePlan.js';
 import { Lesson } from '../models/Lesson.js';
 import { Progress } from '../models/Progress.js';
 import { QuizAttempt } from '../models/QuizAttempt.js';
@@ -10,6 +9,8 @@ import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
 import { guardAIRequest, trimContextForAI } from './aiSafety.service.js';
 import { mentorFallback } from './aiFallback.service.js';
 import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
+import { assertLessonBelongsToCourse, requireActiveCourseForUser } from './dataIntegrity.service.js';
+import { ApiError } from '../utils/ApiError.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 
 const baseSuggestedPrompts = [
@@ -26,6 +27,33 @@ const findCurrentModule = (course, lessonId) => {
   return course.modules?.find((module) => module.lessons?.some((item) => item.lesson?.toString() === lessonId.toString())) || null;
 };
 
+const findCourseLessonEntry = (module, lessonId) => module?.lessons?.find((item) => {
+  const value = item.lesson?._id || item.lesson;
+  return value?.toString() === lessonId?.toString();
+}) || null;
+
+const getAuthorizedMentorContext = async ({ userId, lessonId }) => {
+  const course = await requireActiveCourseForUser({ userId });
+  if (!lessonId) return { course, lesson: null, currentModule: null };
+
+  assertLessonBelongsToCourse({ course, lessonId });
+  const currentModule = findCurrentModule(course, lessonId);
+  const courseLesson = findCourseLessonEntry(currentModule, lessonId);
+
+  if (currentModule?.status === 'locked' || courseLesson?.status === 'locked') {
+    throw new ApiError(403, 'This lesson is not available in your active roadmap.', [], 'CONTENT_LOCKED');
+  }
+
+  const lesson = await Lesson.findOne({ _id: lessonId, status: 'published' })
+    .populate('topic', 'title slug category difficulty');
+
+  if (!lesson) {
+    throw new ApiError(404, 'This lesson is not available in your active roadmap.', [], 'LESSON_NOT_AVAILABLE');
+  }
+
+  return { course, lesson, currentModule };
+};
+
 const getRecentMistakes = async ({ userId, courseId }) => {
   if (!courseId) return [];
   const attempts = await QuizAttempt.find({ user: userId, coursePlan: courseId }).sort({ createdAt: -1 }).limit(3);
@@ -35,8 +63,7 @@ const getRecentMistakes = async ({ userId, courseId }) => {
 export const isRealAIAvailable = () => isGeminiAvailable();
 
 export const getMentorSuggestions = async ({ userId, lessonId }) => {
-  const lesson = lessonId ? await Lesson.findById(lessonId).populate('topic', 'title') : null;
-  const course = await CoursePlan.findOne({ user: userId, status: 'active' }).populate('modules.lessons.lesson');
+  const { course, lesson } = await getAuthorizedMentorContext({ userId, lessonId });
   const topic = lesson?.topic?.title || lesson?.title || course?.title || 'your current learning path';
   const curatedQuestions = [];
   if (lesson?.interviewQuestions?.length) {
@@ -63,11 +90,9 @@ export const askMentor = async ({ user, message, lessonId, promptType = 'freefor
 
   await checkAIUsageLimit(user._id, AI_FEATURES.MENTOR_CHAT);
   const { sanitizedText, promptFingerprint } = await guardAIRequest({ userId: user._id, feature: AI_FEATURES.MENTOR_CHAT, text: message, metadata: { promptType, lessonId } });
-  const course = await CoursePlan.findOne({ user: user._id, status: 'active' });
-  const lesson = lessonId ? await Lesson.findById(lessonId).populate('topic', 'title slug category difficulty') : null;
-  const currentModule = findCurrentModule(course, lessonId);
-  const progress = course ? await Progress.findOne({ user: user._id, coursePlan: course._id }) : null;
-  const recentMistakes = await getRecentMistakes({ userId: user._id, courseId: course?._id });
+  const { course, lesson, currentModule } = await getAuthorizedMentorContext({ userId: user._id, lessonId });
+  const progress = await Progress.findOne({ user: user._id, coursePlan: course._id });
+  const recentMistakes = await getRecentMistakes({ userId: user._id, courseId: course._id });
   const relatedContext = trimContextForAI(await retrieveRelevantLearningContext({ query: sanitizedText, lessonId, maxResults: 3 }));
 
   let aiResult;
@@ -80,10 +105,10 @@ export const askMentor = async ({ user, message, lessonId, promptType = 'freefor
     return { answer: '', chat: null, sources: aiResult.sources || [], contextSummary: { aiAvailable: false }, suggestedPrompts: suggestions.prompts, savedQuestions: suggestions.savedQuestions, aiAvailable: false, message: aiResult.message || 'Gemini mentor is temporarily unavailable.' };
   }
 
-  let chat = await MentorChat.findOne({ user: user._id, coursePlan: course?._id || null });
-  if (!chat) chat = await MentorChat.create({ user: user._id, coursePlan: course?._id || null, lesson: lesson?._id || null, messages: [] });
+  let chat = await MentorChat.findOne({ user: user._id, coursePlan: course._id });
+  if (!chat) chat = await MentorChat.create({ user: user._id, coursePlan: course._id, lesson: lesson?._id || null, messages: [] });
   const sources = aiResult.sources || relatedContext.map((item) => item.source).filter(Boolean);
-  const contextSummary = { level: course?.level || null, moduleTitle: currentModule?.title || null, lessonTitle: lesson?.title || null, weakTopicCount: progress?.weakTopics?.length || 0, recentMistakeCount: recentMistakes.length, sourceCount: sources.length, promptType };
+  const contextSummary = { level: course.level || null, moduleTitle: currentModule?.title || null, lessonTitle: lesson?.title || null, weakTopicCount: progress?.weakTopics?.length || 0, recentMistakeCount: recentMistakes.length, sourceCount: sources.length, promptType };
   chat.messages.push({ role: 'user', content: sanitizedText, lesson: lesson?._id || null, metadata: { promptType } });
   chat.messages.push({ role: 'assistant', content: aiResult.answer, lesson: lesson?._id || null, sources, metadata: contextSummary });
   await chat.save();
@@ -94,8 +119,6 @@ export const askMentor = async ({ user, message, lessonId, promptType = 'freefor
 };
 
 export const getMentorHistory = async (userId) => {
-  const course = await CoursePlan.findOne({ user: userId, status: 'active' }).select('_id');
-  const filter = { user: userId };
-  if (course) filter.coursePlan = course._id;
-  return MentorChat.find(filter).sort({ updatedAt: -1 }).limit(1);
+  const course = await requireActiveCourseForUser({ userId });
+  return MentorChat.find({ user: userId, coursePlan: course._id }).sort({ updatedAt: -1 }).limit(1);
 };
