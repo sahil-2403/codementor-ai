@@ -87,6 +87,7 @@ frontend/
 docs/
   ARCHITECTURE.md
   DEVELOPMENT.md
+  JUNIOR_PROJECT_SCOPE.md
 ```
 
 ## Quick start
@@ -128,7 +129,7 @@ npm install
 npm run dev
 ```
 
-The frontend listens on `http://localhost:5173` by default and calls `http://localhost:5000/api` unless `VITE_API_BASE_URL` is changed.
+The frontend listens on `http://localhost:5173`. It uses relative `/api` requests by default, and the Vite development server proxies them to `http://localhost:5000`.
 
 ## Optional services
 
@@ -184,7 +185,7 @@ npm test
 npm run build
 ```
 
-The frontend test suite checks critical auth, onboarding, cache-invalidation, fallback, attempt, admin lifecycle, enum-alignment, and dead-code contracts without additional testing packages.
+The frontend test suite checks critical auth, onboarding, cache-invalidation, fallback, attempt, admin lifecycle, enum-alignment, frontend reliability, and dead-code contracts without additional testing packages.
 
 ## Data migrations
 
@@ -214,13 +215,14 @@ Important production groups include:
 - Cache/queue: `CACHE_DRIVER`, `REDIS_URL`, `ENABLE_QUEUE`
 - AI: `ENABLE_AI`, Gemini key/model, timeouts, feature limits, and input limits
 - Email: SMTP settings and sender addresses
-- Frontend API: `VITE_API_BASE_URL`
+- Frontend API: optional `VITE_API_BASE_URL` override; otherwise the application uses `/api`
 
 Never commit real secrets or production `.env` files.
 
 ## Deployment notes
 
 - Serve the frontend and API over HTTPS.
+- Route the frontend's `/api` path to the Express application, or set `VITE_API_BASE_URL` to the deployed API URL.
 - Use `COOKIE_SECURE=true` in production and choose `COOKIE_SAME_SITE`/`COOKIE_DOMAIN` for the actual deployment topology.
 - Set exact production origins; do not use wildcard credentialed CORS.
 - Set `TRUST_PROXY` correctly behind a load balancer or reverse proxy.
@@ -232,4 +234,5 @@ Never commit real secrets or production `.env` files.
 
 - [Architecture and data flow](docs/ARCHITECTURE.md)
 - [Development and operations guide](docs/DEVELOPMENT.md)
+- [Junior project scope and limitations](docs/JUNIOR_PROJECT_SCOPE.md)
 - [Release checklist](docs/RELEASE_CHECKLIST.md)
