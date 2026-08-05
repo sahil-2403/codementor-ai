@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { authApi } from '../api/authApi.js';
 
 const AuthContext = createContext(null);
+const SESSION_EXPIRED_EVENT = 'auth:session-expired';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -21,6 +22,12 @@ export function AuthProvider({ children }) {
 
   useEffect(() => { loadUser(); }, []);
 
+  useEffect(() => {
+    const clearExpiredSession = () => setUser(null);
+    window.addEventListener(SESSION_EXPIRED_EVENT, clearExpiredSession);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, clearExpiredSession);
+  }, []);
+
   const login = async (payload) => {
     const data = await authApi.login(payload);
     setUser(data.user);
@@ -37,8 +44,11 @@ export function AuthProvider({ children }) {
   const resendVerification = async (payload) => authApi.resendVerification(payload);
 
   const logout = async () => {
-    await authApi.logout();
-    setUser(null);
+    try {
+      await authApi.logout();
+    } finally {
+      setUser(null);
+    }
   };
 
   const value = useMemo(() => ({ user, isLoading, isAuthenticated: Boolean(user), login, register, verifyEmail, resendVerification, logout, reloadUser: loadUser }), [user, isLoading]);
