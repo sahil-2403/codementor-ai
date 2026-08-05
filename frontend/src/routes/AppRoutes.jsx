@@ -1,44 +1,47 @@
-import { Routes, Route, Navigate } from "react-router-dom";
-import PublicLayout from "../layouts/PublicLayout.jsx";
-import AppLayout from "../layouts/AppLayout.jsx";
-import AdminLayout from "../layouts/AdminLayout.jsx";
-import ProtectedRoute from "./ProtectedRoute.jsx";
-import RoleRoute from "./RoleRoute.jsx";
-import OnboardingGuard from "./OnboardingGuard.jsx";
+import { lazy, Suspense } from 'react';
+import { Route, Routes } from 'react-router-dom';
+import Loader from '../components/common/Loader.jsx';
+import PublicLayout from '../layouts/PublicLayout.jsx';
+import AppLayout from '../layouts/AppLayout.jsx';
+import AdminLayout from '../layouts/AdminLayout.jsx';
+import ProtectedRoute from './ProtectedRoute.jsx';
+import RoleRoute from './RoleRoute.jsx';
+import OnboardingGuard from './OnboardingGuard.jsx';
 
-import LandingPage from "../pages/public/LandingPage.jsx";
-import LoginPage from "../pages/public/LoginPage.jsx";
-import RegisterPage from "../pages/public/RegisterPage.jsx";
-import VerifyEmailPage from "../pages/public/VerifyEmailPage.jsx";
-import ForgotPasswordPage from "../pages/public/ForgotPasswordPage.jsx";
-import ResetPasswordPage from "../pages/public/ResetPasswordPage.jsx";
-import GoalPage from "../pages/onboarding/GoalPage.jsx";
-import LevelPage from "../pages/onboarding/LevelPage.jsx";
-import PreferencesPage from "../pages/onboarding/PreferencesPage.jsx";
-import AssessmentIntroPage from "../pages/onboarding/AssessmentIntroPage.jsx";
-import AssessmentPage from "../pages/onboarding/AssessmentPage.jsx";
-import AssessmentReportPage from "../pages/onboarding/AssessmentReportPage.jsx";
-import GeneratingPage from "../pages/onboarding/GeneratingPage.jsx";
-import DashboardPage from "../pages/learner/DashboardPage.jsx";
-import RoadmapPage from "../pages/learner/RoadmapPage.jsx";
-import LessonPage from "../pages/learner/LessonPage.jsx";
-import QuizPage from "../pages/learner/QuizPage.jsx";
-import QuizResultPage from "../pages/learner/QuizResultPage.jsx";
-import MentorPage from "../pages/learner/MentorPage.jsx";
-import ProgressPage from "../pages/learner/ProgressPage.jsx";
-import ReportsPage from "../pages/learner/ReportsPage.jsx";
-import ProfilePage from "../pages/learner/ProfilePage.jsx";
-import ProjectsPage from "../pages/learner/ProjectsPage.jsx";
-import ProjectTaskPage from "../pages/learner/ProjectTaskPage.jsx";
-import InterviewPage from "../pages/learner/InterviewPage.jsx";
-import AdminDashboardPage from "../pages/admin/AdminDashboardPage.jsx";
-import TopicsPage from "../pages/admin/TopicsPage.jsx";
-import LessonsPage from "../pages/admin/LessonsPage.jsx";
-import QuestionsPage from "../pages/admin/QuestionsPage.jsx";
-import TemplatesPage from "../pages/admin/TemplatesPage.jsx";
+const LandingPage = lazy(() => import('../pages/public/LandingPage.jsx'));
+const LoginPage = lazy(() => import('../pages/public/LoginPage.jsx'));
+const RegisterPage = lazy(() => import('../pages/public/RegisterPage.jsx'));
+const VerifyEmailPage = lazy(() => import('../pages/public/VerifyEmailPage.jsx'));
+const ForgotPasswordPage = lazy(() => import('../pages/public/ForgotPasswordPage.jsx'));
+const ResetPasswordPage = lazy(() => import('../pages/public/ResetPasswordPage.jsx'));
+const GoalPage = lazy(() => import('../pages/onboarding/GoalPage.jsx'));
+const LevelPage = lazy(() => import('../pages/onboarding/LevelPage.jsx'));
+const PreferencesPage = lazy(() => import('../pages/onboarding/PreferencesPage.jsx'));
+const AssessmentIntroPage = lazy(() => import('../pages/onboarding/AssessmentIntroPage.jsx'));
+const AssessmentPage = lazy(() => import('../pages/onboarding/AssessmentPage.jsx'));
+const AssessmentReportPage = lazy(() => import('../pages/onboarding/AssessmentReportPage.jsx'));
+const GeneratingPage = lazy(() => import('../pages/onboarding/GeneratingPage.jsx'));
+const DashboardPage = lazy(() => import('../pages/learner/DashboardPage.jsx'));
+const RoadmapPage = lazy(() => import('../pages/learner/RoadmapPage.jsx'));
+const LessonPage = lazy(() => import('../pages/learner/LessonPage.jsx'));
+const QuizPage = lazy(() => import('../pages/learner/QuizPage.jsx'));
+const QuizResultPage = lazy(() => import('../pages/learner/QuizResultPage.jsx'));
+const MentorPage = lazy(() => import('../pages/learner/MentorPage.jsx'));
+const ProgressPage = lazy(() => import('../pages/learner/ProgressPage.jsx'));
+const ReportsPage = lazy(() => import('../pages/learner/ReportsPage.jsx'));
+const ProfilePage = lazy(() => import('../pages/learner/ProfilePage.jsx'));
+const ProjectsPage = lazy(() => import('../pages/learner/ProjectsPage.jsx'));
+const ProjectTaskPage = lazy(() => import('../pages/learner/ProjectTaskPage.jsx'));
+const InterviewPage = lazy(() => import('../pages/learner/InterviewPage.jsx'));
+const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage.jsx'));
+const TopicsPage = lazy(() => import('../pages/admin/TopicsPage.jsx'));
+const LessonsPage = lazy(() => import('../pages/admin/LessonsPage.jsx'));
+const QuestionsPage = lazy(() => import('../pages/admin/QuestionsPage.jsx'));
+const TemplatesPage = lazy(() => import('../pages/admin/TemplatesPage.jsx'));
+const NotFoundPage = lazy(() => import('../pages/NotFoundPage.jsx'));
 
 export default function AppRoutes() {
-  return (
+  return <Suspense fallback={<Loader label="Loading page..." />}>
     <Routes>
       <Route element={<PublicLayout />}>
         <Route path="/" element={<LandingPage />} />
@@ -87,7 +90,7 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
-  );
+  </Suspense>;
 }
