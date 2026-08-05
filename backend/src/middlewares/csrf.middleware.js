@@ -1,3 +1,4 @@
+import { csrfCookieOptions, csrfHashCookieOptions } from '../config/cookies.js';
 import { ApiError } from '../utils/ApiError.js';
 import { randomToken, sha256 } from '../utils/hash.js';
 
@@ -15,24 +16,10 @@ const PUBLIC_AUTH_PATHS = new Set([
   '/api/auth/csrf-token'
 ]);
 
-const cookieOptions = () => ({
-  httpOnly: false,
-  sameSite: 'lax',
-  secure: process.env.COOKIE_SECURE === 'true',
-  maxAge: 24 * 60 * 60 * 1000
-});
-
-const hashCookieOptions = () => ({
-  httpOnly: true,
-  sameSite: 'lax',
-  secure: process.env.COOKIE_SECURE === 'true',
-  maxAge: 24 * 60 * 60 * 1000
-});
-
 export const issueCsrfToken = (res) => {
   const token = randomToken(24);
-  res.cookie(CSRF_COOKIE, token, cookieOptions());
-  res.cookie(CSRF_HASH_COOKIE, sha256(token), hashCookieOptions());
+  res.cookie(CSRF_COOKIE, token, csrfCookieOptions());
+  res.cookie(CSRF_HASH_COOKIE, sha256(token), csrfHashCookieOptions());
   return token;
 };
 
