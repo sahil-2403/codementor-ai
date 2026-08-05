@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
+import { accessCookieOptions, clearCookieOptions, refreshCookieOptions } from '../config/cookies.js';
 import { sha256 } from '../utils/hash.js';
 
 export const createAccessToken = (user) =>
@@ -16,26 +17,13 @@ export const createRefreshToken = (user) =>
 
 export const hashToken = (token) => sha256(token);
 
-const cookieBase = () => ({
-  httpOnly: true,
-  sameSite: env.cookieSameSite,
-  secure: env.cookieSecure,
-  ...(env.cookieDomain ? { domain: env.cookieDomain } : {})
-});
-
 export const setAuthCookies = (res, accessToken, refreshToken) => {
-  res.cookie('accessToken', accessToken, {
-    ...cookieBase(),
-    maxAge: 15 * 60 * 1000
-  });
-  res.cookie('refreshToken', refreshToken, {
-    ...cookieBase(),
-    maxAge: 7 * 24 * 60 * 60 * 1000
-  });
+  res.cookie('accessToken', accessToken, accessCookieOptions());
+  res.cookie('refreshToken', refreshToken, refreshCookieOptions());
 };
 
 export const clearAuthCookies = (res) => {
-  const options = cookieBase();
+  const options = clearCookieOptions();
   res.clearCookie('accessToken', options);
   res.clearCookie('refreshToken', options);
 };
