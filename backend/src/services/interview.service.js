@@ -9,6 +9,7 @@ import { guardAIRequest } from './aiSafety.service.js';
 import { interviewFeedbackFallback } from './aiFallback.service.js';
 import { mergeWeakTopics } from './progress.service.js';
 import { ApiError } from '../utils/ApiError.js';
+import { escapeRegex } from '../utils/regex.js';
 import { CACHE_TTL, getOrSetCache } from './cache.service.js';
 import { cacheKeys } from './cacheKeys.service.js';
 import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
@@ -28,7 +29,7 @@ const runBestEffort = async (label, action) => {
 
 export const listInterviewQuestions = async ({ topic, difficulty, type }) => {
   const filter = { status: 'published' };
-  if (topic) filter.topic = new RegExp(topic, 'i');
+  if (topic) filter.topic = new RegExp(escapeRegex(topic), 'i');
   if (difficulty) filter.difficulty = difficulty;
   if (type) filter.type = type;
   return getOrSetCache(
