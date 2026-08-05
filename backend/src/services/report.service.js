@@ -1,7 +1,11 @@
 import { WeeklyReport } from '../models/WeeklyReport.js';
 import { CoursePlan } from '../models/CoursePlan.js';
 import { Progress } from '../models/Progress.js';
+import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { aiProvider } from '../ai/aiProvider.service.js';
+import { checkAIUsageLimit, createPromptFingerprint, logAIUsage } from './aiUsage.service.js';
+import { env, isGeminiAvailable } from '../config/env.js';
+import { getUtcWeekStart } from '../utils/week.js';
 
 const buildProgressSummary = (progress) => {
   const completedCount = progress?.completedLessons?.length || 0;
@@ -27,28 +31,84 @@ const buildProgressSummary = (progress) => {
   };
 };
 
+const logReportUsage = async (payload) => {
+  try {
+    await logAIUsage(payload);
+  } catch (error) {
+    console.error('Weekly report usage logging failed:', error.message);
+  }
+};
+
 export const generateWeeklyReportForUser = async (userId) => {
-  const course = await CoursePlan.findOne({ user: userId, status: 'active' });
+  const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true });
   if (!course) return null;
   const progress = await Progress.findOne({ user: userId, coursePlan: course._id });
   if (!progress) return null;
 
-  let reportContent;
-  try {
-    reportContent = await aiProvider.generateWeeklyReport({ progress });
-  } catch {
-    reportContent = buildProgressSummary(progress);
+  const weekStart = getUtcWeekStart();
+  const existing = await WeeklyReport.findOne({ user: userId, coursePlan: course._id, weekStart });
+  if (existing) return existing;
+
+  const startedAt = Date.now();
+  const promptFingerprint = createPromptFingerprint(`${userId}:${course._id}:${weekStart.toISOString()}`);
+  let reportContent = buildProgressSummary(progress);
+  let generationMode = 'fallback';
+
+  if (isGeminiAvailable()) {
+    try {
+      await checkAIUsageLimit(userId, AI_FEATURES.WEEKLY_REPORT);
+      const aiResult = await aiProvider.generateWeeklyReport({ progress });
+      reportContent = aiResult;
+      generationMode = 'ai';
+      await logReportUsage({
+        user: userId,
+        feature: AI_FEATURES.WEEKLY_REPORT,
+        model: aiResult.model || env.geminiModel,
+        provider: 'gemini',
+        inputTokens: aiResult.inputTokens || 0,
+        outputTokens: aiResult.outputTokens || 0,
+        latencyMs: Date.now() - startedAt,
+        promptFingerprint,
+        contextSources: [{ type: 'course_plan', title: course.title, refId: course._id.toString() }],
+        metadata: { coursePlanId: course._id, weekStart }
+      });
+    } catch (error) {
+      reportContent = buildProgressSummary(progress);
+      await logReportUsage({
+        user: userId,
+        feature: AI_FEATURES.WEEKLY_REPORT,
+        status: 'failed',
+        model: env.geminiModel,
+        provider: 'gemini',
+        latencyMs: Date.now() - startedAt,
+        promptFingerprint,
+        contextSources: [{ type: 'course_plan', title: course.title, refId: course._id.toString() }],
+        metadata: { coursePlanId: course._id, weekStart, errorType: 'provider_failure' },
+        errorMessage: error.message
+      });
+    }
   }
 
-  return WeeklyReport.create({
-    user: userId,
-    coursePlan: course._id,
-    completedLessons: progress.completedLessons,
-    weakTopics: progress.weakTopics.map((item) => item.topic),
-    strongTopics: [],
-    summary: reportContent.summary,
-    nextWeekFocus: reportContent.nextWeekFocus || []
-  });
+  try {
+    return await WeeklyReport.create({
+      user: userId,
+      coursePlan: course._id,
+      weekStart,
+      completedLessons: progress.completedLessons,
+      weakTopics: progress.weakTopics.map((item) => item.topic),
+      strongTopics: [],
+      summary: reportContent.summary,
+      nextWeekFocus: reportContent.nextWeekFocus || [],
+      generationMode
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return WeeklyReport.findOne({ user: userId, coursePlan: course._id, weekStart });
+    }
+    throw error;
+  }
 };
 
-export const getReports = async (userId) => WeeklyReport.find({ user: userId }).sort({ createdAt: -1 });
+export const getReports = async (userId, limit = 20) => WeeklyReport.find({ user: userId })
+  .sort({ createdAt: -1 })
+  .limit(Math.min(Math.max(Number(limit) || 20, 1), 50));
