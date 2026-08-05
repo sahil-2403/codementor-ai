@@ -14,6 +14,8 @@ cd frontend
 npm run dev
 ```
 
+The frontend uses relative `/api` requests. Vite proxies them to `http://localhost:5000` during local development.
+
 Add a third process only when queue support is enabled:
 
 ```bash
@@ -103,6 +105,12 @@ ENABLE_QUEUE=true
 
 Start the worker before exercising queued features. If the worker is absent, jobs remain queued/processing and the learner UI will not receive a completed roadmap/report.
 
+## Review recovery and weekly reports
+
+Project and interview reviews in `reviewing` state may be retried after five minutes. This prevents a server interruption from permanently locking a saved attempt.
+
+Weekly reports use a UTC Monday week boundary. Only one report is stored for each learner, active course, and UTC week. When Gemini is unavailable, the report is created from deterministic progress data.
+
 ## Email testing
 
 With delivery disabled and `ALLOW_DEV_EMAIL_LOG=true`, inspect backend logs for verification/reset URLs. For SMTP testing:
@@ -135,14 +143,17 @@ Also exercise the affected flow manually when changing routing, cookies, CSRF, o
 4. Complete lessons and confirm the next module unlocks.
 5. Submit a quiz and confirm dashboard/progress invalidation.
 6. Create project and interview attempts; confirm the two-attempt limit.
-7. Disable Gemini and verify scoreless fallbacks.
-8. Re-enable Gemini and retry the same saved review.
-9. Publish and archive admin content through confirmation dialogs.
-10. Log out and test logout-all-devices.
+7. Leave a review in a stale `reviewing` state and confirm retry recovery.
+8. Disable Gemini and verify scoreless fallbacks.
+9. Generate a weekly report twice and confirm the existing report is reused.
+10. Re-enable Gemini and retry the same saved review.
+11. Publish and archive admin content through confirmation dialogs.
+12. Log out and test logout-all-devices.
 
 ## Production configuration notes
 
 - Use HTTPS and secure cookies.
+- Route `/api` from the frontend host to the Express API, or set `VITE_API_BASE_URL` explicitly.
 - Configure exact frontend origins and proxy trust.
 - Keep MongoDB, Redis, SMTP, and Gemini credentials in the deployment secret store.
 - Run API and worker as independently supervised processes.
@@ -155,15 +166,19 @@ Also exercise the affected flow manually when changing routing, cookies, CSRF, o
 
 ### Login succeeds but the next API call fails
 
-Check credentialed CORS, cookie domain/same-site settings, HTTPS, and `VITE_API_BASE_URL`.
+Check credentialed CORS, cookie domain/same-site settings, HTTPS, the `/api` reverse proxy, and any `VITE_API_BASE_URL` override.
 
 ### Protected writes return invalid CSRF token
 
-Confirm the browser can receive the CSRF cookie, the frontend and API origins match the cookie policy, and proxies preserve cookies/headers.
+Confirm the browser can receive both CSRF cookies, authentication and CSRF cookies use the same domain/same-site policy, and proxies preserve cookies and headers.
 
 ### Roadmap stays queued
 
 Confirm `ENABLE_QUEUE=true`, Redis is reachable, and `npm run worker` is running. Otherwise disable queues and use the synchronous path.
+
+### Project or interview review stays in progress
+
+Wait five minutes and retry the saved review. A stale review is recoverable and does not consume another attempt slot.
 
 ### Gemini buttons show unavailable/fallback guidance
 
@@ -172,3 +187,5 @@ Confirm `ENABLE_AI`, the API key, model name, provider connectivity, feature lim
 ### Admin publish fails
 
 Read the returned validation message. Common causes are missing required lesson content, MCQ answer mismatch, unpublished related lessons, incomplete interview answer checklists, invalid template lesson slugs, or duplicate published goal/level templates.
+
+See [Junior MERN project scope](JUNIOR_PROJECT_SCOPE.md) for the intentional limits of this portfolio project.
