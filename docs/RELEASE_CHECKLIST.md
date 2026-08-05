@@ -1,6 +1,6 @@
 # Release checklist
 
-This checklist separates automated gates from environment-specific verification. A green CI run is required, but it does not replace staging smoke tests, migration review, or rollback preparation.
+This checklist separates repeatable local checks from environment-specific verification. Run the local release check before deployment, then complete the relevant manual smoke tests and configuration review.
 
 ## 1. Release record
 
@@ -12,21 +12,21 @@ This checklist separates automated gates from environment-specific verification.
 - [ ] Database backup location/time:
 - [ ] Rollback owner and decision deadline:
 
-## 2. Automated gates
+## 2. Local automated gates
 
-GitHub Actions must pass both jobs:
+From the repository root, run:
+
+```bash
+node scripts/release-check.mjs
+```
+
+Confirm that the command completes all of these checks successfully:
 
 - [ ] Backend dependencies install with `npm ci`
 - [ ] Backend unit tests pass
 - [ ] Frontend dependencies install with `npm ci`
 - [ ] Frontend contract tests pass
 - [ ] Frontend production build passes
-
-The same checks can be run locally after dependencies are installed:
-
-```bash
-node scripts/release-check.mjs
-```
 
 Do not mark a failed or skipped command as passing. Gemini integration checks are separate because they require provider credentials:
 
@@ -182,7 +182,7 @@ Test once with Gemini enabled and once with it unavailable:
 - [ ] Worker startup confirms the intended workers are running
 - [ ] Failed jobs and provider failures are visible in logs
 - [ ] MongoDB/Redis/SMTP/Gemini dependency failures produce expected readiness or fallback behavior
-- [ ] Alerting/monitoring owners know where to inspect API and worker failures
+- [ ] The person deploying the project knows where to inspect API and worker failures
 
 ## 9. Rollback
 
@@ -196,7 +196,7 @@ If the release fails critical auth, onboarding, data-integrity, or attempt-prese
 
 ## 10. Sign-off
 
-- [ ] Automated gates approved by:
+- [ ] Local automated checks approved by:
 - [ ] Database/migrations approved by:
 - [ ] Security/environment approved by:
 - [ ] Product smoke tests approved by:
