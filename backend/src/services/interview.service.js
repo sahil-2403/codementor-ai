@@ -13,9 +13,18 @@ import { CACHE_TTL, getOrSetCache } from './cache.service.js';
 import { cacheKeys } from './cacheKeys.service.js';
 import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
 import { createInAvailableAttemptSlot } from './attemptSlot.service.js';
+import { assertReviewCanStart } from '../domain/reviewPolicy.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 
 const publicQuestionProjection = '-expectedAnswer -answerChecklist';
+
+const runBestEffort = async (label, action) => {
+  try {
+    await action();
+  } catch (error) {
+    console.error(`${label} failed:`, error.message);
+  }
+};
 
 export const listInterviewQuestions = async ({ topic, difficulty, type }) => {
   const filter = { status: 'published' };
@@ -76,7 +85,7 @@ export const reviewInterviewAttempt = async ({ user, attemptId }) => {
   const attempt = await InterviewAttempt.findOne({ _id: attemptId, user: user._id }).populate('question');
   if (!attempt) throw new ApiError(404, 'Interview attempt not found');
   if (attempt.status === 'reviewed') return attempt;
-  if (attempt.status === 'reviewing') throw new ApiError(409, 'This interview attempt is already being reviewed', [], 'REVIEW_IN_PROGRESS');
+  assertReviewCanStart({ status: attempt.status, reviewRequestedAt: attempt.reviewRequestedAt, label: 'This interview attempt' });
 
   attempt.status = 'reviewing';
   attempt.reviewRequestedAt = new Date();
@@ -85,14 +94,14 @@ export const reviewInterviewAttempt = async ({ user, attemptId }) => {
   await attempt.save();
 
   const aiConfigured = isGeminiAvailable();
+  const course = await CoursePlan.findOne({ user: user._id, status: 'active', isActive: true });
+  const progress = course ? await Progress.findOne({ user: user._id, coursePlan: course._id }) : null;
   let promptFingerprint = '';
-  let progress = null;
+  let aiResult = null;
+  let reviewError = null;
 
   try {
     if (aiConfigured) await checkAIUsageLimit(user._id, AI_FEATURES.INTERVIEW_FEEDBACK);
-
-    const course = await CoursePlan.findOne({ user: user._id, status: 'active' });
-    progress = course ? await Progress.findOne({ user: user._id, coursePlan: course._id }) : null;
     const guarded = await guardAIRequest({
       userId: user._id,
       feature: AI_FEATURES.INTERVIEW_FEEDBACK,
@@ -103,12 +112,45 @@ export const reviewInterviewAttempt = async ({ user, attemptId }) => {
     promptFingerprint = guarded.promptFingerprint;
 
     if (!aiConfigured) throw new Error('Gemini is not configured');
-    const aiResult = await aiProvider.reviewInterviewAnswer({
+    aiResult = await aiProvider.reviewInterviewAnswer({
       question: attempt.question,
       answer: attempt.answer,
       userLevel: course?.level || 'learner'
     });
+  } catch (error) {
+    reviewError = error;
+  }
 
+  if (reviewError) {
+    const fallback = interviewFeedbackFallback({ question: attempt.question });
+    attempt.status = 'review_unavailable';
+    attempt.feedbackMode = 'fallback';
+    attempt.reviewedAt = null;
+    attempt.reviewErrorCode = reviewError.code || 'GEMINI_UNAVAILABLE';
+    attempt.score = null;
+    attempt.aiFeedback = {
+      summary: fallback.summary,
+      expectedAnswer: attempt.question.expectedAnswer,
+      strengths: fallback.strengths || [],
+      improvements: fallback.improvements || [],
+      weakTopicsDetected: [],
+      generatedAt: new Date()
+    };
+    await attempt.save();
+
+    await runBestEffort('Interview review failure logging', () => logAIUsage({
+      user: user._id,
+      feature: AI_FEATURES.INTERVIEW_FEEDBACK,
+      status: 'failed',
+      model: env.geminiModel,
+      provider: 'gemini',
+      latencyMs: Date.now() - startedAt,
+      promptFingerprint,
+      contextSources: [{ type: 'interview_question', title: attempt.question.topic, refId: attempt.question._id.toString() }],
+      metadata: { attemptId, questionId: attempt.question._id, errorType: 'provider_failure' },
+      errorMessage: reviewError.message
+    }));
+  } else {
     attempt.status = 'reviewed';
     attempt.feedbackMode = 'ai';
     attempt.reviewedAt = new Date();
@@ -125,31 +167,24 @@ export const reviewInterviewAttempt = async ({ user, attemptId }) => {
     await attempt.save();
 
     if (progress && attempt.aiFeedback.weakTopicsDetected.length) {
-      await mergeWeakTopics({ progress, weakTopics: attempt.aiFeedback.weakTopicsDetected, source: 'interview_mode' });
+      await runBestEffort('Interview weak-topic update', () => mergeWeakTopics({ progress, weakTopics: attempt.aiFeedback.weakTopicsDetected, source: 'interview_mode' }));
     }
 
-    await logAIUsage({ user: user._id, feature: AI_FEATURES.INTERVIEW_FEEDBACK, model: aiResult.model || env.geminiModel, provider: 'gemini', inputTokens: aiResult.inputTokens || 0, outputTokens: aiResult.outputTokens || 0, latencyMs: Date.now() - startedAt, promptFingerprint, contextSources: [{ type: 'interview_question', title: attempt.question.topic, refId: attempt.question._id.toString() }], metadata: { attemptId, questionId: attempt.question._id, score: attempt.score, feedbackMode: attempt.feedbackMode } });
-  } catch (error) {
-    const fallback = interviewFeedbackFallback({ question: attempt.question });
-    attempt.status = 'review_unavailable';
-    attempt.feedbackMode = 'fallback';
-    attempt.reviewedAt = null;
-    attempt.reviewErrorCode = error.code || 'GEMINI_UNAVAILABLE';
-    attempt.score = null;
-    attempt.aiFeedback = {
-      summary: fallback.summary,
-      expectedAnswer: attempt.question.expectedAnswer,
-      strengths: fallback.strengths || [],
-      improvements: fallback.improvements || [],
-      weakTopicsDetected: [],
-      generatedAt: new Date()
-    };
-    await attempt.save();
-
-    await logAIUsage({ user: user._id, feature: AI_FEATURES.INTERVIEW_FEEDBACK, status: 'failed', model: env.geminiModel, provider: 'gemini', latencyMs: Date.now() - startedAt, promptFingerprint, contextSources: [{ type: 'interview_question', title: attempt.question.topic, refId: attempt.question._id.toString() }], metadata: { attemptId, questionId: attempt.question._id, errorType: 'provider_failure' }, errorMessage: error.message });
+    await runBestEffort('Interview review usage logging', () => logAIUsage({
+      user: user._id,
+      feature: AI_FEATURES.INTERVIEW_FEEDBACK,
+      model: aiResult.model || env.geminiModel,
+      provider: 'gemini',
+      inputTokens: aiResult.inputTokens || 0,
+      outputTokens: aiResult.outputTokens || 0,
+      latencyMs: Date.now() - startedAt,
+      promptFingerprint,
+      contextSources: [{ type: 'interview_question', title: attempt.question.topic, refId: attempt.question._id.toString() }],
+      metadata: { attemptId, questionId: attempt.question._id, score: attempt.score, feedbackMode: attempt.feedbackMode }
+    }));
   }
 
-  await invalidateUserLearningCache(user._id);
+  await runBestEffort('Interview review cache invalidation', () => invalidateUserLearningCache(user._id));
   return attempt;
 };
 
