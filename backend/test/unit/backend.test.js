@@ -4,4 +4,5 @@ import './quizPolicy.test.js';
 import './aiResponse.test.js';
 import './aiFallback.test.js';
 import './roadmapIdempotency.test.js';
+import './reliabilityPolicies.test.js';
 import './sourceContracts.test.js';
