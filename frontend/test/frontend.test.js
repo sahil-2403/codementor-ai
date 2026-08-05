@@ -35,12 +35,20 @@ test('query keys separate learner and admin caches', () => {
   assert.deepEqual(queryKeys.adminInterviewQuestions({ status: 'draft' }), ['admin-interview-questions', { status: 'draft' }]);
 });
 
-test('auth transport keeps cookie, CSRF, and refresh contracts', async () => {
-  const source = await readFrontend('src/api/axiosInstance.js');
+test('auth transport keeps cookie, CSRF, refresh, and deployment contracts', async () => {
+  const [source, authContext] = await Promise.all([
+    readFrontend('src/api/axiosInstance.js'),
+    readFrontend('src/context/AuthContext.jsx')
+  ]);
   assert.match(source, /withCredentials:\s*true/);
   assert.match(source, /X-CSRF-Token/);
   assert.match(source, /auth\/refresh-token/);
   assert.match(source, /_retry/);
+  assert.match(source, /VITE_API_BASE_URL\s*\|\|\s*['"]\/api['"]/);
+  assert.doesNotMatch(source, /localhost:5000/);
+  assert.match(source, /dispatchEvent\(new Event\(SESSION_EXPIRED_EVENT\)\)/);
+  assert.match(authContext, /addEventListener\(SESSION_EXPIRED_EVENT/);
+  assert.match(authContext, /finally\s*\{\s*setUser\(null\)/);
 });
 
 test('password recovery uses a generic non-enumerating success message', async () => {
@@ -146,6 +154,23 @@ test('status presentation covers valid non-terminal API states', () => {
   assert.equal(getStatusTone('review_unavailable'), 'warning');
   assert.equal(getStatusTone('not_required'), 'neutral');
   assert.equal(formatDomainLabel('assessment_ai_personalized'), 'assessment ai personalized');
+});
+
+test('frontend has render recovery, lazy routes, and a real not-found page', async () => {
+  const [main, boundary, routes, notFound] = await Promise.all([
+    readFrontend('src/main.jsx'),
+    readFrontend('src/components/common/AppErrorBoundary.jsx'),
+    readFrontend('src/routes/AppRoutes.jsx'),
+    readFrontend('src/pages/NotFoundPage.jsx')
+  ]);
+  assert.match(main, /<AppErrorBoundary>/);
+  assert.match(boundary, /getDerivedStateFromError/);
+  assert.match(boundary, /window\.location\.reload/);
+  assert.match(routes, /lazy\(\(\) => import/);
+  assert.match(routes, /<Suspense/);
+  assert.match(routes, /path="\*" element=\{<NotFoundPage \/>\}/);
+  assert.doesNotMatch(routes, /Navigate to="\/"/);
+  assert.match(notFound, /Page not found/);
 });
 
 test('legacy frontend exports and unused API wrappers stay removed', async () => {
