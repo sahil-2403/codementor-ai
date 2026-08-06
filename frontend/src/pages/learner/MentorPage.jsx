@@ -200,28 +200,53 @@ function MentorMessage({ message }) {
   </article>;
 }
 
-function MentorConversation({ messages, isResponding, aiAvailable, savedQuestions, onSavedAnswer }) {
+function MentorConversation({ messages, isResponding, aiAvailable, savedQuestions, onSavedAnswer, activeQuestion }) {
   const endRef = useRef(null);
-  const shouldFollowRef = useRef(true);
+  const activeQuestionRef = useRef(null);
+  const initialScrollDoneRef = useRef(false);
+
+  const activeQuestionIndex = useMemo(() => {
+    if (!activeQuestion) return -1;
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (messages[index].role === 'user' && messages[index].content?.trim() === activeQuestion.trim()) return index;
+    }
+    return -1;
+  }, [activeQuestion, messages]);
 
   useEffect(() => {
-    const updateFollowState = () => {
-      const documentHeight = document.documentElement.scrollHeight;
-      shouldFollowRef.current = window.scrollY + window.innerHeight >= documentHeight - 180;
+    if (initialScrollDoneRef.current || activeQuestion || !messages.length) return undefined;
+    initialScrollDoneRef.current = true;
+    let secondFrame;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
     };
-
-    updateFollowState();
-    window.addEventListener('scroll', updateFollowState, { passive: true });
-    return () => window.removeEventListener('scroll', updateFollowState);
-  }, []);
+  }, [activeQuestion, messages.length]);
 
   useEffect(() => {
-    if (shouldFollowRef.current) endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages.length, isResponding]);
+    if (!activeQuestion || activeQuestionIndex < 0) return undefined;
+    initialScrollDoneRef.current = true;
+    const frame = window.requestAnimationFrame(() => {
+      activeQuestionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeQuestion, activeQuestionIndex, isResponding, messages.length]);
 
   return <section className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8" aria-label="Mentor conversation" aria-live="polite">
     {messages.length ? <div className="space-y-7">
-      {messages.map((message, index) => <MentorMessage key={message._id || message.clientId || `${message.role}-${index}`} message={message} />)}
+      {messages.map((message, index) => <div
+        key={message._id || message.clientId || `${message.role}-${index}`}
+        ref={index === activeQuestionIndex ? activeQuestionRef : null}
+        className={index === activeQuestionIndex ? 'scroll-mt-36' : undefined}
+      >
+        <MentorMessage message={message} />
+      </div>)}
       {isResponding && <div className="flex items-center gap-3 text-sm text-muted-foreground" role="status">
         <span className="grid h-8 w-8 place-items-center rounded-control border border-primary/20 bg-primary-soft text-primary-strong" aria-hidden="true"><Bot size={15} /></span>
         <span className="animate-pulse">Mentor is preparing a response…</span>
@@ -252,7 +277,7 @@ function MentorConversation({ messages, isResponding, aiAvailable, savedQuestion
       </div>
     </section> : null}
 
-    <div ref={endRef} />
+    <div ref={endRef} className="h-2 scroll-mb-40" />
   </section>;
 }
 
@@ -323,6 +348,7 @@ export default function MentorPage() {
   const suggestionsQuery = useMentorSuggestions(lessonId);
   const askMutation = useAskMentor();
   const [localMessages, setLocalMessages] = useState([]);
+  const [activeQuestion, setActiveQuestion] = useState('');
   const [autoSent, setAutoSent] = useState(false);
   const [providerNotice, setProviderNotice] = useState('');
   const [fallbackQuestions, setFallbackQuestions] = useState([]);
@@ -332,7 +358,14 @@ export default function MentorPage() {
   });
 
   const historyMessages = useMemo(() => historyQuery.data?.chats?.[0]?.messages || [], [historyQuery.data]);
-  const messages = useMemo(() => [...historyMessages, ...localMessages], [historyMessages, localMessages]);
+  const messages = useMemo(() => {
+    const latestPersistedUser = [...historyMessages].reverse().find((message) => message.role === 'user');
+    const visibleLocalMessages = localMessages.filter((message) => !(
+      message.metadata?.optimistic
+      && latestPersistedUser?.content?.trim() === message.content?.trim()
+    ));
+    return [...historyMessages, ...visibleLocalMessages];
+  }, [historyMessages, localMessages]);
   const suggestions = suggestionsQuery.data?.prompts || [];
   const savedQuestions = fallbackQuestions.length ? fallbackQuestions : suggestionsQuery.data?.savedQuestions || [];
   const context = suggestionsQuery.data?.context || {};
@@ -347,6 +380,7 @@ export default function MentorPage() {
     if (!item) return;
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const createdAt = new Date().toISOString();
+    setActiveQuestion(item.text);
     setLocalMessages((current) => [...current,
       { clientId: `${id}-q`, role: 'user', content: item.text, createdAt, metadata: { promptType: 'saved_answer' } },
       { clientId: `${id}-a`, role: 'assistant', content: item.answer, createdAt, sources: [], metadata: { promptType: 'saved_answer' } }
@@ -361,24 +395,34 @@ export default function MentorPage() {
       return;
     }
 
+    const optimisticId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const optimisticMessage = {
+      clientId: optimisticId,
+      role: 'user',
+      content: message,
+      createdAt: new Date().toISOString(),
+      metadata: { promptType: type, optimistic: true }
+    };
+
+    setProviderNotice('');
+    setActiveQuestion(message);
+    setLocalMessages((current) => [...current, optimisticMessage]);
+    reset({ message: '', promptType: 'freeform' });
+
     try {
-      setProviderNotice('');
       const result = await askMutation.mutateAsync({ message, lessonId: lessonId || undefined, promptType: type });
       if (result?.aiAvailable === false) {
         setProviderNotice(result.message || 'Live mentor responses are temporarily unavailable.');
         setFallbackQuestions(result.savedQuestions || []);
-        setLocalMessages((current) => [...current, {
-          clientId: `unanswered-${Date.now()}`,
-          role: 'user',
-          content: message,
-          createdAt: new Date().toISOString(),
-          metadata: { promptType: type }
-        }]);
-        reset({ message: '', promptType: 'freeform' });
+        setLocalMessages((current) => current.map((item) => item.clientId === optimisticId
+          ? { ...item, metadata: { promptType: type } }
+          : item));
         return;
       }
-      reset({ message: '', promptType: 'freeform' });
+      setLocalMessages((current) => current.filter((item) => item.clientId !== optimisticId));
     } catch (err) {
+      setLocalMessages((current) => current.filter((item) => item.clientId !== optimisticId));
+      reset({ message, promptType: 'freeform' });
       setError('root', { message: err?.message || 'Could not send your mentor question.' });
     }
   }, [addSavedAnswer, aiAvailable, askMutation, lessonId, reset, savedQuestions, setError]);
@@ -428,6 +472,7 @@ export default function MentorPage() {
       aiAvailable={aiAvailable}
       savedQuestions={savedQuestions}
       onSavedAnswer={addSavedAnswer}
+      activeQuestion={activeQuestion}
     />
 
     <MentorComposer
