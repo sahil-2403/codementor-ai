@@ -79,8 +79,14 @@ api.interceptors.response.use(
       return api(originalRequest);
     }
 
-    const message = error.response?.data?.message || error.message || 'Something went wrong';
-    return Promise.reject(new Error(message));
+    const payload = error.response?.data || {};
+    const apiError = new Error(payload.message || error.message || 'Something went wrong');
+    apiError.name = 'ApiError';
+    apiError.status = status || null;
+    apiError.code = payload.code || null;
+    apiError.errors = payload.errors || [];
+    apiError.requestId = payload.requestId || null;
+    return Promise.reject(apiError);
   }
 );
 
