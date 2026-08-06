@@ -195,7 +195,7 @@ function StructuredText({ value }) {
   }
 
   return (
-    <div className="space-y-3 break-words [overflow-wrap:anywhere]">
+    <div className="space-y-3 break-words">
       {blocks.map((block, blockIndex) => {
         if (block.type === "heading") {
           const classes =
@@ -355,7 +355,7 @@ function MentorMessage({ message }) {
 
         <div
           className={cn(
-            "mt-1.5 max-w-full break-words rounded-panel px-4 py-3 text-sm leading-7 [overflow-wrap:anywhere]",
+            "mt-1.5 max-w-full break-words rounded-panel px-4 py-3 text-sm leading-7",
             isUser
               ? "bg-primary text-white shadow-sm"
               : "border border-border bg-surface text-foreground shadow-sm",
@@ -369,7 +369,7 @@ function MentorMessage({ message }) {
             {message.sources.map((source, index) => (
               <span
                 key={`${sourceLabel(source)}-${index}`}
-                className="inline-flex max-w-full items-center gap-1 break-words rounded-full border border-primary/15 bg-primary-soft px-2.5 py-1 text-[11px] font-semibold text-primary-strong [overflow-wrap:anywhere]"
+                className="inline-flex max-w-full items-center gap-1 break-words rounded-full border border-primary/15 bg-primary-soft px-2.5 py-1 text-[11px] font-semibold text-primary-strong"
               >
                 <FileText size={12} className="shrink-0" aria-hidden="true" />
                 {sourceLabel(source)}
@@ -548,7 +548,7 @@ function MentorConversation({
                 onClick={() => onSavedAnswer(item)}
                 className="rounded-panel border border-border bg-surface p-4 text-left transition hover:border-primary/35 hover:shadow-sm focus-visible:ring-4 focus-visible:ring-primary-soft"
               >
-                <p className="break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">
+                <p className="break-words text-sm font-semibold text-foreground ">
                   {item.label || item.text}
                 </p>
                 <p className="mt-2 text-xs leading-5 text-muted-foreground">
