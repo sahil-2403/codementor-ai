@@ -11,13 +11,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertTriangle,
-  ArrowUp,
   BookMarked,
   Bot,
   FileText,
   Sparkles,
   User,
   WifiOff,
+  SendHorizonal,
 } from "lucide-react";
 import InlineAlert from "../../components/common/InlineAlert.jsx";
 import Loader from "../../components/common/Loader.jsx";
@@ -311,7 +311,7 @@ function MentorMessage({ message }) {
 
   return (
     <article
-      className={cn("flex w-full gap-3", isUser && "flex-row-reverse")}
+      className={cn("flex w-full gap-2", isUser && "flex-row-reverse")}
       aria-label={
         isUser
           ? "Your message"
@@ -322,14 +322,12 @@ function MentorMessage({ message }) {
     >
       <span
         className={cn(
-          "mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-control border",
-          isUser
-            ? "border-border bg-surface-secondary text-muted-foreground"
-            : "border-primary/20 bg-primary-soft text-primary-strong",
+          "grid h-4 w-4 shrink-0 place-items-center rounded-control",
+          isUser ? "text-muted-foreground" : "text-primary-strong",
         )}
         aria-hidden="true"
       >
-        {isUser ? <User size={15} /> : <Bot size={15} />}
+        {isUser ? <User size={16} /> : <Bot size={16} />}
       </span>
 
       <div
@@ -596,26 +594,10 @@ function MentorComposer({
   const resetLabel = formatResetTime(resetAt);
 
   return (
-    <div className="sticky bottom-0 z-30 border-t border-border bg-page/95 backdrop-blur-xl">
-      <div className="w-full px-4 py-3.5 sm:px-6 lg:px-8">
-        {/* {dailyLimitReached && (
-          <div className="mb-3 flex items-start gap-3 rounded-control border border-warning/30 bg-warning-soft px-3.5 py-3 text-warning">
-            <AlertTriangle
-              size={17}
-              className="mt-0.5 shrink-0"
-              aria-hidden="true"
-            />
-            <div>
-              <p className="text-sm font-bold">Daily mentor limit reached</p>
-              <p className="mt-0.5 text-xs leading-5">
-                New mentor questions become available {resetLabel}.
-              </p>
-            </div>
-          </div>
-        )} */}
-
+    <div className="sticky bottom-0 z-30  bg-page/95 backdrop-blur-xl">
+      <div className="w-full px-4 py-2 sm:px-6 lg:px-8">
         {aiAvailable && orderedSuggestions.length ? (
-          <div className="mb-2.5 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
+          <div className="mb-1 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
             {orderedSuggestions.map((item) => (
               <button
                 key={item.promptType}
@@ -638,14 +620,14 @@ function MentorComposer({
         <form
           onSubmit={handleSubmit(onSubmit)}
           className={cn(
-            "relative rounded-panel border bg-surface p-2 pr-14 shadow-sm transition focus-within:border-primary/60 focus-within:ring-4 focus-within:ring-primary-soft",
+            "relative place-items-center rounded-panel border bg-surface p-2 pr-14 shadow-sm transition focus-within:border-primary/60 focus-within:ring-4 focus-within:ring-primary-soft",
             errors.message ? "border-error" : "border-border",
             !canAsk && "bg-surface-secondary opacity-80",
           )}
         >
           <textarea
             rows={1}
-            className="w-full border-0 bg-transparent px-2 py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground/70 disabled:cursor-not-allowed disabled:text-muted-foreground"
+            className="w-full border-0 self-center bg-transparent px-2 py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground/70 disabled:cursor-not-allowed disabled:text-muted-foreground"
             placeholder={
               dailyLimitReached
                 ? `Daily mentor limit reached. Try again ${resetLabel}.`
@@ -681,7 +663,7 @@ function MentorComposer({
             {isPending ? (
               <span className="ui-spinner ui-spinner--sm" aria-hidden="true" />
             ) : canAsk ? (
-              <ArrowUp size={17} />
+              <SendHorizonal size={17} />
             ) : (
               <WifiOff size={16} />
             )}
@@ -959,22 +941,11 @@ export default function MentorPage() {
   return (
     <section className="-mx-4 -my-8 flex min-h-[calc(100vh-4rem)] flex-col bg-page sm:-mx-6 lg:-mx-8">
       <header className="sticky top-16 z-30 border-b border-border bg-page/95 backdrop-blur-xl">
-        <div className="flex w-full items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="flex w-full items-center justify-between gap-4 px-4 py-2 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
-            <span
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-control border border-primary/20 bg-primary-soft text-primary-strong"
-              aria-hidden="true"
-            >
-              <Bot size={17} />
-            </span>
-            <div className="min-w-0">
-              <h1 className="truncate text-sm font-bold text-foreground">
-                AI Mentor
-              </h1>
-              <p className="truncate text-xs text-muted-foreground">
-                {contextLabel}
-              </p>
-            </div>
+            <p className="truncate text-xs text-muted-foreground">
+              {contextLabel}
+            </p>
           </div>
 
           <span
