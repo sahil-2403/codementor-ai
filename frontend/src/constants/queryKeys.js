@@ -7,6 +7,7 @@ export const queryKeys = {
   quiz: (moduleId) => ['quiz', moduleId],
   quizAttempt: (attemptId) => ['quiz-attempt', attemptId],
   mentorHistory: ['mentor-history'],
+  mentorAIStatus: ['mentor-ai-status'],
   mentorSuggestions: (lessonId) => ['mentor-suggestions', lessonId],
   projectTasks: (params = {}) => ['project-tasks', params],
   projectTask: (taskId) => ['project-task', taskId],
