@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowUp, BookMarked, Bot, FileText, Sparkles, User, WifiOff } from 'lucide-react';
-import ErrorMessage from '../../components/common/ErrorMessage.jsx';
+import { AlertTriangle, ArrowUp, BookMarked, Bot, FileText, Sparkles, User, WifiOff } from 'lucide-react';
 import InlineAlert from '../../components/common/InlineAlert.jsx';
 import Loader from '../../components/common/Loader.jsx';
-import { useAskMentor, useMentorHistory, useMentorSuggestions } from '../../queries/mentorQueries.js';
+import { useAskMentor, useMentorAIStatus, useMentorHistory, useMentorSuggestions } from '../../queries/mentorQueries.js';
 import { mentorAskSchema } from '../../validations/mentor.schema.js';
 import { cn } from '../../utils/cn.js';
+import notify from '../../utils/notify.js';
 
 const sourceLabel = (source) => source?.title || source?.name || source?.refId || (typeof source === 'string' ? source : 'Learning source');
-
 const promptOrder = ['simple_explanation', 'real_project_example', 'interview_answer', 'practice_question'];
+const MENTOR_LIMIT_TOAST_ID = 'mentor-daily-limit';
 
 const formatMessageTime = (value) => {
   if (!value) return '';
@@ -20,6 +20,20 @@ const formatMessageTime = (value) => {
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
+
+const formatResetTime = (value) => {
+  if (!value) return 'after the daily reset';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'after the daily reset';
+  return date.toLocaleString([], {
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+const isDailyLimitError = (error) => error?.code === 'AI_DAILY_LIMIT_REACHED'
+  || (error?.status === 429 && /daily.*limit|limit.*reached/i.test(error?.message || ''));
 
 const normalizeMentorContent = (value) => {
   let text = String(value || '').replace(/\r\n/g, '\n').trim();
@@ -200,7 +214,7 @@ function MentorMessage({ message }) {
   </article>;
 }
 
-function MentorConversation({ messages, isResponding, aiAvailable, savedQuestions, onSavedAnswer, activeQuestion }) {
+function MentorConversation({ messages, isResponding, aiAvailable, savedQuestions, onSavedAnswer, activeQuestion, anchorVersion }) {
   const endRef = useRef(null);
   const activeQuestionRef = useRef(null);
   const initialScrollDoneRef = useRef(false);
@@ -213,37 +227,64 @@ function MentorConversation({ messages, isResponding, aiAvailable, savedQuestion
     return -1;
   }, [activeQuestion, messages]);
 
-  useEffect(() => {
+  const scrollToBottom = useCallback(() => {
+    endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'auto' });
+  }, []);
+
+  const scrollToActiveQuestion = useCallback(() => {
+    const node = activeQuestionRef.current;
+    if (!node) return;
+    const stickyOffset = 148;
+    const top = Math.max(0, window.scrollY + node.getBoundingClientRect().top - stickyOffset);
+    window.scrollTo({ top, behavior: 'auto' });
+  }, []);
+
+  useLayoutEffect(() => {
     if (initialScrollDoneRef.current || activeQuestion || !messages.length) return undefined;
     initialScrollDoneRef.current = true;
+    scrollToBottom();
+
     let secondFrame;
     const firstFrame = window.requestAnimationFrame(() => {
-      secondFrame = window.requestAnimationFrame(() => {
-        endRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-      });
+      secondFrame = window.requestAnimationFrame(scrollToBottom);
     });
+    const shortDelay = window.setTimeout(scrollToBottom, 100);
+    const layoutDelay = window.setTimeout(scrollToBottom, 320);
 
     return () => {
       window.cancelAnimationFrame(firstFrame);
       if (secondFrame) window.cancelAnimationFrame(secondFrame);
+      window.clearTimeout(shortDelay);
+      window.clearTimeout(layoutDelay);
     };
-  }, [activeQuestion, messages.length]);
+  }, [activeQuestion, messages.length, scrollToBottom]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!activeQuestion || activeQuestionIndex < 0) return undefined;
     initialScrollDoneRef.current = true;
-    const frame = window.requestAnimationFrame(() => {
-      activeQuestionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [activeQuestion, activeQuestionIndex, isResponding, messages.length]);
+    scrollToActiveQuestion();
 
-  return <section className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8" aria-label="Mentor conversation" aria-live="polite">
+    let secondFrame;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(scrollToActiveQuestion);
+    });
+    const shortDelay = window.setTimeout(scrollToActiveQuestion, 80);
+    const layoutDelay = window.setTimeout(scrollToActiveQuestion, 240);
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+      window.clearTimeout(shortDelay);
+      window.clearTimeout(layoutDelay);
+    };
+  }, [activeQuestion, activeQuestionIndex, anchorVersion, isResponding, messages.length, scrollToActiveQuestion]);
+
+  return <section className="w-full flex-1 px-4 py-6 [overflow-anchor:none] sm:px-6 lg:px-8" aria-label="Mentor conversation" aria-live="polite">
     {messages.length ? <div className="space-y-7">
       {messages.map((message, index) => <div
         key={message._id || message.clientId || `${message.role}-${index}`}
         ref={index === activeQuestionIndex ? activeQuestionRef : null}
-        className={index === activeQuestionIndex ? 'scroll-mt-36' : undefined}
       >
         <MentorMessage message={message} />
       </div>)}
@@ -277,24 +318,33 @@ function MentorConversation({ messages, isResponding, aiAvailable, savedQuestion
       </div>
     </section> : null}
 
-    <div ref={endRef} className="h-2 scroll-mb-40" />
+    <div ref={endRef} className={cn('transition-[height]', activeQuestion ? 'h-[50vh] min-h-72' : 'h-2')} />
   </section>;
 }
 
-function MentorComposer({ aiAvailable, suggestions, isPending, register, errors, handleSubmit, onSubmit, onPrompt }) {
+function MentorComposer({ aiAvailable, canAsk, dailyLimitReached, resetAt, suggestions, isPending, register, errors, handleSubmit, onSubmit, onPrompt }) {
   const orderedSuggestions = useMemo(() => promptOrder
     .map((type) => suggestions.find((item) => item.promptType === type))
     .filter(Boolean), [suggestions]);
+  const resetLabel = formatResetTime(resetAt);
 
   return <div className="sticky bottom-0 z-30 border-t border-border bg-page/95 backdrop-blur-xl">
     <div className="w-full px-4 py-3.5 sm:px-6 lg:px-8">
+      {dailyLimitReached && <div className="mb-3 flex items-start gap-3 rounded-control border border-warning/30 bg-warning-soft px-3.5 py-3 text-warning">
+        <AlertTriangle size={17} className="mt-0.5 shrink-0" aria-hidden="true" />
+        <div>
+          <p className="text-sm font-bold">Daily mentor limit reached</p>
+          <p className="mt-0.5 text-xs leading-5">New mentor questions become available {resetLabel}.</p>
+        </div>
+      </div>}
+
       {aiAvailable && orderedSuggestions.length ? <div className="mb-2.5 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
         {orderedSuggestions.map((item) => <button
           key={item.promptType}
           type="button"
-          disabled={isPending}
+          disabled={!canAsk || isPending}
           onClick={() => onPrompt(item)}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/35 hover:text-foreground disabled:opacity-55"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/35 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45"
         >
           <Sparkles size={12} className="text-primary" aria-hidden="true" />
           {item.label}
@@ -304,14 +354,18 @@ function MentorComposer({ aiAvailable, suggestions, isPending, register, errors,
       <form onSubmit={handleSubmit(onSubmit)} className={cn(
         'relative rounded-panel border bg-surface p-2 pr-14 shadow-sm transition focus-within:border-primary/60 focus-within:ring-4 focus-within:ring-primary-soft',
         errors.message ? 'border-error' : 'border-border',
-        !aiAvailable && 'bg-surface-secondary'
+        !canAsk && 'bg-surface-secondary opacity-80'
       )}>
         <textarea
           rows={2}
-          className="min-h-[72px] w-full resize-none border-0 bg-transparent px-2 py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground/70 disabled:text-muted-foreground"
-          placeholder={aiAvailable ? 'Ask about your lesson, quiz mistakes, or paste code to review…' : 'Free-form questions are unavailable. Choose a saved answer above.'}
+          className="min-h-[72px] w-full resize-none border-0 bg-transparent px-2 py-2 text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground/70 disabled:cursor-not-allowed disabled:text-muted-foreground"
+          placeholder={dailyLimitReached
+            ? `Daily mentor limit reached. Try again ${resetLabel}.`
+            : aiAvailable
+              ? 'Ask about your lesson, quiz mistakes, or paste code to review…'
+              : 'Free-form questions are unavailable. Choose a saved answer above.'}
           aria-invalid={Boolean(errors.message)}
-          disabled={!aiAvailable || isPending}
+          disabled={!canAsk || isPending}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault();
@@ -323,18 +377,20 @@ function MentorComposer({ aiAvailable, suggestions, isPending, register, errors,
 
         <button
           type="submit"
-          disabled={!aiAvailable || isPending}
-          className="absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-control bg-primary text-white shadow-sm transition hover:bg-primary-strong disabled:bg-surface-secondary disabled:text-muted-foreground"
-          aria-label={isPending ? 'Preparing response' : aiAvailable ? 'Send message' : 'Mentor unavailable'}
+          disabled={!canAsk || isPending}
+          className="absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-control bg-primary text-white shadow-sm transition hover:bg-primary-strong disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:text-muted-foreground"
+          aria-label={isPending ? 'Preparing response' : canAsk ? 'Send message' : dailyLimitReached ? 'Daily mentor limit reached' : 'Mentor unavailable'}
         >
-          {isPending ? <span className="ui-spinner ui-spinner--sm" aria-hidden="true" /> : aiAvailable ? <ArrowUp size={17} /> : <WifiOff size={16} />}
+          {isPending ? <span className="ui-spinner ui-spinner--sm" aria-hidden="true" /> : canAsk ? <ArrowUp size={17} /> : <WifiOff size={16} />}
         </button>
       </form>
 
       {errors.message && <p className="mt-2 text-xs font-semibold text-error">{errors.message.message}</p>}
-      <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{aiAvailable
-        ? 'Answers use your lesson, quiz history, and flagged weak topics as context.'
-        : 'Saved explanations from your course remain available while live mentor responses are unavailable.'}</p>
+      <p className="mt-2 text-[11px] leading-5 text-muted-foreground">{dailyLimitReached
+        ? `Your daily quota resets ${resetLabel}. Existing mentor answers remain available.`
+        : aiAvailable
+          ? 'Answers use your lesson, quiz history, and flagged weak topics as context.'
+          : 'Saved explanations from your course remain available while live mentor responses are unavailable.'}</p>
     </div>
   </div>;
 }
@@ -346,13 +402,16 @@ export default function MentorPage() {
   const autoPromptType = params.get('promptType') || 'simple_explanation';
   const historyQuery = useMentorHistory();
   const suggestionsQuery = useMentorSuggestions(lessonId);
+  const aiStatusQuery = useMentorAIStatus();
   const askMutation = useAskMentor();
   const [localMessages, setLocalMessages] = useState([]);
   const [activeQuestion, setActiveQuestion] = useState('');
+  const [anchorVersion, setAnchorVersion] = useState(0);
+  const [limitReachedOverride, setLimitReachedOverride] = useState(false);
   const [autoSent, setAutoSent] = useState(false);
   const [providerNotice, setProviderNotice] = useState('');
   const [fallbackQuestions, setFallbackQuestions] = useState([]);
-  const { register, handleSubmit, reset, setError, formState: { errors } } = useForm({
+  const { register, handleSubmit, reset, formState: { errors } } = useForm({
     resolver: zodResolver(mentorAskSchema),
     defaultValues: { message: '', promptType: 'freeform' }
   });
@@ -369,27 +428,47 @@ export default function MentorPage() {
   const suggestions = suggestionsQuery.data?.prompts || [];
   const savedQuestions = fallbackQuestions.length ? fallbackQuestions : suggestionsQuery.data?.savedQuestions || [];
   const context = suggestionsQuery.data?.context || {};
+  const mentorQuota = aiStatusQuery.data?.limits?.mentor_chat;
+  const dailyLimitReached = limitReachedOverride || mentorQuota?.remaining === 0;
+  const resetAt = aiStatusQuery.data?.resetAt;
   const latestMessageContext = useMemo(() => [...historyMessages].reverse().find((message) => message.role === 'assistant' && (message.metadata?.lessonTitle || message.metadata?.moduleTitle))?.metadata || {}, [historyMessages]);
   const aiAvailable = suggestionsQuery.data?.aiAvailable === true && !providerNotice;
+  const canAsk = aiAvailable && !dailyLimitReached;
   const contextLabel = [
     context.courseTitle || 'Active roadmap',
     context.lessonTitle || latestMessageContext.lessonTitle || context.moduleTitle || latestMessageContext.moduleTitle || (lessonId ? 'Current lesson' : 'Your learning path')
   ].filter(Boolean).join(' · ');
+
+  useEffect(() => {
+    if (mentorQuota?.remaining > 0) setLimitReachedOverride(false);
+  }, [mentorQuota?.remaining]);
 
   const addSavedAnswer = useCallback((item) => {
     if (!item) return;
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const createdAt = new Date().toISOString();
     setActiveQuestion(item.text);
+    setAnchorVersion((value) => value + 1);
     setLocalMessages((current) => [...current,
       { clientId: `${id}-q`, role: 'user', content: item.text, createdAt, metadata: { promptType: 'saved_answer' } },
       { clientId: `${id}-a`, role: 'assistant', content: item.answer, createdAt, sources: [], metadata: { promptType: 'saved_answer' } }
     ]);
   }, []);
 
+  const showLimitToast = useCallback(() => {
+    notify.error('Daily mentor limit reached', {
+      id: MENTOR_LIMIT_TOAST_ID,
+      description: `New mentor questions become available ${formatResetTime(resetAt)}.`
+    });
+  }, [resetAt]);
+
   const sendPayload = useCallback(async ({ text, type = 'freeform' }) => {
     const message = text.trim();
     if (!message) return;
+    if (dailyLimitReached) {
+      showLimitToast();
+      return;
+    }
     if (!aiAvailable) {
       addSavedAnswer(savedQuestions.find((item) => item.promptType === type || item.text === message) || savedQuestions[0]);
       return;
@@ -406,6 +485,7 @@ export default function MentorPage() {
 
     setProviderNotice('');
     setActiveQuestion(message);
+    setAnchorVersion((value) => value + 1);
     setLocalMessages((current) => [...current, optimisticMessage]);
     reset({ message: '', promptType: 'freeform' });
 
@@ -417,26 +497,43 @@ export default function MentorPage() {
         setLocalMessages((current) => current.map((item) => item.clientId === optimisticId
           ? { ...item, metadata: { promptType: type } }
           : item));
+        setAnchorVersion((value) => value + 1);
         return;
       }
       setLocalMessages((current) => current.filter((item) => item.clientId !== optimisticId));
-    } catch (err) {
+      setAnchorVersion((value) => value + 1);
+    } catch (error) {
       setLocalMessages((current) => current.filter((item) => item.clientId !== optimisticId));
+
+      if (isDailyLimitError(error)) {
+        setLimitReachedOverride(true);
+        setActiveQuestion('');
+        reset({ message: '', promptType: 'freeform' });
+        showLimitToast();
+        aiStatusQuery.refetch();
+        return;
+      }
+
       reset({ message, promptType: 'freeform' });
-      setError('root', { message: err?.message || 'Could not send your mentor question.' });
+      notify.error('Could not send your mentor question', {
+        description: error?.message || 'Please try again.'
+      });
     }
-  }, [addSavedAnswer, aiAvailable, askMutation, lessonId, reset, savedQuestions, setError]);
+  }, [addSavedAnswer, aiAvailable, aiStatusQuery, askMutation, dailyLimitReached, lessonId, reset, savedQuestions, showLimitToast]);
 
   useEffect(() => {
-    if (!autoSend || autoSent || suggestionsQuery.isLoading || (!suggestions.length && !savedQuestions.length)) return;
+    if (!autoSend || autoSent || dailyLimitReached || suggestionsQuery.isLoading || (!suggestions.length && !savedQuestions.length)) return;
     setAutoSent(true);
     const prompt = suggestions.find((item) => item.promptType === autoPromptType) || suggestions[0];
     const saved = savedQuestions.find((item) => item.promptType === autoPromptType) || savedQuestions[0];
     if (aiAvailable && prompt) sendPayload({ text: prompt.text, type: prompt.promptType });
     else addSavedAnswer(saved);
-  }, [addSavedAnswer, aiAvailable, autoPromptType, autoSend, autoSent, savedQuestions, sendPayload, suggestions, suggestionsQuery.isLoading]);
+  }, [addSavedAnswer, aiAvailable, autoPromptType, autoSend, autoSent, dailyLimitReached, savedQuestions, sendPayload, suggestions, suggestionsQuery.isLoading]);
 
-  if (historyQuery.isLoading || suggestionsQuery.isLoading) return <Loader label="Loading mentor..." />;
+  if (historyQuery.isLoading || suggestionsQuery.isLoading || aiStatusQuery.isLoading) return <Loader label="Loading mentor..." />;
+
+  const statusLabel = dailyLimitReached ? 'Limit reached' : aiAvailable ? 'Online' : 'Saved answers';
+  const statusAvailable = aiAvailable && !dailyLimitReached;
 
   return <section className="-mx-4 -my-8 flex min-h-[calc(100vh-4rem)] flex-col bg-page sm:-mx-6 lg:-mx-8">
     <header className="sticky top-16 z-30 border-b border-border bg-page/95 backdrop-blur-xl">
@@ -451,10 +548,10 @@ export default function MentorPage() {
 
         <span className={cn(
           'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold',
-          aiAvailable ? 'border-success/20 bg-success-soft text-success' : 'border-warning/20 bg-warning-soft text-warning'
+          statusAvailable ? 'border-success/20 bg-success-soft text-success' : 'border-warning/20 bg-warning-soft text-warning'
         )}>
-          <span className={cn('h-1.5 w-1.5 rounded-full', aiAvailable ? 'bg-success' : 'bg-warning')} aria-hidden="true" />
-          {aiAvailable ? 'Online' : 'Saved answers'}
+          <span className={cn('h-1.5 w-1.5 rounded-full', statusAvailable ? 'bg-success' : 'bg-warning')} aria-hidden="true" />
+          {statusLabel}
         </span>
       </div>
     </header>
@@ -463,7 +560,6 @@ export default function MentorPage() {
       {historyQuery.error && <InlineAlert tone="danger" title="Previous conversations are unavailable">{historyQuery.error.message} <button type="button" className="font-semibold underline" onClick={() => historyQuery.refetch()}>Try again</button></InlineAlert>}
       {suggestionsQuery.error && <InlineAlert tone="danger" title="Mentor context is unavailable">{suggestionsQuery.error.message} <button type="button" className="font-semibold underline" onClick={() => suggestionsQuery.refetch()}>Try again</button></InlineAlert>}
       {(providerNotice || (!aiAvailable && !suggestionsQuery.error)) && <InlineAlert tone="warning" title="Live mentor responses are unavailable">{providerNotice || 'You can still open saved explanations from your course.'}</InlineAlert>}
-      <ErrorMessage message={errors.root?.message || askMutation.error?.message} />
     </div>
 
     <MentorConversation
@@ -473,10 +569,14 @@ export default function MentorPage() {
       savedQuestions={savedQuestions}
       onSavedAnswer={addSavedAnswer}
       activeQuestion={activeQuestion}
+      anchorVersion={anchorVersion}
     />
 
     <MentorComposer
       aiAvailable={aiAvailable}
+      canAsk={canAsk}
+      dailyLimitReached={dailyLimitReached}
+      resetAt={resetAt}
       suggestions={suggestions}
       isPending={askMutation.isPending}
       register={register}
