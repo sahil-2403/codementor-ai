@@ -317,3 +317,9 @@
     @apply font-semibold text-primary-strong underline-offset-4 transition hover:text-primary hover:underline;
   }
 }
+
+section[aria-label="Mentor conversation"] + .sticky textarea[rows="1"] {
+  field-sizing: content;
+  max-height: 7rem;
+  overflow-y: auto;
+}
