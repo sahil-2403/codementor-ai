@@ -17,6 +17,7 @@ import Loader from "../../components/common/Loader.jsx";
 import EmptyState from "../../components/common/EmptyState.jsx";
 import StatusPill from "../../components/common/StatusPill.jsx";
 import PageShell from "../../components/common/PageShell.jsx";
+import CourseProgress from "../../components/dashboard/CourseProgress.jsx";
 import { useAuth } from "../../hooks/useAuth.js";
 import { useDashboard } from "../../queries/dashboardQueries.js";
 
@@ -308,56 +309,6 @@ function TodayPlan({ items }) {
           next available lesson.
         </div>
       )}
-    </DashboardPanel>
-  );
-}
-
-function CourseProgress({ value, completed, total }) {
-  const safeValue = Math.max(0, Math.min(100, Number(value || 0)));
-
-  return (
-    <DashboardPanel className="overflow-hidden p-5 sm:p-6">
-      <div className="grid gap-5 lg:grid-cols-[140px_minmax(0,1fr)] lg:items-center">
-        <div>
-          <p className="text-sm font-semibold text-muted-foreground">
-            Course progress
-          </p>
-          <p className="mt-2 text-4xl font-extrabold tracking-tight text-primary-strong">
-            {safeValue}%
-          </p>
-          <p className="mt-1 text-xs font-medium text-muted-foreground">
-            Overall completion
-          </p>
-        </div>
-
-        <div>
-          <div
-            className="relative h-3 overflow-hidden rounded-full bg-surface-secondary"
-            role="progressbar"
-            aria-label="Course progress"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow={safeValue}
-          >
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-primary via-violet-500 to-blue-500 transition-all duration-700 ease-calm"
-              style={{ width: `${safeValue}%` }}
-            />
-          </div>
-          <div className="mt-2 grid grid-cols-5 text-[10px] font-medium text-muted-foreground">
-            <span>0%</span>
-            <span className="text-center">25%</span>
-            <span className="text-center">50%</span>
-            <span className="text-center">75%</span>
-            <span className="text-right">100%</span>
-          </div>
-          <p className="mt-4 text-center text-xs font-semibold text-primary-strong sm:text-sm">
-            {total
-              ? `${completed || 0} / ${total} lessons completed`
-              : "Progress is based on completed lessons in your active roadmap."}
-          </p>
-        </div>
-      </div>
     </DashboardPanel>
   );
 }
