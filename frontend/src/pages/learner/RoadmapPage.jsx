@@ -11,16 +11,16 @@ function RoadmapProgressRing({ value = 0 }) {
   const safeValue = Math.max(0, Math.min(100, Number(value || 0)));
 
   return (
-    <div className="relative grid h-24 w-24 shrink-0 place-items-center" aria-label={`${safeValue}% roadmap completion`}>
+    <div className="relative grid h-36 w-36 shrink-0 place-items-center sm:h-40 sm:w-40 lg:h-48 lg:w-48" aria-label={`${safeValue}% roadmap completion`}>
       <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 40 40" aria-hidden="true">
-        <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" strokeWidth="3" className="text-surface-secondary" />
+        <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" strokeWidth="2.6" className="text-surface-secondary" />
         <circle
           cx="20"
           cy="20"
           r="17"
           fill="none"
           stroke="currentColor"
-          strokeWidth="3"
+          strokeWidth="2.6"
           strokeLinecap="round"
           pathLength="100"
           strokeDasharray="100"
@@ -29,8 +29,8 @@ function RoadmapProgressRing({ value = 0 }) {
         />
       </svg>
       <div className="relative text-center">
-        <p className="text-xl font-extrabold leading-none text-foreground">{safeValue}%</p>
-        <p className="mt-1 text-[10px] font-semibold text-muted-foreground">complete</p>
+        <p className="text-3xl font-extrabold leading-none tracking-tight text-foreground lg:text-4xl">{safeValue}%</p>
+        <p className="mt-2 text-xs font-semibold text-muted-foreground">complete</p>
       </div>
     </div>
   );
@@ -86,32 +86,34 @@ export default function RoadmapPage() {
       />
 
       <section className="overflow-hidden rounded-panel border border-primary/15 bg-gradient-to-br from-surface via-primary-soft/45 to-violet-50 shadow-sm">
-        <div className="grid gap-4 p-5 sm:p-6 md:grid-cols-[140px_1fr_1fr] md:items-center">
-          <div className="flex items-center gap-4 md:flex-col md:items-start md:gap-2">
+        <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)] lg:items-stretch lg:gap-6">
+          <div className="flex min-h-[190px] items-center gap-5 lg:min-h-[220px] lg:gap-7">
             <RoadmapProgressRing value={completion} />
-            <div>
-              <p className="text-sm font-bold text-foreground">Roadmap completion</p>
-              <p className="mt-1 text-xs text-muted-foreground">Overall progress</p>
+            <div className="min-w-0">
+              <p className="text-base font-bold text-foreground sm:text-lg">Roadmap completion</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">Overall progress across all lessons in your current roadmap.</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-surface border border-border/80 bg-white/65 p-4">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
-              <Layers3 size={18} />
-            </span>
-            <div>
-              <p className="text-xl font-extrabold tracking-tight text-foreground">{completedModules}/{modules.length}</p>
-              <p className="mt-0.5 text-xs font-semibold text-muted-foreground">Modules completed</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 lg:grid-rows-2">
+            <div className="flex min-h-[92px] items-center gap-4 rounded-surface border border-border/80 bg-white/70 p-4 shadow-sm">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
+                <Layers3 size={19} />
+              </span>
+              <div>
+                <p className="text-2xl font-extrabold tracking-tight text-foreground">{completedModules}/{modules.length}</p>
+                <p className="mt-0.5 text-xs font-semibold text-muted-foreground">Modules completed</p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3 rounded-surface border border-border/80 bg-white/65 p-4">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-blue-50 text-blue-600" aria-hidden="true">
-              <BookOpenCheck size={18} />
-            </span>
-            <div>
-              <p className="text-xl font-extrabold tracking-tight text-foreground">{completedLessons}/{allLessons.length}</p>
-              <p className="mt-0.5 text-xs font-semibold text-muted-foreground">Lessons completed</p>
+            <div className="flex min-h-[92px] items-center gap-4 rounded-surface border border-border/80 bg-white/70 p-4 shadow-sm">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-blue-50 text-blue-600" aria-hidden="true">
+                <BookOpenCheck size={19} />
+              </span>
+              <div>
+                <p className="text-2xl font-extrabold tracking-tight text-foreground">{completedLessons}/{allLessons.length}</p>
+                <p className="mt-0.5 text-xs font-semibold text-muted-foreground">Lessons completed</p>
+              </div>
             </div>
           </div>
         </div>
