@@ -70,12 +70,15 @@ export const explainQuizAttempt = async ({ user, attemptId }) => {
   const startedAt = Date.now();
   const attempt = await QuizAttempt.findOne({ _id: attemptId, user: user._id }).populate('answers.question');
   if (!attempt) throw new ApiError(404, 'Quiz attempt not found');
+
+  const wrongAnswers = (attempt.answers || []).filter((answer) => !answer.isCorrect);
+  if (!wrongAnswers.length) throw new ApiError(400, 'This quiz has no incorrect answers to explain');
   if (attempt.aiExplanation?.summary) return attempt;
+
   const aiConfigured = isGeminiAvailable();
   if (aiConfigured) await checkAIUsageLimit(user._id, AI_FEATURES.QUIZ_EXPLANATION);
 
   const course = await CoursePlan.findById(attempt.coursePlan);
-  const wrongAnswers = (attempt.answers || []).filter((answer) => !answer.isCorrect);
   const relatedContext = trimContextForAI(await retrieveRelevantLearningContext({ query: wrongAnswers.map((answer) => `${answer.topic} ${answer.explanation}`).join(' '), maxResults: 4 }));
   const promptFingerprint = createPromptFingerprint(JSON.stringify({ attemptId, weakTopics: attempt.weakTopicsDetected, userId: user._id }));
 
