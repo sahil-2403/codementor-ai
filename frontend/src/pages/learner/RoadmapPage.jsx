@@ -2,6 +2,7 @@ import { BookOpenCheck, Layers3, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import Loader from '../../components/common/Loader.jsx';
+import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import ModuleCard from '../../components/roadmap/ModuleCard.jsx';
 import { useRoadmap } from '../../queries/roadmapQueries.js';
@@ -75,6 +76,12 @@ export default function RoadmapPage() {
 
   return (
     <PageShell className="space-y-5 pb-6">
+      <PageHeader
+        eyebrow="Learning roadmap"
+        title="Roadmap"
+        description="Follow your modules in order, continue available lessons, and track progress through your current learning path."
+      />
+
       <section className="overflow-hidden rounded-panel border border-primary/15 bg-gradient-to-br from-surface via-primary-soft/55 to-violet-50 shadow-sm">
         <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0 flex-1">
@@ -88,7 +95,7 @@ export default function RoadmapPage() {
               <span className="text-muted-foreground">· Version {course.version || 1}</span>
             </div>
 
-            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">{course.title}</h1>
+            <h2 className="mt-2 text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">{course.title}</h2>
             {course.description && <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{course.description}</p>}
 
             <div className="mt-4 flex flex-wrap gap-2">
