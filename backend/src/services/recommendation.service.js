@@ -9,7 +9,23 @@ export const getWeakTopicSeverity = ({ score = 0, attempts = 1 }) => {
 
 export const getNextLessonFromCourse = (course) => {
   if (!course) return null;
-  return course.modules.flatMap((module) => module.lessons).find((item) => item.status !== 'completed')?.lesson || null;
+
+  for (const module of course.modules || []) {
+    const courseLesson = module.lessons?.find((item) => item.status !== 'completed');
+    if (!courseLesson?.lesson) continue;
+
+    const lesson = typeof courseLesson.lesson.toObject === 'function'
+      ? courseLesson.lesson.toObject()
+      : courseLesson.lesson;
+
+    return {
+      ...lesson,
+      moduleId: module._id,
+      moduleTitle: module.title
+    };
+  }
+
+  return null;
 };
 
 export const buildLearningRecommendations = ({ course, progress, dueRevisions = [] }) => {
