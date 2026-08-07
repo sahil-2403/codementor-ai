@@ -148,15 +148,15 @@ export default function ProjectTaskPage() {
         <h2 className="text-xl font-bold text-foreground">Task requirements</h2>
 
         {task.requirements?.length ? (
-          <ul className="mt-4 space-y-2">
+          <ul className="mt-4 flex flex-wrap gap-2">
             {task.requirements.map((item) => (
               <li
                 key={item}
-                className="flex gap-3 rounded-surface bg-surface-secondary p-3 text-sm leading-6 text-muted-foreground"
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-surface-secondary px-3 py-2 text-sm leading-5 text-muted-foreground"
               >
                 <CheckCircle2
-                  className="mt-0.5 shrink-0 text-success"
-                  size={16}
+                  className="shrink-0 text-success"
+                  size={15}
                   aria-hidden="true"
                 />
                 <span>{item}</span>
@@ -312,7 +312,9 @@ export default function ProjectTaskPage() {
                         <Badge variant="neutral">
                           Attempt {submission.attemptNumber || "?"}
                         </Badge>
-                        <StatusPill status={submission.status} />
+                        {!aiReviewed && (
+                          <StatusPill status={submission.status} />
+                        )}
                         {aiReviewed && (
                           <Badge variant="success">
                             Reviewed · {submission.score}%
