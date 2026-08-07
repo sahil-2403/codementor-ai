@@ -1,5 +1,10 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { BookOpenCheck, BookOpenText, MessagesSquare } from "lucide-react";
+import {
+  BookOpenCheck,
+  BookOpenText,
+  MessagesSquare,
+  Sparkles,
+} from "lucide-react";
 import Loader from "../../components/common/Loader.jsx";
 import EmptyState from "../../components/common/EmptyState.jsx";
 import ErrorMessage from "../../components/common/ErrorMessage.jsx";
@@ -45,6 +50,9 @@ export default function LessonPage() {
     navigate(
       `/mentor?lessonId=${lesson._id}&promptType=${promptType}&autoSend=true`,
     );
+
+  const mentorPromptClass =
+    "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/35 hover:text-foreground";
 
   return (
     <PageShell className="space-y-5 pb-6">
@@ -126,27 +134,30 @@ export default function LessonPage() {
           </div>
         </div>
         <div className="relative mt-4 flex flex-wrap gap-2">
-          <Button
+          <button
             type="button"
-            variant="secondary"
+            className={mentorPromptClass}
             onClick={() => sendLessonPrompt("simple_explanation")}
           >
+            <Sparkles size={12} className="text-primary" aria-hidden="true" />
             Explain simply
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            variant="secondary"
+            className={mentorPromptClass}
             onClick={() => sendLessonPrompt("interview_answer")}
           >
+            <Sparkles size={12} className="text-primary" aria-hidden="true" />
             Prepare an interview answer
-          </Button>
-          <Button
+          </button>
+          <button
             type="button"
-            variant="secondary"
+            className={mentorPromptClass}
             onClick={() => sendLessonPrompt("practice_question")}
           >
+            <Sparkles size={12} className="text-primary" aria-hidden="true" />
             Create a practice question
-          </Button>
+          </button>
         </div>
       </Card>
 
