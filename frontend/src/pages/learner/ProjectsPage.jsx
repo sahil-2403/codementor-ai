@@ -71,13 +71,14 @@ export default function ProjectsPage() {
               <section key={moduleTitle} aria-labelledby={sectionId}>
                 <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
                   <div>
-                    <p className="ui-eyebrow">Roadmap practice</p>
                     <h2 id={sectionId} className="ui-section-title">
                       {moduleTitle}
                     </h2>
                   </div>
                   <Badge variant="neutral">
-                    {moduleTasks.length} {moduleTasks.length === 1 ? "task" : "tasks"}
+                    {moduleTasks.length}
+                    {"  "}
+                    {moduleTasks.length === 1 ? "task" : "tasks"}
                   </Badge>
                 </div>
 
@@ -101,7 +102,9 @@ export default function ProjectsPage() {
                                 {task.difficulty}
                               </Badge>
                               {review && (
-                                <Badge variant={review.variant}>{review.label}</Badge>
+                                <Badge variant={review.variant}>
+                                  {review.label}
+                                </Badge>
                               )}
                             </div>
 
@@ -114,7 +117,12 @@ export default function ProjectsPage() {
                           </div>
 
                           {typeof task.bestScore === "number" && (
-                            <Badge variant="success">Best {task.bestScore}%</Badge>
+                            <Badge
+                              variant="success"
+                              className="flex flex-col min-w-fit"
+                            >
+                              Best {task.bestScore}%
+                            </Badge>
                           )}
                         </div>
 
@@ -131,7 +139,8 @@ export default function ProjectsPage() {
                             {Number(task.estimatedMinutes) > 0
                               ? `${task.estimatedMinutes} min · `
                               : ""}
-                            Attempts {task.attemptsUsed || 0}/{task.maxAttempts || 2}
+                            Attempts {task.attemptsUsed || 0}/
+                            {task.maxAttempts || 2}
                           </span>
 
                           {task.isLocked ? (
