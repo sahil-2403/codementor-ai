@@ -1,16 +1,16 @@
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
+  BarChart3,
   BookOpenCheck,
-  BrainCircuit,
   CheckCircle2,
   ClipboardCheck,
   Code2,
+  FileText,
   FolderCode,
   MessageSquareText,
   RefreshCw,
   Route,
-  Sparkles,
   Target,
 } from 'lucide-react';
 import Loader from '../../components/common/Loader.jsx';
@@ -492,37 +492,36 @@ export default function DashboardPage() {
 
   return (
     <PageShell className="space-y-5 pb-4">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <header className="flex flex-col gap-3 border-b border-border/70 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
-              <Sparkles size={15} />
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="inline-flex min-w-0 items-center gap-1.5 font-semibold text-primary-strong">
+              <Route size={14} className="shrink-0" aria-hidden="true" />
+              <span className="truncate">{course.title}</span>
+              <span className="shrink-0 text-muted-foreground">· Version {stats.roadmapVersion || course.version || 1}</span>
             </span>
-            <p className="text-sm font-semibold text-primary-strong">
-              {course.title} · Version {stats.roadmapVersion || course.version || 1}
-            </p>
-          </div>
-          <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
-            Welcome back, {firstName} <span aria-hidden="true">👋</span>
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            {course.description || 'Continue learning and keep moving through your current roadmap.'}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-secondary px-2.5 py-1 text-xs font-semibold capitalize text-muted-foreground">
-              <Route size={12} aria-hidden="true" /> {course.level || 'learner'} level
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-secondary px-2.5 py-1 font-semibold capitalize text-muted-foreground">
+              {course.level || 'learner'} level
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-xs font-semibold text-success">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 font-semibold text-success">
               <CheckCircle2 size={12} aria-hidden="true" /> Active roadmap
             </span>
           </div>
+          <h1 className="mt-2 text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">
+            Welcome back, {firstName}
+          </h1>
+          <p className="mt-1 max-w-3xl line-clamp-1 text-sm leading-5 text-muted-foreground sm:line-clamp-2">
+            {course.description || 'Continue learning and keep moving through your current roadmap.'}
+          </p>
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Link to="/progress" className="ui-button ui-button--secondary min-h-9 px-3.5 text-xs sm:text-sm">
+          <Link to="/progress" className="ui-button ui-button--secondary min-h-9 gap-2 px-3.5 text-xs sm:text-sm">
+            <BarChart3 size={15} aria-hidden="true" />
             View progress
           </Link>
-          <Link to="/reports" className="ui-button ui-button--secondary min-h-9 px-3.5 text-xs sm:text-sm">
+          <Link to="/reports" className="ui-button ui-button--secondary min-h-9 gap-2 px-3.5 text-xs sm:text-sm">
+            <FileText size={15} aria-hidden="true" />
             Weekly reports
           </Link>
         </div>
