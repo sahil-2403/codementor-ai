@@ -1,40 +1,12 @@
-import { BookOpenCheck, Layers3, Sparkles } from 'lucide-react';
+import { BarChart3, BookOpenCheck, Layers3, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
+import CourseProgress from '../../components/dashboard/CourseProgress.jsx';
 import ModuleCard from '../../components/roadmap/ModuleCard.jsx';
 import { useRoadmap } from '../../queries/roadmapQueries.js';
-
-function RoadmapProgressRing({ value = 0 }) {
-  const safeValue = Math.max(0, Math.min(100, Number(value || 0)));
-
-  return (
-    <div className="relative grid h-36 w-36 shrink-0 place-items-center sm:h-40 sm:w-40 lg:h-48 lg:w-48" aria-label={`${safeValue}% roadmap completion`}>
-      <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 40 40" aria-hidden="true">
-        <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" strokeWidth="2.6" className="text-surface-secondary" />
-        <circle
-          cx="20"
-          cy="20"
-          r="17"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.6"
-          strokeLinecap="round"
-          pathLength="100"
-          strokeDasharray="100"
-          strokeDashoffset={100 - safeValue}
-          className="text-primary transition-all duration-700"
-        />
-      </svg>
-      <div className="relative text-center">
-        <p className="text-3xl font-extrabold leading-none tracking-tight text-foreground lg:text-4xl">{safeValue}%</p>
-        <p className="mt-2 text-xs font-semibold text-muted-foreground">complete</p>
-      </div>
-    </div>
-  );
-}
 
 function findDefaultExpandedModule(modules = []) {
   if (!modules.length) return -1;
@@ -86,34 +58,37 @@ export default function RoadmapPage() {
       />
 
       <section className="overflow-hidden rounded-panel border border-primary/15 bg-gradient-to-br from-surface via-primary-soft/45 to-violet-50 shadow-sm">
-        <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)] lg:items-stretch lg:gap-6">
-          <div className="flex min-h-[190px] items-center gap-5 lg:min-h-[220px] lg:gap-7">
-            <RoadmapProgressRing value={completion} />
-            <div className="min-w-0">
-              <p className="text-base font-bold text-foreground sm:text-lg">Roadmap completion</p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">Overall progress across all lessons in your current roadmap.</p>
+        <div className="p-5 sm:p-6">
+          <CourseProgress
+            variant="embedded"
+            title="Roadmap completion"
+            completionLabel="Overall progress"
+            ariaLabel="Roadmap completion"
+            icon={BarChart3}
+            value={completion}
+            completed={completedLessons}
+            total={allLessons.length}
+          />
+        </div>
+
+        <div className="grid border-t border-primary/10 bg-white/40 sm:grid-cols-2">
+          <div className="flex items-center gap-4 px-5 py-4 sm:px-6 sm:py-5">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
+              <Layers3 size={19} />
+            </span>
+            <div>
+              <p className="text-2xl font-extrabold tracking-tight text-foreground">{completedModules}/{modules.length}</p>
+              <p className="mt-0.5 text-xs font-semibold text-muted-foreground sm:text-sm">Modules completed</p>
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 lg:grid-rows-2">
-            <div className="flex min-h-[92px] items-center gap-4 rounded-surface border border-border/80 bg-white/70 p-4 shadow-sm">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
-                <Layers3 size={19} />
-              </span>
-              <div>
-                <p className="text-2xl font-extrabold tracking-tight text-foreground">{completedModules}/{modules.length}</p>
-                <p className="mt-0.5 text-xs font-semibold text-muted-foreground">Modules completed</p>
-              </div>
-            </div>
-
-            <div className="flex min-h-[92px] items-center gap-4 rounded-surface border border-border/80 bg-white/70 p-4 shadow-sm">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-blue-50 text-blue-600" aria-hidden="true">
-                <BookOpenCheck size={19} />
-              </span>
-              <div>
-                <p className="text-2xl font-extrabold tracking-tight text-foreground">{completedLessons}/{allLessons.length}</p>
-                <p className="mt-0.5 text-xs font-semibold text-muted-foreground">Lessons completed</p>
-              </div>
+          <div className="flex items-center gap-4 border-t border-primary/10 px-5 py-4 sm:border-l sm:border-t-0 sm:px-6 sm:py-5">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-blue-50 text-blue-600" aria-hidden="true">
+              <BookOpenCheck size={19} />
+            </span>
+            <div>
+              <p className="text-2xl font-extrabold tracking-tight text-foreground">{completedLessons}/{allLessons.length}</p>
+              <p className="mt-0.5 text-xs font-semibold text-muted-foreground sm:text-sm">Lessons completed</p>
             </div>
           </div>
         </div>
