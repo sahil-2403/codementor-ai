@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
   Code2,
   FileText,
   FolderCode,
@@ -44,6 +45,9 @@ export default function ProjectTaskPage() {
   const reviewMutation = useReviewProjectSubmission(taskId);
   const [reviewingId, setReviewingId] = useState(null);
   const [visibleSubmissionId, setVisibleSubmissionId] = useState(null);
+  const [expandedSubmissionIds, setExpandedSubmissionIds] = useState(
+    () => new Set(),
+  );
   const [showSolution, setShowSolution] = useState(false);
   const {
     register,
@@ -97,8 +101,28 @@ export default function ProjectTaskPage() {
     }
   };
 
+  const toggleSubmission = (submissionId) => {
+    const isExpanded = expandedSubmissionIds.has(submissionId);
+
+    setExpandedSubmissionIds((current) => {
+      const next = new Set(current);
+      if (next.has(submissionId)) next.delete(submissionId);
+      else next.add(submissionId);
+      return next;
+    });
+
+    if (isExpanded && visibleSubmissionId === submissionId) {
+      setVisibleSubmissionId(null);
+    }
+  };
+
   const review = async (submissionId) => {
     try {
+      setExpandedSubmissionIds((current) => {
+        const next = new Set(current);
+        next.add(submissionId);
+        return next;
+      });
       setReviewingId(submissionId);
       await reviewMutation.mutateAsync(submissionId);
     } finally {
@@ -300,14 +324,15 @@ export default function ProjectTaskPage() {
               const isReviewing =
                 reviewingId === submission._id ||
                 submission.status === "reviewing";
+              const isExpanded = expandedSubmissionIds.has(submission._id);
 
               return (
                 <article
                   key={submission._id}
-                  className="rounded-panel border border-border bg-surface-secondary p-4 sm:p-5"
+                  className="rounded-panel border border-border bg-surface-secondary p-4 transition-colors sm:p-5"
                 >
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="neutral">
                           Attempt {submission.attemptNumber || "?"}
@@ -329,69 +354,89 @@ export default function ProjectTaskPage() {
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() =>
-                          setVisibleSubmissionId(
-                            visibleSubmissionId === submission._id
-                              ? null
-                              : submission._id,
-                          )
-                        }
-                      >
-                        {visibleSubmissionId === submission._id
-                          ? "Hide answer"
-                          : "View answer"}
-                      </Button>
-
-                      {canReview && (
-                        <Button
-                          type="button"
-                          onClick={() => review(submission._id)}
-                          isLoading={isReviewing}
-                          loadingLabel="Requesting review..."
-                        >
-                          {fallback ? "Retry review" : "Request review"}
-                        </Button>
-                      )}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggleSubmission(submission._id)}
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-surface text-muted-foreground transition hover:border-primary/30 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                      aria-expanded={isExpanded}
+                      aria-label={`${isExpanded ? "Collapse" : "Expand"} attempt ${submission.attemptNumber || "details"}`}
+                    >
+                      <ChevronDown
+                        size={18}
+                        className={`transition-transform duration-200 ${
+                          isExpanded ? "rotate-180" : ""
+                        }`}
+                        aria-hidden="true"
+                      />
+                    </button>
                   </div>
 
-                  {isReviewing && (
-                    <InlineAlert className="mt-4" title="Review in progress">
-                      Your saved submission is being reviewed. Refreshing the
-                      page will not use another attempt.
-                    </InlineAlert>
-                  )}
+                  {isExpanded && (
+                    <div className="mt-4 border-t border-border pt-4">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() =>
+                            setVisibleSubmissionId(
+                              visibleSubmissionId === submission._id
+                                ? null
+                                : submission._id,
+                            )
+                          }
+                        >
+                          {visibleSubmissionId === submission._id
+                            ? "Hide answer"
+                            : "View answer"}
+                        </Button>
 
-                  {visibleSubmissionId === submission._id && (
-                    <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                      <div className="rounded-surface bg-slate-950 p-4 text-slate-100">
-                        <h3 className="flex items-center gap-2 text-sm font-bold">
-                          <Code2 size={16} aria-hidden="true" />
-                          Submitted code
-                        </h3>
-                        <pre className="mt-3 overflow-auto whitespace-pre-wrap font-mono text-xs leading-6">
-                          {submission.submittedCode || "No code submitted."}
-                        </pre>
+                        {canReview && (
+                          <Button
+                            type="button"
+                            onClick={() => review(submission._id)}
+                            isLoading={isReviewing}
+                            loadingLabel="Requesting review..."
+                          >
+                            {fallback ? "Retry review" : "Request review"}
+                          </Button>
+                        )}
                       </div>
 
-                      <div className="rounded-surface border border-border bg-surface p-4">
-                        <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
-                          <FileText size={16} aria-hidden="true" />
-                          Submitted explanation
-                        </h3>
-                        <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
-                          {submission.submittedExplanation ||
-                            "No explanation submitted."}
-                        </p>
-                      </div>
+                      {isReviewing && (
+                        <InlineAlert className="mt-4" title="Review in progress">
+                          Your saved submission is being reviewed. Refreshing the
+                          page will not use another attempt.
+                        </InlineAlert>
+                      )}
+
+                      {visibleSubmissionId === submission._id && (
+                        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                          <div className="rounded-surface bg-slate-950 p-4 text-slate-100">
+                            <h3 className="flex items-center gap-2 text-sm font-bold">
+                              <Code2 size={16} aria-hidden="true" />
+                              Submitted code
+                            </h3>
+                            <pre className="mt-3 overflow-auto whitespace-pre-wrap font-mono text-xs leading-6">
+                              {submission.submittedCode || "No code submitted."}
+                            </pre>
+                          </div>
+
+                          <div className="rounded-surface border border-border bg-surface p-4">
+                            <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                              <FileText size={16} aria-hidden="true" />
+                              Submitted explanation
+                            </h3>
+                            <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                              {submission.submittedExplanation ||
+                                "No explanation submitted."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      <ProjectSubmissionFeedback submission={submission} />
                     </div>
                   )}
-
-                  <ProjectSubmissionFeedback submission={submission} />
                 </article>
               );
             })
