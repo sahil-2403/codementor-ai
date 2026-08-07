@@ -109,10 +109,13 @@ export default function QuizResultPage() {
     );
   }
 
-  const hasExplanation = Boolean(attempt.aiExplanation?.summary);
-  const aiAvailable = attempt.aiExplanation?.aiAvailable === true;
+  const hasMistakes = (attempt.answers || []).some((answer) => !answer.isCorrect);
+  const hasExplanation = hasMistakes && Boolean(attempt.aiExplanation?.summary);
+  const aiAvailable = hasExplanation && attempt.aiExplanation?.aiAvailable === true;
 
   const explainMistakes = async () => {
+    if (!hasMistakes) return;
+
     try {
       setError('');
       await explainMutation.mutateAsync();
@@ -127,37 +130,62 @@ export default function QuizResultPage() {
         <QuizResultSummary attempt={attempt} />
         <ErrorMessage message={error || explainMutation.error?.message} />
 
-        <Card className="border-primary/10 bg-gradient-to-br from-surface via-surface to-primary-soft/25 shadow-sm">
+        <Card
+          className={`shadow-sm ${
+            hasMistakes
+              ? 'border-primary/10 bg-gradient-to-br from-surface via-surface to-primary-soft/25'
+              : 'border-success/15 bg-gradient-to-br from-surface via-surface to-success-soft/40'
+          }`}
+        >
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-3">
                 <span
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong"
+                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-control ${
+                    hasMistakes
+                      ? 'bg-primary-soft text-primary-strong'
+                      : 'bg-success-soft text-success'
+                  }`}
                   aria-hidden="true"
                 >
-                  <Sparkles size={16} />
+                  {hasMistakes ? <Sparkles size={16} /> : <CheckCircle2 size={17} />}
                 </span>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">
-                    {hasExplanation
-                      ? aiAvailable
-                        ? 'AI explanation'
-                        : 'Standard explanation'
-                      : 'Extra explanation'}
+                  <p
+                    className={`text-[11px] font-bold uppercase tracking-[0.16em] ${
+                      hasMistakes ? 'text-primary-strong' : 'text-success'
+                    }`}
+                  >
+                    {hasMistakes
+                      ? hasExplanation
+                        ? aiAvailable
+                          ? 'AI explanation'
+                          : 'Standard explanation'
+                        : 'Extra explanation'
+                      : 'Perfect score'}
                   </p>
                   <h2 className="mt-1 text-xl font-bold text-foreground">
-                    Understand your mistakes
+                    {hasMistakes
+                      ? 'Understand your mistakes'
+                      : 'No mistakes to explain'}
                   </h2>
                 </div>
               </div>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-                {hasExplanation
-                  ? 'Use this explanation to understand why the missed answers were incorrect and what to revise next.'
-                  : 'Request an extra explanation for the questions you answered incorrectly.'}
+                {!hasMistakes
+                  ? 'You answered every question correctly. You can still review the answers below whenever you want to revisit the concepts.'
+                  : hasExplanation
+                    ? 'Use this explanation to understand why the missed answers were incorrect and what to revise next.'
+                    : 'Request an extra explanation for the questions you answered incorrectly.'}
               </p>
             </div>
 
-            {hasExplanation ? (
+            {!hasMistakes ? (
+              <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-success/20 bg-success-soft px-3 py-1.5 text-xs font-semibold text-success">
+                <CheckCircle2 size={14} aria-hidden="true" />
+                All answers correct
+              </span>
+            ) : hasExplanation ? (
               <span className="inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full border border-success/20 bg-success-soft px-3 py-1.5 text-xs font-semibold text-success">
                 <CheckCircle2 size={14} aria-hidden="true" />
                 Explanation ready
@@ -175,45 +203,49 @@ export default function QuizResultPage() {
             )}
           </div>
 
-          {hasExplanation ? (
-            <div
-              className={`mt-5 rounded-panel border p-5 sm:p-6 ${
-                aiAvailable
-                  ? 'border-primary/15 bg-white/65'
-                  : 'border-warning/20 bg-warning-soft/70'
-              }`}
-            >
-              {!aiAvailable && (
-                <p className="mb-4 text-sm font-semibold leading-6 text-warning">
-                  A personalised explanation is unavailable, so this explanation
-                  uses the lesson and quiz guidance.
+          {hasMistakes && (
+            <>
+              {hasExplanation ? (
+                <div
+                  className={`mt-5 rounded-panel border p-5 sm:p-6 ${
+                    aiAvailable
+                      ? 'border-primary/15 bg-white/65'
+                      : 'border-warning/20 bg-warning-soft/70'
+                  }`}
+                >
+                  {!aiAvailable && (
+                    <p className="mb-4 text-sm font-semibold leading-6 text-warning">
+                      A personalised explanation is unavailable, so this explanation
+                      uses the lesson and quiz guidance.
+                    </p>
+                  )}
+                  <FormattedExplanation text={attempt.aiExplanation.summary} />
+                </div>
+              ) : (
+                <p className="mt-5 rounded-surface border border-dashed border-border bg-surface-secondary/60 p-4 text-sm leading-6 text-muted-foreground">
+                  Your score and answer-by-answer explanations are already available
+                  below. Use the extra explanation when you want more help connecting
+                  the mistakes to topics you should revise.
                 </p>
               )}
-              <FormattedExplanation text={attempt.aiExplanation.summary} />
-            </div>
-          ) : (
-            <p className="mt-5 rounded-surface border border-dashed border-border bg-surface-secondary/60 p-4 text-sm leading-6 text-muted-foreground">
-              Your score and answer-by-answer explanations are already available
-              below. Use the extra explanation when you want more help connecting
-              the mistakes to topics you should revise.
-            </p>
-          )}
 
-          {attempt.aiExplanation?.sources?.length ? (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-muted-foreground">
-                Learning context
-              </span>
-              {attempt.aiExplanation.sources.map((source, index) => (
-                <Badge
-                  key={`${sourceLabel(source)}-${index}`}
-                  variant="neutral"
-                >
-                  {sourceLabel(source)}
-                </Badge>
-              ))}
-            </div>
-          ) : null}
+              {attempt.aiExplanation?.sources?.length ? (
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    Learning context
+                  </span>
+                  {attempt.aiExplanation.sources.map((source, index) => (
+                    <Badge
+                      key={`${sourceLabel(source)}-${index}`}
+                      variant="neutral"
+                    >
+                      {sourceLabel(source)}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          )}
         </Card>
 
         <Card className="shadow-sm">
