@@ -11,7 +11,7 @@ function RoadmapProgressRing({ value = 0 }) {
   const safeValue = Math.max(0, Math.min(100, Number(value || 0)));
 
   return (
-    <div className="relative grid h-20 w-20 shrink-0 place-items-center" aria-label={`${safeValue}% roadmap completion`}>
+    <div className="relative grid h-24 w-24 shrink-0 place-items-center" aria-label={`${safeValue}% roadmap completion`}>
       <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 40 40" aria-hidden="true">
         <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" strokeWidth="3" className="text-surface-secondary" />
         <circle
@@ -29,8 +29,8 @@ function RoadmapProgressRing({ value = 0 }) {
         />
       </svg>
       <div className="relative text-center">
-        <p className="text-lg font-extrabold leading-none text-foreground">{safeValue}%</p>
-        <p className="mt-1 text-[9px] font-semibold text-muted-foreground">complete</p>
+        <p className="text-xl font-extrabold leading-none text-foreground">{safeValue}%</p>
+        <p className="mt-1 text-[10px] font-semibold text-muted-foreground">complete</p>
       </div>
     </div>
   );
@@ -73,49 +73,57 @@ export default function RoadmapPage() {
     ? 'Focused using your setup and available skill-check results.'
     : 'Built from the reviewed learning plan for your selected level.';
   const defaultExpandedIndex = findDefaultExpandedModule(modules);
+  const headerEyebrow = `${sourceLabel} · ${course.level || 'learner'} level · Version ${course.version || 1}`;
 
   return (
     <PageShell className="space-y-5 pb-6">
       <PageHeader
-        eyebrow="Learning roadmap"
-        title="Roadmap"
-        description="Follow your modules in order, continue available lessons, and track progress through your current learning path."
+        variant="compact"
+        eyebrow={headerEyebrow}
+        eyebrowIcon={Sparkles}
+        title={course.title}
+        description={course.description}
       />
 
-      <section className="overflow-hidden rounded-panel border border-primary/15 bg-gradient-to-br from-surface via-primary-soft/55 to-violet-50 shadow-sm">
-        <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-              <span className="inline-flex items-center gap-1.5 text-primary-strong">
-                <Sparkles size={14} aria-hidden="true" />
-                {sourceLabel}
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span className="capitalize text-muted-foreground">{course.level || 'learner'} level</span>
-              <span className="text-muted-foreground">· Version {course.version || 1}</span>
-            </div>
-
-            <h2 className="mt-2 text-xl font-extrabold tracking-tight text-foreground sm:text-2xl">{course.title}</h2>
-            {course.description && <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{course.description}</p>}
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-white/70 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                <Layers3 size={13} aria-hidden="true" />
-                {completedModules}/{modules.length} modules completed
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-white/70 px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-                <BookOpenCheck size={13} aria-hidden="true" />
-                {completedLessons}/{allLessons.length} lessons completed
-              </span>
+      <section className="overflow-hidden rounded-panel border border-primary/15 bg-gradient-to-br from-surface via-primary-soft/45 to-violet-50 shadow-sm">
+        <div className="grid gap-4 p-5 sm:p-6 md:grid-cols-[140px_1fr_1fr] md:items-center">
+          <div className="flex items-center gap-4 md:flex-col md:items-start md:gap-2">
+            <RoadmapProgressRing value={completion} />
+            <div>
+              <p className="text-sm font-bold text-foreground">Roadmap completion</p>
+              <p className="mt-1 text-xs text-muted-foreground">Overall progress</p>
             </div>
           </div>
 
-          <RoadmapProgressRing value={completion} />
+          <div className="flex items-center gap-3 rounded-surface border border-border/80 bg-white/65 p-4">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
+              <Layers3 size={18} />
+            </span>
+            <div>
+              <p className="text-xl font-extrabold tracking-tight text-foreground">{completedModules}/{modules.length}</p>
+              <p className="mt-0.5 text-xs font-semibold text-muted-foreground">Modules completed</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 rounded-surface border border-border/80 bg-white/65 p-4">
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-blue-50 text-blue-600" aria-hidden="true">
+              <BookOpenCheck size={18} />
+            </span>
+            <div>
+              <p className="text-xl font-extrabold tracking-tight text-foreground">{completedLessons}/{allLessons.length}</p>
+              <p className="mt-0.5 text-xs font-semibold text-muted-foreground">Lessons completed</p>
+            </div>
+          </div>
         </div>
 
-        <div className="flex items-start gap-2 border-t border-primary/10 bg-white/45 px-5 py-3 text-xs leading-5 text-muted-foreground sm:px-6">
-          <Sparkles size={14} className="mt-0.5 shrink-0 text-primary-strong" aria-hidden="true" />
-          <p><span className="font-semibold text-foreground">How this roadmap was created:</span> {sourceDescription}</p>
+        <div className="flex items-start gap-3 border-t border-primary/10 bg-white/45 px-5 py-3.5 text-xs leading-5 text-muted-foreground sm:px-6">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
+            <Sparkles size={14} />
+          </span>
+          <div>
+            <p className="font-semibold text-foreground">How this roadmap was created</p>
+            <p className="mt-0.5">{sourceDescription}</p>
+          </div>
         </div>
       </section>
 
