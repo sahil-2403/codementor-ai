@@ -95,7 +95,6 @@ export const explainQuizAttempt = async ({ user, attemptId }) => {
     generatedAt: new Date(),
     aiAvailable: aiResult.aiAvailable !== false
   };
-  attempt.feedback = aiResult.feedback;
   await attempt.save();
 
   if (aiResult.aiAvailable !== false) {
