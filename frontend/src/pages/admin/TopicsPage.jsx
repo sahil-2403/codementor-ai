@@ -111,7 +111,6 @@ export default function TopicsPage() {
   };
 
   const closeDialog = () => {
-    if (updateStatus.isPending || deleteTopic.isPending) return;
     setActionTarget(null);
     setDeleteConfirmation('');
   };
