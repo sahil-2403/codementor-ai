@@ -47,7 +47,18 @@ export const generateWeeklyReportForUser = async (userId) => {
   if (!progress) return null;
 
   const weekStart = getUtcWeekStart();
-  const existing = await WeeklyReport.findOne({ user: userId, coursePlan: course._id, weekStart });
+  const nextWeekStart = new Date(weekStart);
+  nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 7);
+
+  const existing = await WeeklyReport.findOne({
+    user: userId,
+    coursePlan: course._id,
+    $or: [
+      { weekStart },
+      { createdAt: { $gte: weekStart, $lt: nextWeekStart } }
+    ]
+  });
+
   if (existing) {
     throw new ApiError(409, 'A weekly report has already been created for this week.');
   }
