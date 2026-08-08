@@ -45,7 +45,7 @@ export default function QuestionsPage() {
 
   const quizQuery = useAdminQuestions(quizFilters);
   const interviewQuery = useAdminInterviewQuestions(interviewFilters);
-  const topicsQuery = useAdminTopics({ limit: 100 });
+  const topicsQuery = useAdminTopics({ limit: 100, status: 'active' });
   const lessonsQuery = useAdminLessons({ limit: 100 });
 
   const createQuiz = useCreateQuestion();
