@@ -1,4 +1,5 @@
 import { InterviewQuestion } from '../../models/InterviewQuestion.js';
+import { Topic } from '../../models/Topic.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
@@ -10,6 +11,22 @@ import {
   ensureFound,
   transitionStatus
 } from './common.js';
+
+const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const resolveTopicReference = async (topicTitle) => {
+  const title = String(topicTitle || '').trim();
+  if (!title) return { topic: title, topicRef: null };
+
+  const topic = await Topic.findOne({
+    title: new RegExp(`^${escapeRegex(title)}$`, 'i'),
+    $or: [{ status: 'active' }, { status: { $exists: false } }]
+  }).select('_id title').lean();
+
+  return topic
+    ? { topic: topic.title, topicRef: topic._id }
+    : { topic: title, topicRef: null };
+};
 
 const assertInterviewQuestionPublishable = async (question) => {
   const errors = [];
@@ -38,8 +55,10 @@ export const listInterviewQuestions = async (query = {}) => {
 export const getInterviewQuestion = async (id) => ensureFound(await InterviewQuestion.findById(id), 'Interview question');
 
 export const createInterviewQuestion = async (payload) => {
+  const topicLink = await resolveTopicReference(payload.topic);
   const question = await InterviewQuestion.create({
     ...payload,
+    ...topicLink,
     answerChecklist: cleanStringArray(payload.answerChecklist),
     tags: cleanStringArray(payload.tags),
     status: PUBLISHABLE_STATUS.DRAFT
@@ -51,8 +70,10 @@ export const createInterviewQuestion = async (payload) => {
 export const updateInterviewQuestion = async ({ id, payload }) => {
   const question = ensureFound(await InterviewQuestion.findById(id), 'Interview question');
   ensureEditable(question, 'Interview question');
+  const topicLink = payload.topic ? await resolveTopicReference(payload.topic) : {};
   const normalized = {
     ...payload,
+    ...topicLink,
     ...(payload.answerChecklist ? { answerChecklist: cleanStringArray(payload.answerChecklist) } : {}),
     ...(payload.tags ? { tags: cleanStringArray(payload.tags) } : {})
   };
