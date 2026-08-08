@@ -35,6 +35,7 @@ const ProjectTaskPage = lazy(() => import('../pages/learner/ProjectTaskPage.jsx'
 const InterviewPage = lazy(() => import('../pages/learner/InterviewPage.jsx'));
 const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage.jsx'));
 const TopicsPage = lazy(() => import('../pages/admin/TopicsPage.jsx'));
+const TopicEditorPage = lazy(() => import('../pages/admin/TopicEditorPage.jsx'));
 const LessonsPage = lazy(() => import('../pages/admin/LessonsPage.jsx'));
 const QuestionsPage = lazy(() => import('../pages/admin/QuestionsPage.jsx'));
 const TemplatesPage = lazy(() => import('../pages/admin/TemplatesPage.jsx'));
@@ -83,6 +84,8 @@ export default function AppRoutes() {
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<AdminDashboardPage />} />
             <Route path="/admin/topics" element={<TopicsPage />} />
+            <Route path="/admin/topics/new" element={<TopicEditorPage />} />
+            <Route path="/admin/topics/:topicId/edit" element={<TopicEditorPage />} />
             <Route path="/admin/lessons" element={<LessonsPage />} />
             <Route path="/admin/questions" element={<QuestionsPage />} />
             <Route path="/admin/templates" element={<TemplatesPage />} />
