@@ -211,93 +211,70 @@ export default function InterviewPage() {
                     Choose a topic and question
                   </h2>
                   <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Expand a topic, then select the interview question you want to practise.
+                    Select a topic, then choose the interview question you want to practise.
                   </p>
                 </div>
               </div>
               <Badge variant="neutral">{questions.length} questions</Badge>
             </div>
 
-            <div className="mt-5 space-y-2">
-              {topics.map(([topic, list]) => {
-                const open = currentTopic === topic;
-                const topicAttempts = attempts.filter(
-                  (attempt) => attempt.question?.topic === topic
-                ).length;
-
-                return (
-                  <section
-                    key={topic}
-                    className={`overflow-hidden rounded-surface border transition-colors ${
-                      open
-                        ? 'border-primary/20 bg-primary-soft/20'
-                        : 'border-border bg-surface'
-                    }`}
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
+              <div>
+                <label
+                  htmlFor="interview-topic"
+                  className="mb-2 block text-sm font-semibold text-foreground"
+                >
+                  Topic
+                </label>
+                <div className="relative">
+                  <select
+                    id="interview-topic"
+                    value={currentTopic}
+                    onChange={(event) => chooseTopic(event.target.value)}
+                    className="min-h-11 w-full appearance-none rounded-control border border-border bg-surface px-3 pr-10 text-sm font-medium text-foreground outline-none transition hover:border-primary/30 focus:border-primary focus:ring-4 focus:ring-primary-soft"
                   >
-                    <button
-                      type="button"
-                      onClick={() => chooseTopic(topic)}
-                      aria-expanded={open}
-                      className="flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left transition hover:bg-primary-soft/30 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-soft"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-semibold text-foreground">{topic}</p>
-                        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                          {list.length} question{list.length === 1 ? '' : 's'} ·{' '}
-                          {topicAttempts} saved attempt{topicAttempts === 1 ? '' : 's'}
-                        </p>
-                      </div>
-                      <ChevronDown
-                        size={18}
-                        className={`shrink-0 text-muted-foreground transition-transform duration-200 ${
-                          open ? 'rotate-180 text-primary-strong' : ''
-                        }`}
-                        aria-hidden="true"
-                      />
-                    </button>
+                    {topics.map(([topic, list]) => (
+                      <option key={topic} value={topic}>
+                        {topic} ({list.length})
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={17}
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                </div>
+              </div>
 
-                    {open ? (
-                      <div className="space-y-2 border-t border-border/70 bg-surface/70 p-3">
-                        {list.map((question) => {
-                          const active = selectedQuestion?._id === question._id;
-                          const questionAttempts = attempts.filter(
-                            (attempt) => attempt.question?._id === question._id
-                          ).length;
-
-                          return (
-                            <button
-                              key={question._id}
-                              type="button"
-                              onClick={() => chooseQuestion(question._id)}
-                              aria-pressed={active}
-                              className={`w-full rounded-surface border p-3.5 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary-soft ${
-                                active
-                                  ? 'border-primary/30 bg-primary-soft/70 shadow-sm'
-                                  : 'border-border bg-surface hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-sm'
-                              }`}
-                            >
-                              <div className="flex flex-wrap items-center gap-2">
-                                <Badge variant={active ? 'info' : 'neutral'}>
-                                  {question.difficulty}
-                                </Badge>
-                                <Badge variant="neutral">
-                                  {formatQuestionType(question.type)}
-                                </Badge>
-                                <span className="ml-auto text-xs font-semibold text-muted-foreground">
-                                  {questionAttempts}/{MAX_ATTEMPTS} attempts
-                                </span>
-                              </div>
-                              <p className="mt-2.5 font-semibold leading-6 text-foreground">
-                                {question.question}
-                              </p>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </section>
-                );
-              })}
+              <div>
+                <label
+                  htmlFor="interview-question"
+                  className="mb-2 block text-sm font-semibold text-foreground"
+                >
+                  Question
+                </label>
+                <div className="relative">
+                  <select
+                    id="interview-question"
+                    value={selectedQuestion?._id || ''}
+                    onChange={(event) => chooseQuestion(event.target.value)}
+                    disabled={!topicQuestions.length}
+                    className="min-h-11 w-full appearance-none rounded-control border border-border bg-surface px-3 pr-10 text-sm font-medium text-foreground outline-none transition hover:border-primary/30 focus:border-primary focus:ring-4 focus:ring-primary-soft disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:text-muted-foreground"
+                  >
+                    {topicQuestions.map((question) => (
+                      <option key={question._id} value={question._id}>
+                        {question.question}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown
+                    size={17}
+                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                </div>
+              </div>
             </div>
           </Card>
 
