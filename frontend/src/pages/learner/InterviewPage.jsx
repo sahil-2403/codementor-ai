@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   BookOpenCheck,
   BriefcaseBusiness,
-  ChevronDown,
   History,
   MessageSquareText,
   Send,
@@ -21,6 +20,7 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import FormTextarea from '../../components/form/FormTextarea.jsx';
 import InterviewAttemptFeedback from '../../components/interview/InterviewAttemptFeedback.jsx';
+import InterviewQuestionSelector from '../../components/interview/InterviewQuestionSelector.jsx';
 import {
   useInterviewAttempts,
   useInterviewQuestions,
@@ -218,64 +218,14 @@ export default function InterviewPage() {
               <Badge variant="neutral">{questions.length} questions</Badge>
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <div>
-                <label
-                  htmlFor="interview-topic"
-                  className="mb-2 block text-sm font-semibold text-foreground"
-                >
-                  Topic
-                </label>
-                <div className="relative">
-                  <select
-                    id="interview-topic"
-                    value={currentTopic}
-                    onChange={(event) => chooseTopic(event.target.value)}
-                    className="min-h-11 w-full appearance-none rounded-control border border-border bg-surface px-3 pr-10 text-sm font-medium text-foreground outline-none transition hover:border-primary/30 focus:border-primary focus:ring-4 focus:ring-primary-soft"
-                  >
-                    {topics.map(([topic, list]) => (
-                      <option key={topic} value={topic}>
-                        {topic} ({list.length})
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={17}
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="interview-question"
-                  className="mb-2 block text-sm font-semibold text-foreground"
-                >
-                  Question
-                </label>
-                <div className="relative">
-                  <select
-                    id="interview-question"
-                    value={selectedQuestion?._id || ''}
-                    onChange={(event) => chooseQuestion(event.target.value)}
-                    disabled={!topicQuestions.length}
-                    className="min-h-11 w-full appearance-none rounded-control border border-border bg-surface px-3 pr-10 text-sm font-medium text-foreground outline-none transition hover:border-primary/30 focus:border-primary focus:ring-4 focus:ring-primary-soft disabled:cursor-not-allowed disabled:bg-surface-secondary disabled:text-muted-foreground"
-                  >
-                    {topicQuestions.map((question) => (
-                      <option key={question._id} value={question._id}>
-                        {question.question}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown
-                    size={17}
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    aria-hidden="true"
-                  />
-                </div>
-              </div>
-            </div>
+            <InterviewQuestionSelector
+              topics={topics}
+              currentTopic={currentTopic}
+              topicQuestions={topicQuestions}
+              selectedQuestionId={selectedQuestion?._id || ''}
+              onTopicChange={chooseTopic}
+              onQuestionChange={chooseQuestion}
+            />
           </Card>
 
           <Card className="border-primary/10 bg-gradient-to-br from-surface via-surface to-primary-soft/20 shadow-sm">
