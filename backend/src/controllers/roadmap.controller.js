@@ -2,10 +2,10 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendResponse } from '../utils/ApiResponse.js';
 import { LearningGoal } from '../models/LearningGoal.js';
 import {
-  getCurrentCourse,
   getRoadmapVersions,
   personalizeCurrentRoadmapLater
 } from '../services/roadmap.service.js';
+import { getActiveCourseForUser } from '../services/dataIntegrity.service.js';
 import {
   createRoadmapGenerationJobOrRun,
   getJobForUser,
@@ -82,7 +82,12 @@ export const generateOrGetRoadmap = asyncHandler(async (req, res) => {
 });
 
 export const currentRoadmap = asyncHandler(async (req, res) => {
-  const course = await getCurrentCourse(req.user._id);
+  const course = await getActiveCourseForUser({ userId: req.user._id, populate: true });
+  if (course) {
+    course.modules.forEach((module) => {
+      module.lessons = (module.lessons || []).filter((item) => Boolean(item.lesson));
+    });
+  }
   sendResponse(res, 200, 'Current roadmap', { course });
 });
 
