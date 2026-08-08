@@ -22,7 +22,7 @@ export default function LessonsPage() {
   const [publishTarget, setPublishTarget] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
   const { data, isLoading } = useAdminLessons(filters);
-  const topics = useAdminTopics({ limit: 100 });
+  const topics = useAdminTopics({ limit: 100, status: 'active' });
   const createLesson = useCreateLesson();
   const updateLesson = useUpdateLesson();
   const updateStatus = useUpdateLessonStatus();
