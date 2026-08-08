@@ -11,12 +11,15 @@ const quizQuestionSchema = new mongoose.Schema(
     difficulty: { type: String, enum: ['beginner', 'intermediate', 'advanced'], default: 'beginner' },
     relatedLesson: { type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' },
     tags: [{ type: String }],
-    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'published' }
+    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'published' },
+    archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
+    statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null }
   },
   { timestamps: true }
 );
 
 quizQuestionSchema.index({ status: 1, difficulty: 1, topic: 1, type: 1 });
+quizQuestionSchema.index({ archivedByTopics: 1, status: 1 });
 quizQuestionSchema.index({ tags: 1, status: 1 });
 quizQuestionSchema.index({ question: 'text', explanation: 'text', tags: 'text' });
 
