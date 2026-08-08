@@ -2,7 +2,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
   BarChart3,
-  BookOpenCheck,
   ClipboardCheck,
   FileText,
   RefreshCw,
@@ -17,6 +16,7 @@ import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import StatusPill from '../../components/common/StatusPill.jsx';
+import CourseProgress from '../../components/progress/CourseProgress.jsx';
 import { useDashboard } from '../../queries/dashboardQueries.js';
 import { useUpdateRevision } from '../../queries/progressQueries.js';
 import { useReports } from '../../queries/reportQueries.js';
@@ -91,7 +91,8 @@ export default function ProgressPage() {
     0,
     Math.min(100, Number(progress.overallCompletion || 0))
   );
-  const totalModules = data.course.modules?.length || 0;
+  const modules = data.course.modules || [];
+  const totalModules = modules.length;
   const completedModules = progress.completedModules?.length || 0;
   const completedLessons =
     data.stats?.completedLessons ?? progress.completedLessons?.length ?? 0;
@@ -122,63 +123,16 @@ export default function ProgressPage() {
         description="Understand your course completion, performance, weak areas, and revision progress."
       />
 
-      <Card className="shadow-sm">
-        <SectionHeading
-          icon={BookOpenCheck}
-          eyebrow="Course progress"
-          title="Roadmap completion"
-          description="See how much of your active learning path you have completed."
-        />
-
-        <div className="mt-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p className="text-4xl font-extrabold tracking-tight text-primary-strong">
-                {completion}%
-              </p>
-              <p className="mt-1 text-sm font-medium text-muted-foreground">
-                Overall completion
-              </p>
-            </div>
-            <p className="text-sm font-semibold text-muted-foreground">
-              {completedLessons} / {totalLessons || 0} lessons completed
-            </p>
-          </div>
-
-          <div
-            className="mt-4 h-3 overflow-hidden rounded-full bg-surface-secondary"
-            role="progressbar"
-            aria-label="Roadmap completion"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow={completion}
-          >
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-primary via-violet-500 to-blue-500 transition-all duration-700 ease-calm"
-              style={{ width: `${completion}%` }}
-            />
-          </div>
-
-          <div className="mt-5 grid overflow-hidden rounded-panel border border-border bg-surface-secondary/55 sm:grid-cols-2">
-            <div className="p-4 sm:p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Modules completed
-              </p>
-              <p className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">
-                {completedModules} / {totalModules}
-              </p>
-            </div>
-            <div className="border-t border-border p-4 sm:border-l sm:border-t-0 sm:p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                Lessons completed
-              </p>
-              <p className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">
-                {completedLessons} / {totalLessons || 0}
-              </p>
-            </div>
-          </div>
-        </div>
-      </Card>
+      <CourseProgress
+        variant="detailed"
+        value={completion}
+        completedLessons={completedLessons}
+        totalLessons={totalLessons}
+        completedModules={completedModules}
+        totalModules={totalModules}
+        modules={modules}
+        completedLessonIds={progress.completedLessons || []}
+      />
 
       <Card className="shadow-sm">
         <SectionHeading
