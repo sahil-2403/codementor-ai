@@ -3,7 +3,11 @@ import { ApiError } from '../utils/ApiError.js';
 
 export const getActiveCourseForUser = async ({ userId, populate = false, lean = false } = {}) => {
   let query = CoursePlan.findOne({ user: userId, status: 'active', isActive: true }).sort({ createdAt: -1 });
-  if (populate) query = query.populate('modules.lessons.lesson').populate('modules.quizQuestions');
+  if (populate) {
+    query = query
+      .populate({ path: 'modules.lessons.lesson', match: { status: 'published' } })
+      .populate({ path: 'modules.quizQuestions', match: { status: 'published' } });
+  }
   if (lean) query = query.lean();
   return query;
 };
