@@ -7,6 +7,16 @@ export const listTopics = asyncHandler(async (req, res) => {
   sendResponse(res, 200, 'Topics', { topics: items, pagination });
 });
 
+export const getTopic = asyncHandler(async (req, res) => {
+  const topic = await adminContent.getTopic(req.params.id);
+  sendResponse(res, 200, 'Topic details', { topic });
+});
+
+export const topicImpact = asyncHandler(async (req, res) => {
+  const { topic, counts } = await adminContent.getTopicImpact(req.params.id);
+  sendResponse(res, 200, 'Topic impact', { topic, impact: counts });
+});
+
 export const createTopic = asyncHandler(async (req, res) => {
   const topic = await adminContent.createTopic(req.body);
   sendResponse(res, 201, 'Topic created', { topic });
@@ -17,9 +27,17 @@ export const updateTopic = asyncHandler(async (req, res) => {
   sendResponse(res, 200, 'Topic updated', { topic });
 });
 
+export const updateTopicStatus = asyncHandler(async (req, res) => {
+  const { topic, counts } = await adminContent.changeTopicStatus({
+    id: req.params.id,
+    status: req.body.status
+  });
+  sendResponse(res, 200, `Topic ${topic.status}`, { topic, impact: counts });
+});
+
 export const deleteTopic = asyncHandler(async (req, res) => {
-  await adminContent.deleteTopic(req.params.id);
-  sendResponse(res, 200, 'Topic deleted', {});
+  const { topic, counts } = await adminContent.deleteTopic(req.params.id);
+  sendResponse(res, 200, 'Topic and related content deleted', { topic, impact: counts });
 });
 
 export const listLessons = asyncHandler(async (req, res) => {
