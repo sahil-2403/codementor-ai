@@ -84,7 +84,6 @@ export default function ProgressPage() {
 
   const progress = data.progress;
   const dueRevisions = data.dueRevisions || [];
-  const revisionStats = data.revisionStats || {};
   const weakTopics = progress.weakTopics || [];
   const latestReport = reportsQuery.data?.reports?.[0] || null;
   const completion = Math.max(
@@ -132,6 +131,8 @@ export default function ProgressPage() {
         totalModules={totalModules}
         modules={modules}
         completedLessonIds={progress.completedLessons || []}
+        collapsible
+        defaultExpanded={false}
       />
 
       <Card className="shadow-sm">
@@ -234,7 +235,7 @@ export default function ProgressPage() {
           description="Open due revision material, skip it for now, or mark it complete when you feel confident."
           action={
             <Badge variant={dueRevisions.length ? 'warning' : 'neutral'}>
-              {revisionStats.pending || dueRevisions.length} due
+              {dueRevisions.length} due
             </Badge>
           }
         />
