@@ -7,6 +7,7 @@ import { adminWriteLimiter } from '../middlewares/rateLimit.middleware.js';
 import {
   topicSchema,
   topicUpdateSchema,
+  topicStatusUpdateSchema,
   lessonSchema,
   lessonUpdateSchema,
   questionSchema,
@@ -20,8 +21,11 @@ import {
 } from '../validations/admin.validation.js';
 import {
   listTopics,
+  getTopic,
+  topicImpact,
   createTopic,
   updateTopic,
+  updateTopicStatus,
   deleteTopic,
   listLessons,
   getLesson,
@@ -55,6 +59,9 @@ router.use(requireAuth, requireRole(ROLES.ADMIN));
 
 router.get('/topics', listTopics);
 router.post('/topics', adminWriteLimiter, validate(topicSchema), createTopic);
+router.get('/topics/:id/impact', validate(idParamSchema), topicImpact);
+router.get('/topics/:id', validate(idParamSchema), getTopic);
+router.patch('/topics/:id/status', adminWriteLimiter, validate(idParamSchema), validate(topicStatusUpdateSchema), updateTopicStatus);
 router.patch('/topics/:id', adminWriteLimiter, validate(idParamSchema), validate(topicUpdateSchema), updateTopic);
 router.delete('/topics/:id', adminWriteLimiter, validate(idParamSchema), deleteTopic);
 
