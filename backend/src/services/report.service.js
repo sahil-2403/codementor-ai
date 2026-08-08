@@ -6,6 +6,7 @@ import { aiProvider } from '../ai/aiProvider.service.js';
 import { checkAIUsageLimit, createPromptFingerprint, logAIUsage } from './aiUsage.service.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 import { getUtcWeekStart } from '../utils/week.js';
+import { ApiError } from '../utils/ApiError.js';
 
 const buildProgressSummary = (progress) => {
   const completedCount = progress?.completedLessons?.length || 0;
@@ -47,7 +48,9 @@ export const generateWeeklyReportForUser = async (userId) => {
 
   const weekStart = getUtcWeekStart();
   const existing = await WeeklyReport.findOne({ user: userId, coursePlan: course._id, weekStart });
-  if (existing) return existing;
+  if (existing) {
+    throw new ApiError(409, 'A weekly report has already been created for this week.');
+  }
 
   const startedAt = Date.now();
   const promptFingerprint = createPromptFingerprint(`${userId}:${course._id}:${weekStart.toISOString()}`);
@@ -103,7 +106,7 @@ export const generateWeeklyReportForUser = async (userId) => {
     });
   } catch (error) {
     if (error?.code === 11000) {
-      return WeeklyReport.findOne({ user: userId, coursePlan: course._id, weekStart });
+      throw new ApiError(409, 'A weekly report has already been created for this week.');
     }
     throw error;
   }
