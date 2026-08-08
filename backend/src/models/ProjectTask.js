@@ -16,12 +16,15 @@ const projectTaskSchema = new mongoose.Schema(
     evaluationChecklist: [{ type: String }],
     tags: [{ type: String }],
     estimatedMinutes: { type: Number, default: 60 },
-    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'published', index: true }
+    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'published', index: true },
+    archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
+    statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null }
   },
   { timestamps: true }
 );
 
 projectTaskSchema.index({ title: 'text', description: 'text', tags: 'text' });
 projectTaskSchema.index({ status: 1, difficulty: 1, moduleTitle: 1 });
+projectTaskSchema.index({ archivedByTopics: 1, status: 1 });
 
 export const ProjectTask = mongoose.model('ProjectTask', projectTaskSchema);
