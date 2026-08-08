@@ -11,7 +11,7 @@ export default function InterviewAttemptFeedback({
   attemptNumber,
   isRetrying = false,
   onRetry,
-  showExpectedAnswer = true
+  showExpectedAnswer = false
 }) {
   const fallback =
     attempt.feedbackMode === REVIEW_MODE.FALLBACK ||
