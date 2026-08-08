@@ -120,6 +120,15 @@ export default function ProgressPage() {
         eyebrowIcon={BarChart3}
         title="Your learning progress"
         description="Understand your course completion, performance, weak areas, and revision progress."
+        actions={
+          <Link
+            to="/reports"
+            className="ui-button ui-button--secondary min-h-9 gap-2 px-3.5 text-xs sm:text-sm"
+          >
+            <FileText size={15} aria-hidden="true" />
+            Weekly reports
+          </Link>
+        }
       />
 
       <CourseProgress
