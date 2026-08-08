@@ -12,12 +12,18 @@ const topicSchema = new mongoose.Schema(
     },
     tags: [{ type: String }],
     order: { type: Number, default: 0 },
+    status: {
+      type: String,
+      enum: ["active", "archived"],
+      default: "active",
+      index: true,
+    },
   },
   { timestamps: true },
 );
 
 // topicSchema.index({ slug: 1 }, { unique: true });
-topicSchema.index({ category: 1, difficulty: 1, order: 1 });
+topicSchema.index({ status: 1, category: 1, difficulty: 1, order: 1 });
 topicSchema.index({ title: "text", category: "text", tags: "text" });
 
 export const Topic = mongoose.model("Topic", topicSchema);
