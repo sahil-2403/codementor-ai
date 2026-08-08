@@ -4,6 +4,7 @@ import { objectIdSchema } from '../utils/zod.js';
 const objectId = objectIdSchema;
 const difficultyEnum = z.enum(['beginner', 'intermediate', 'advanced']);
 const lifecycleStatusEnum = z.enum(['published', 'archived']);
+const topicLifecycleStatusEnum = z.enum(['active', 'archived']);
 const cleanString = z.string().trim();
 
 export const topicSchema = z.object({
@@ -18,6 +19,10 @@ export const topicSchema = z.object({
 
 export const topicUpdateSchema = z.object({
   body: topicSchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
+});
+
+export const topicStatusUpdateSchema = z.object({
+  body: z.object({ status: topicLifecycleStatusEnum })
 });
 
 const interviewPairSchema = z.object({
