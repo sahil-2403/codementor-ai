@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
+
 const toId = (value) => String(value?._id || value || '');
 
 const clampPercent = (value) =>
@@ -49,17 +52,22 @@ export default function CourseProgress({
   modules = [],
   completedLessonIds = [],
   action = null,
+  collapsible = false,
+  defaultExpanded = true,
   className = ''
 }) {
   const safeValue = clampPercent(value);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   if (variant === 'detailed') {
+    const showDetails = !collapsible || isExpanded;
+
     return (
       <section
         className={`rounded-panel border border-border bg-surface p-5 shadow-sm sm:p-6 ${className}`}
       >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">
               Course progress
             </p>
@@ -70,81 +78,104 @@ export default function CourseProgress({
               See your overall completion and how progress is distributed across each module.
             </p>
           </div>
-          <div className="shrink-0 sm:text-right">
-            <p className="text-4xl font-extrabold tracking-tight text-primary-strong">
-              {safeValue}%
-            </p>
-            <p className="mt-1 text-xs font-semibold text-muted-foreground">
-              Overall completion
-            </p>
-          </div>
-        </div>
 
-        <div className="mt-5">
-          <ProgressBar value={safeValue} ariaLabel="Overall roadmap completion" />
-        </div>
-
-        <div className="mt-5 grid overflow-hidden rounded-panel border border-border bg-surface-secondary/45 sm:grid-cols-2">
-          <div className="p-4 sm:p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              Modules completed
-            </p>
-            <p className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">
-              {completedModules} / {totalModules}
-            </p>
-          </div>
-          <div className="border-t border-border p-4 sm:border-l sm:border-t-0 sm:p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-              Lessons completed
-            </p>
-            <p className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">
-              {completedLessons} / {totalLessons}
-            </p>
-          </div>
-        </div>
-
-        {modules.length ? (
-          <div className="mt-6 border-t border-border pt-5">
-            <div>
-              <p className="font-bold text-foreground">Progress by module</p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                Lesson completion inside each part of your current roadmap.
+          <div className="flex shrink-0 items-start gap-3">
+            <div className="text-right">
+              <p className="text-3xl font-extrabold tracking-tight text-primary-strong sm:text-4xl">
+                {safeValue}%
+              </p>
+              <p className="mt-1 hidden text-xs font-semibold text-muted-foreground sm:block">
+                Overall completion
               </p>
             </div>
 
-            <div className="mt-4 space-y-4">
-              {modules.map((module, index) => {
-                const moduleStats = moduleProgress(module, completedLessonIds);
+            {collapsible ? (
+              <button
+                type="button"
+                onClick={() => setIsExpanded((current) => !current)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-surface text-muted-foreground transition hover:border-primary/30 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                aria-expanded={isExpanded}
+                aria-label={`${isExpanded ? 'Collapse' : 'Expand'} course progress details`}
+              >
+                <ChevronDown
+                  size={18}
+                  className={`transition-transform duration-200 ${
+                    isExpanded ? 'rotate-180' : ''
+                  }`}
+                  aria-hidden="true"
+                />
+              </button>
+            ) : null}
+          </div>
+        </div>
 
-                return (
-                  <div
-                    key={module?._id || `${module?.title || 'module'}-${index}`}
-                    className="rounded-surface border border-border bg-surface-secondary/35 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-foreground">
-                          {module?.title || `Module ${index + 1}`}
-                        </p>
-                        <p className="mt-1 text-xs font-medium text-muted-foreground">
-                          {moduleStats.completed} / {moduleStats.total} lessons completed
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-sm font-extrabold text-primary-strong">
-                        {moduleStats.value}%
-                      </span>
-                    </div>
-                    <div className="mt-3">
-                      <ProgressBar
-                        value={moduleStats.value}
-                        ariaLabel={`${module?.title || `Module ${index + 1}`} completion`}
-                        className="h-2"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+        {showDetails ? (
+          <div className="mt-5 border-t border-border pt-5">
+            <ProgressBar value={safeValue} ariaLabel="Overall roadmap completion" />
+
+            <div className="mt-5 grid overflow-hidden rounded-panel border border-border bg-surface-secondary/45 sm:grid-cols-2">
+              <div className="p-4 sm:p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Modules completed
+                </p>
+                <p className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">
+                  {completedModules} / {totalModules}
+                </p>
+              </div>
+              <div className="border-t border-border p-4 sm:border-l sm:border-t-0 sm:p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Lessons completed
+                </p>
+                <p className="mt-2 text-2xl font-extrabold tracking-tight text-foreground">
+                  {completedLessons} / {totalLessons}
+                </p>
+              </div>
             </div>
+
+            {modules.length ? (
+              <div className="mt-6 border-t border-border pt-5">
+                <div>
+                  <p className="font-bold text-foreground">Progress by module</p>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                    Lesson completion inside each part of your current roadmap.
+                  </p>
+                </div>
+
+                <div className="mt-4 space-y-4">
+                  {modules.map((module, index) => {
+                    const moduleStats = moduleProgress(module, completedLessonIds);
+
+                    return (
+                      <div
+                        key={module?._id || `${module?.title || 'module'}-${index}`}
+                        className="rounded-surface border border-border bg-surface-secondary/35 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-bold text-foreground">
+                              {module?.title || `Module ${index + 1}`}
+                            </p>
+                            <p className="mt-1 text-xs font-medium text-muted-foreground">
+                              {moduleStats.completed} / {moduleStats.total} lessons completed
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-sm font-extrabold text-primary-strong">
+                            {moduleStats.value}%
+                          </span>
+                        </div>
+                        <div className="mt-3">
+                          <ProgressBar
+                            value={moduleStats.value}
+                            ariaLabel={`${module?.title || `Module ${index + 1}`} completion`}
+                            className="h-2"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </section>
