@@ -47,10 +47,14 @@ export const cleanTemplateModules = (modules = []) => modules.map((module, index
 }));
 
 export const assertTopicExists = async (topicId) => {
-  const topic = await Topic.findById(topicId).select('_id title').lean();
+  const topic = await Topic.findOne({
+    _id: topicId,
+    $or: [{ status: 'active' }, { status: { $exists: false } }]
+  }).select('_id title status').lean();
+
   if (!topic) {
-    throw new ApiError(400, 'Selected topic does not exist', [
-      { field: 'topic', message: 'Choose an existing topic' }
+    throw new ApiError(400, 'Selected topic is unavailable', [
+      { field: 'topic', message: 'Choose an active topic' }
     ], 'CONTENT_REFERENCE_INVALID');
   }
   return topic;
