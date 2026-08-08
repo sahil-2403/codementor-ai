@@ -4,8 +4,11 @@ const withParams = (params = {}) => ({ params: Object.fromEntries(Object.entries
 
 export const adminApi = {
   topics: (params) => api.get('/admin/topics', withParams(params)).then((res) => res.data.data),
+  topic: (id) => api.get(`/admin/topics/${id}`).then((res) => res.data.data),
+  topicImpact: (id) => api.get(`/admin/topics/${id}/impact`).then((res) => res.data.data),
   createTopic: (payload) => api.post('/admin/topics', payload).then((res) => res.data.data),
   updateTopic: ({ id, payload }) => api.patch(`/admin/topics/${id}`, payload).then((res) => res.data.data),
+  updateTopicStatus: ({ id, status }) => api.patch(`/admin/topics/${id}/status`, { status }).then((res) => res.data.data),
   deleteTopic: (id) => api.delete(`/admin/topics/${id}`).then((res) => res.data.data),
 
   lessons: (params) => api.get('/admin/lessons', withParams(params)).then((res) => res.data.data),
