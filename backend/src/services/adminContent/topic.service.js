@@ -392,14 +392,14 @@ export const deleteTopic = async (id) => {
                           $filter: {
                             input: { $ifNull: ['$$module.lessons', []] },
                             as: 'courseLesson',
-                            cond: { $not: { $in: ['$$courseLesson.lesson', lessonIds] } }
+                            cond: { $not: [{ $in: ['$$courseLesson.lesson', lessonIds] }] }
                           }
                         },
                         quizQuestions: {
                           $filter: {
                             input: { $ifNull: ['$$module.quizQuestions', []] },
                             as: 'questionId',
-                            cond: { $not: { $in: ['$$questionId', quizQuestionIds] } }
+                            cond: { $not: [{ $in: ['$$questionId', quizQuestionIds] }] }
                           }
                         }
                       }
