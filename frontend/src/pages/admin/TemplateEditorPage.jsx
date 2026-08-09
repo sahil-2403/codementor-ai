@@ -1,5 +1,5 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Map } from 'lucide-react';
+import { ArrowLeft, Map as MapIcon } from 'lucide-react';
 import TemplateForm from '../../components/admin/TemplateForm.jsx';
 import Card from '../../components/common/Card.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -98,7 +98,7 @@ export default function TemplateEditorPage() {
       <PageHeader
         variant="compact"
         eyebrow="Content administration"
-        eyebrowIcon={Map}
+        eyebrowIcon={MapIcon}
         title={isEditing ? 'Edit roadmap template' : 'Create roadmap template draft'}
         description={isEditing
           ? 'Update the learner sequence using modules, lesson titles, and quiz coverage without editing internal JSON or slugs.'
