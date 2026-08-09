@@ -24,13 +24,15 @@ const lessonSchema = new mongoose.Schema(
     tags: [{ type: String }],
     estimatedMinutes: { type: Number, default: 45 },
     status: { type: String, enum: ['draft', 'published', 'archived'], default: 'published' },
+    manualArchive: { type: Boolean, default: false },
     archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
+    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
     statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null }
   },
   { timestamps: true }
 );
 
-// lessonSchema.index({ slug: 1 }, { unique: true });
+// topic-era statusBeforeTopicArchive is retained temporarily for legacy records.
 lessonSchema.index({ status: 1, difficulty: 1, topic: 1, createdAt: -1 });
 lessonSchema.index({ archivedByTopics: 1, status: 1 });
 lessonSchema.index({ title: 'text', theory: 'text', tags: 'text' });
