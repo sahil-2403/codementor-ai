@@ -36,10 +36,7 @@ export const cleanReferenceArray = (values = []) => cleanStringArray(
 );
 
 export const cleanInterviewPairs = (values = []) => values
-  .map((item) => ({
-    question: String(item?.question || '').trim(),
-    answer: String(item?.answer || '').trim()
-  }))
+  .map((item) => ({ question: String(item?.question || '').trim(), answer: String(item?.answer || '').trim() }))
   .filter((item) => item.question || item.answer);
 
 export const cleanTemplateModules = (modules = []) => modules.map((module, index) => ({
@@ -66,10 +63,17 @@ export const assertCourseExists = async (courseId, { requirePublished = false } 
   return course;
 };
 
-export const assertTopicExists = async ({ topicId, courseId }) => {
-  const topic = await Topic.findOne({ _id: topicId, course: courseId, status: 'active' })
-    .select('_id title status course').lean();
+export const assertTopicExists = async (input, fallbackCourseId = null) => {
+  const topicId = typeof input === 'object' && input !== null && !input.toHexString
+    ? input.topicId
+    : input;
+  const courseId = typeof input === 'object' && input !== null && !input.toHexString
+    ? input.courseId
+    : fallbackCourseId;
+  const filter = { _id: topicId, status: 'active' };
+  if (courseId) filter.course = courseId;
 
+  const topic = await Topic.findOne(filter).select('_id title status course').lean();
   if (!topic) {
     throw new ApiError(400, 'Selected topic is unavailable for this course', [
       { field: 'topic', message: 'Choose an active topic from the selected course' }
