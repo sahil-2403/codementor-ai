@@ -1,6 +1,6 @@
 import { QuizQuestion } from '../models/QuizQuestion.js';
 import { Assessment } from '../models/Assessment.js';
-import { LearningGoal } from '../models/LearningGoal.js';
+import { Enrollment } from '../models/Enrollment.js';
 import { ApiError } from '../utils/ApiError.js';
 import { markAssessmentCompleted, markAssessmentStarted } from './onboarding.service.js';
 
@@ -19,26 +19,37 @@ const getSuggestedRoadmapType = ({ weakTopics, score }) => {
 
 const normalizeIdSet = (ids = []) => ids.map((id) => id.toString()).sort();
 
-export const getAssessmentQuestions = async ({ userId, learningGoalId, level }) => {
-  const goal = await LearningGoal.findOne({ _id: learningGoalId, user: userId });
-  if (!goal) throw new ApiError(404, 'Learning goal not found');
-  if (goal.level !== level) throw new ApiError(400, 'Assessment level does not match the selected learning goal');
+const requireEnrollment = async ({ userId, enrollmentId }) => {
+  const enrollment = await Enrollment.findOne({ _id: enrollmentId, user: userId })
+    .populate('course', 'title slug availableLevels status')
+    .populate('currentCourse', 'title slug availableLevels status');
+  if (!enrollment) throw new ApiError(404, 'Enrollment not found');
+  const course = enrollment.currentCourse || enrollment.course;
+  if (!course || course.status !== 'published') throw new ApiError(409, 'Selected course is not available');
+  return { enrollment, course };
+};
+
+export const getAssessmentQuestions = async ({ userId, enrollmentId, level }) => {
+  const { enrollment, course } = await requireEnrollment({ userId, enrollmentId });
+  if (enrollment.level !== level) throw new ApiError(400, 'Assessment level does not match the selected enrollment');
   if (level === 'beginner') throw new ApiError(400, 'Beginner learners do not need a diagnostic assessment');
 
   const recentSession = await Assessment.findOne({
     user: userId,
-    learningGoal: learningGoalId,
+    enrollment: enrollmentId,
+    course: course._id,
     level,
     status: 'started',
     createdAt: { $gte: new Date(Date.now() - 2 * 60 * 60 * 1000) }
   }).populate({ path: 'questionIds', select: '-correctAnswer -explanation', populate: { path: 'topic', select: 'title category' } }).sort({ createdAt: -1 });
 
   if (recentSession?.questionIds?.length) {
-    await markAssessmentStarted({ userId, learningGoalId });
-    return { sessionId: recentSession._id, questions: recentSession.questionIds };
+    await markAssessmentStarted({ userId, enrollmentId });
+    return { sessionId: recentSession._id, questions: recentSession.questionIds, course };
   }
 
   const questions = await QuizQuestion.find({
+    course: course._id,
     bank: 'skill_check',
     difficulty: level,
     status: 'published'
@@ -48,11 +59,12 @@ export const getAssessmentQuestions = async ({ userId, learningGoalId, level }) 
     .select('-correctAnswer -explanation')
     .lean();
 
-  if (!questions.length) throw new ApiError(404, 'No skill-check questions found for this level');
+  if (!questions.length) throw new ApiError(404, 'No skill-check questions found for this course and level');
 
   const session = await Assessment.create({
     user: userId,
-    learningGoal: learningGoalId,
+    enrollment: enrollmentId,
+    course: course._id,
     level,
     status: 'started',
     questionIds: questions.map((question) => question._id),
@@ -63,15 +75,20 @@ export const getAssessmentQuestions = async ({ userId, learningGoalId, level }) 
     score: 0
   });
 
-  await markAssessmentStarted({ userId, learningGoalId });
-  return { sessionId: session._id, questions };
+  await markAssessmentStarted({ userId, enrollmentId });
+  return { sessionId: session._id, questions, course };
 };
 
-export const submitAssessment = async ({ userId, learningGoalId, sessionId, answers }) => {
-  const goal = await LearningGoal.findOne({ _id: learningGoalId, user: userId });
-  if (!goal) throw new ApiError(404, 'Learning goal not found');
+export const submitAssessment = async ({ userId, enrollmentId, sessionId, answers }) => {
+  const { enrollment, course } = await requireEnrollment({ userId, enrollmentId });
 
-  const session = await Assessment.findOne({ _id: sessionId, user: userId, learningGoal: learningGoalId, status: 'started' });
+  const session = await Assessment.findOne({
+    _id: sessionId,
+    user: userId,
+    enrollment: enrollmentId,
+    course: course._id,
+    status: 'started'
+  });
   if (!session) throw new ApiError(404, 'Active assessment session not found. Start the assessment again.');
 
   const submittedIds = normalizeIdSet(answers.map((answer) => answer.questionId));
@@ -81,12 +98,15 @@ export const submitAssessment = async ({ userId, learningGoalId, sessionId, answ
     throw new ApiError(400, 'Assessment answers must exactly match the started assessment questions');
   }
 
-  const questions = await QuizQuestion.find({ _id: { $in: session.questionIds } }).populate('topic', 'title category');
+  const questions = await QuizQuestion.find({
+    _id: { $in: session.questionIds },
+    course: course._id,
+    bank: 'skill_check'
+  }).populate('topic', 'title category');
   if (questions.length !== requiredIds.length) throw new ApiError(400, 'Some assessment questions are no longer available');
-  if (questions.some((question) => question.difficulty !== goal.level)) throw new ApiError(400, 'Assessment question level mismatch');
+  if (questions.some((question) => question.difficulty !== enrollment.level)) throw new ApiError(400, 'Assessment question level mismatch');
 
   const answerMap = new Map(answers.map((answer) => [answer.questionId.toString(), answer.selectedAnswer]));
-
   const topicStats = new Map();
   const checkedAnswers = questions.map((question) => {
     const selectedAnswer = answerMap.get(question._id.toString()) || '';
@@ -96,13 +116,11 @@ export const submitAssessment = async ({ userId, learningGoalId, sessionId, answ
     current.total += 1;
     if (isCorrect) current.correct += 1;
     topicStats.set(topicTitle, current);
-
     return { question: question._id, selectedAnswer, isCorrect, topicTitle };
   });
 
   const totalCorrect = checkedAnswers.filter((answer) => answer.isCorrect).length;
   const score = Math.round((totalCorrect / Math.max(checkedAnswers.length, 1)) * 100);
-
   const categoryScores = Array.from(topicStats.entries()).map(([topic, value]) => ({
     topic,
     score: Math.round((value.correct / value.total) * 100),
@@ -120,7 +138,7 @@ export const submitAssessment = async ({ userId, learningGoalId, sessionId, answ
   session.completedAt = new Date();
   await session.save();
 
-  await markAssessmentCompleted({ userId, learningGoalId });
+  await markAssessmentCompleted({ userId, enrollmentId });
 
   return {
     assessment: session,
@@ -130,7 +148,8 @@ export const submitAssessment = async ({ userId, learningGoalId, sessionId, answ
 
 export const buildAssessmentReport = (assessment) => ({
   assessmentId: assessment._id,
-  learningGoalId: assessment.learningGoal,
+  enrollmentId: assessment.enrollment,
+  courseId: assessment.course,
   score: assessment.score,
   level: assessment.level,
   categoryScores: assessment.categoryScores,
