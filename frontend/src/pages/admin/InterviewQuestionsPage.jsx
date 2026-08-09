@@ -53,6 +53,8 @@ export default function InterviewQuestionsPage() {
 
   const updateFilter = (key, value) => setFilters((previous) => ({ ...previous, [key]: value, page: 1 }));
   const openAction = (mode, question) => {
+    updateStatus.reset();
+    deleteQuestion.reset();
     setDeleteConfirmation('');
     setActionTarget({ mode, question });
   };
@@ -63,7 +65,15 @@ export default function InterviewQuestionsPage() {
   const confirmStatus = () => {
     if (!actionTarget?.question) return;
     const status = actionTarget.mode === 'publish' ? 'published' : actionTarget.mode === 'restore' ? 'restored' : 'archived';
-    updateStatus.mutate({ id: actionTarget.question._id, status, confirmPublish: status === 'published' }, { onSuccess: closeDialog });
+    const closeOnError = actionTarget.mode !== 'publish';
+
+    updateStatus.mutate(
+      { id: actionTarget.question._id, status, confirmPublish: status === 'published' },
+      {
+        onSuccess: closeDialog,
+        ...(closeOnError ? { onError: closeDialog } : {})
+      }
+    );
   };
   const confirmDelete = () => {
     if (!actionTarget?.question || deleteConfirmation !== 'DELETE') return;
