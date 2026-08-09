@@ -14,6 +14,7 @@ import {
 } from './common.js';
 
 const legacyQuizBankFilter = { $or: [{ bank: 'quiz' }, { bank: { $exists: false } }] };
+const templateDurationDays = (modules = []) => modules.reduce((sum, module) => sum + (Number(module.durationDays) || 0), 0);
 
 const assertTemplateIdentityAvailable = async ({ goalKey, level, excludeId = null }) => {
   const filter = { goalKey, level };
@@ -46,6 +47,9 @@ const assertTemplatePublishable = async (template) => {
     allQuizTags.push(...(module.quizTags || []));
   });
 
+  if (templateDurationDays(modules) > 365) {
+    errors.push({ field: 'modules', message: 'The full roadmap must be 365 days or less' });
+  }
   if (new Set(allLessonSlugs).size !== allLessonSlugs.length) {
     errors.push({ field: 'modules', message: 'A lesson can appear only once in a roadmap template' });
   }
@@ -99,9 +103,11 @@ export const getTemplate = async (id) => ensureFound(await RoadmapTemplate.findB
 
 export const createTemplate = async (payload) => {
   await assertTemplateIdentityAvailable(payload);
+  const modules = cleanTemplateModules(payload.modules);
   const template = await RoadmapTemplate.create({
     ...payload,
-    modules: cleanTemplateModules(payload.modules),
+    modules,
+    estimatedDurationDays: templateDurationDays(modules),
     status: PUBLISHABLE_STATUS.DRAFT
   });
   await invalidateContentCache();
@@ -116,12 +122,17 @@ export const updateTemplate = async ({ id, payload }) => {
   if (nextGoalKey !== template.goalKey || nextLevel !== template.level) {
     await assertTemplateIdentityAvailable({ goalKey: nextGoalKey, level: nextLevel, excludeId: id });
   }
-  const normalized = {
-    ...payload,
-    ...(payload.modules ? { modules: cleanTemplateModules(payload.modules) } : {})
-  };
+
+  const normalized = { ...payload };
   delete normalized.status;
+  delete normalized.estimatedDurationDays;
+  if (Object.prototype.hasOwnProperty.call(payload, 'modules')) {
+    normalized.modules = cleanTemplateModules(payload.modules);
+    normalized.estimatedDurationDays = templateDurationDays(normalized.modules);
+  }
+
   Object.assign(template, normalized);
+  if (template.status === PUBLISHABLE_STATUS.PUBLISHED) await assertTemplatePublishable(template);
   await template.save();
   await invalidateContentCache();
   return template;
