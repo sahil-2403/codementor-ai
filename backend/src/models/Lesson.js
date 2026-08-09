@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import { Course } from './Course.js';
+import { Topic } from './Topic.js';
 
 const interviewQuestionSchema = new mongoose.Schema(
   {
@@ -33,6 +35,17 @@ const lessonSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+lessonSchema.pre('validate', async function validateOwnership() {
+  if (!this.course || !this.topic) return;
+  const [course, topic] = await Promise.all([
+    Course.findById(this.course).select('_id status').lean(),
+    Topic.findById(this.topic).select('_id course status').lean()
+  ]);
+  if (!course || course.status === 'archived') this.invalidate('course', 'Lesson must belong to an available course');
+  if (!topic || topic.status !== 'active') this.invalidate('topic', 'Lesson must belong to an active topic');
+  else if (topic.course.toString() !== this.course.toString()) this.invalidate('topic', 'Lesson topic must belong to the same course');
+});
 
 lessonSchema.index({ course: 1, slug: 1 }, { unique: true });
 lessonSchema.index({ course: 1, status: 1, difficulty: 1, topic: 1, createdAt: -1 });
