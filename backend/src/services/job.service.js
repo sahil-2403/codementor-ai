@@ -12,19 +12,19 @@ import { setRoadmapOnboardingState } from './onboarding.service.js';
 import { createRoadmapIdempotencyKey } from '../domain/roadmapIdempotency.js';
 
 const ROADMAP_JOB_TYPE = 'roadmap_generation';
-const ROADMAP_LOCK_KEY = 'roadmap_generation';
 const activeStatuses = ['queued', 'processing'];
 const ROADMAP_JOB_STALE_MS = Math.max(15 * 60 * 1000, env.aiTimeoutMs * 3);
 
 const shouldUseRoadmapQueue = () => Boolean(roadmapQueue && isQueueEnabled());
 const isDuplicateKeyError = (error) => error?.code === 11000;
+const roadmapLockKey = (enrollmentId) => `roadmap_generation:${enrollmentId}`;
 
 export { createRoadmapIdempotencyKey };
 
-
-const findActiveRoadmapJobs = (userId) => AIJob.find({
+const findActiveRoadmapJobs = (userId, enrollmentId) => AIJob.find({
   user: userId,
   type: ROADMAP_JOB_TYPE,
+  'input.enrollmentId': enrollmentId,
   status: { $in: activeStatuses }
 }).sort({ createdAt: -1 });
 
@@ -33,6 +33,18 @@ const isRoadmapJobStale = (job) => {
   const lastUpdatedAt = job.updatedAt || job.createdAt;
   return lastUpdatedAt && lastUpdatedAt.getTime() < Date.now() - ROADMAP_JOB_STALE_MS;
 };
+
+async function findCourseForJob(job) {
+  if (job.output?.coursePlanId) {
+    const course = await CoursePlan.findById(job.output.coursePlanId);
+    if (course) return course;
+  }
+  if (job.idempotencyKey) {
+    const course = await CoursePlan.findOne({ user: job.user, generationKey: job.idempotencyKey });
+    if (course) return course;
+  }
+  return CoursePlan.findOne({ generationJob: job._id });
+}
 
 const markStaleRoadmapJobFailed = async (job) => {
   if (!isRoadmapJobStale(job)) return job;
@@ -54,15 +66,14 @@ const markStaleRoadmapJobFailed = async (job) => {
       { new: true }
     );
 
-    if (completedJob?.input?.learningGoalId) {
+    if (completedJob?.input?.enrollmentId) {
       await setRoadmapOnboardingState({
         userId: completedJob.user,
-        learningGoalId: completedJob.input.learningGoalId,
+        enrollmentId: completedJob.input.enrollmentId,
         state: ONBOARDING_STATES.COMPLETED,
         roadmapJobId: completedJob._id
       });
     }
-
     return completedJob || AIJob.findById(job._id);
   }
 
@@ -85,55 +96,36 @@ const markStaleRoadmapJobFailed = async (job) => {
   );
 
   if (!staleJob) return AIJob.findById(job._id);
-
-  if (staleJob.input?.learningGoalId) await setRoadmapOnboardingState({
-    userId: staleJob.user,
-    learningGoalId: staleJob.input?.learningGoalId,
-    state: ONBOARDING_STATES.ROADMAP_FAILED,
-    roadmapJobId: staleJob._id,
-    errorCode: 'ROADMAP_JOB_STALE',
-    errorMessage: 'Roadmap generation stopped before completion. Please retry.'
-  });
-
+  if (staleJob.input?.enrollmentId) {
+    await setRoadmapOnboardingState({
+      userId: staleJob.user,
+      enrollmentId: staleJob.input.enrollmentId,
+      state: ONBOARDING_STATES.ROADMAP_FAILED,
+      roadmapJobId: staleJob._id,
+      errorCode: 'ROADMAP_JOB_STALE',
+      errorMessage: 'Roadmap generation stopped before completion. Please retry.'
+    });
+  }
   return staleJob;
 };
 
-const findBlockingActiveRoadmapJob = async (userId) => {
-  const jobs = await findActiveRoadmapJobs(userId);
-
+const findBlockingActiveRoadmapJob = async (userId, enrollmentId) => {
+  const jobs = await findActiveRoadmapJobs(userId, enrollmentId);
   for (const job of jobs) {
-    const currentJob = isRoadmapJobStale(job)
-      ? await markStaleRoadmapJobFailed(job)
-      : job;
+    const currentJob = isRoadmapJobStale(job) ? await markStaleRoadmapJobFailed(job) : job;
     if (currentJob && activeStatuses.includes(currentJob.status)) return currentJob;
   }
-
   return null;
 };
 
-async function findCourseForJob(job) {
-  if (job.output?.coursePlanId) {
-    const course = await CoursePlan.findById(job.output.coursePlanId);
-    if (course) return course;
-  }
-
-  if (job.idempotencyKey) {
-    const course = await CoursePlan.findOne({ user: job.user, generationKey: job.idempotencyKey });
-    if (course) return course;
-  }
-
-  return CoursePlan.findOne({ generationJob: job._id });
-}
-
-const findLegacyExistingCourse = async ({ userId, payload }) => {
+const findExistingCourse = async ({ userId, payload }) => {
   if (payload.assessmentId) return null;
-
   return CoursePlan.findOne({
     user: userId,
-    learningGoal: payload.learningGoalId,
+    enrollment: payload.enrollmentId,
     status: 'active',
     isActive: true
-  }).sort({ createdAt: -1 });
+  }).sort({ updatedAt: -1 });
 };
 
 const setJobFailed = async ({ aiJob, payload, error }) => {
@@ -146,7 +138,7 @@ const setJobFailed = async ({ aiJob, payload, error }) => {
 
   await setRoadmapOnboardingState({
     userId: aiJob.user,
-    learningGoalId: payload.learningGoalId,
+    enrollmentId: payload.enrollmentId,
     state: ONBOARDING_STATES.ROADMAP_FAILED,
     roadmapJobId: aiJob._id,
     errorCode: error.code || 'ROADMAP_GENERATION_FAILED',
@@ -159,7 +151,7 @@ const runRoadmapJob = async ({ aiJob, payload, req = null }) => {
 
   await setRoadmapOnboardingState({
     userId: aiJob.user,
-    learningGoalId: payload.learningGoalId,
+    enrollmentId: payload.enrollmentId,
     state: ONBOARDING_STATES.ROADMAP_GENERATING,
     roadmapJobId: aiJob._id
   });
@@ -168,20 +160,12 @@ const runRoadmapJob = async ({ aiJob, payload, req = null }) => {
     try {
       const queueAttempt = (aiJob.attempts || 0) + 1;
       const bullJobId = `roadmap-${aiJob._id}-${queueAttempt}`;
-
       aiJob.status = 'queued';
-      aiJob.output = {
-        bullJobId,
-        queue: 'roadmap-generation'
-      };
+      aiJob.output = { bullJobId, queue: 'roadmap-generation' };
       await aiJob.save();
 
       const bullJob = await addRoadmapJob(
-        {
-          ...payload,
-          aiJobId: aiJob._id.toString(),
-          attemptBase: aiJob.attempts || 0
-        },
+        { ...payload, aiJobId: aiJob._id.toString(), attemptBase: aiJob.attempts || 0 },
         { jobId: bullJobId }
       );
 
@@ -192,13 +176,13 @@ const runRoadmapJob = async ({ aiJob, payload, req = null }) => {
         entityId: aiJob._id,
         message: 'Roadmap generation job queued',
         metadata: {
+          enrollmentId: payload.enrollmentId,
           bullJobId: bullJob?.id || bullJobId,
           roadmapType: payload.roadmapType,
           idempotencyKey: aiJob.idempotencyKey || null
         },
         req
       });
-
       return { mode: 'queued', job: aiJob };
     } catch (error) {
       await setJobFailed({ aiJob, payload, error });
@@ -219,7 +203,7 @@ const runRoadmapJob = async ({ aiJob, payload, req = null }) => {
 
     await setRoadmapOnboardingState({
       userId: aiJob.user,
-      learningGoalId: payload.learningGoalId,
+      enrollmentId: payload.enrollmentId,
       state: ONBOARDING_STATES.COMPLETED,
       roadmapJobId: aiJob._id
     });
@@ -239,6 +223,7 @@ const runRoadmapJob = async ({ aiJob, payload, req = null }) => {
       entityId: course._id,
       message: 'Roadmap generated synchronously',
       metadata: {
+        enrollmentId: payload.enrollmentId,
         jobId: aiJob._id,
         version: course.version,
         roadmapType: course.roadmapType,
@@ -246,7 +231,6 @@ const runRoadmapJob = async ({ aiJob, payload, req = null }) => {
       },
       req
     });
-
     return { mode: 'sync', job: aiJob, course };
   } catch (error) {
     await setJobFailed({ aiJob, payload, error });
@@ -254,26 +238,21 @@ const runRoadmapJob = async ({ aiJob, payload, req = null }) => {
   }
 };
 
-const claimFailedRoadmapJob = async ({ userId, jobId }) => {
-  const blockingJob = await findBlockingActiveRoadmapJob(userId);
+const claimFailedRoadmapJob = async ({ userId, job }) => {
+  const enrollmentId = job.input?.enrollmentId;
+  const blockingJob = await findBlockingActiveRoadmapJob(userId, enrollmentId);
   if (blockingJob) {
-    throw new ApiError(
-      409,
-      'Another roadmap generation is already in progress',
-      [],
-      'ROADMAP_GENERATION_IN_PROGRESS'
-    );
+    throw new ApiError(409, 'Another roadmap generation is already in progress for this enrollment', [], 'ROADMAP_GENERATION_IN_PROGRESS');
   }
 
   const nextStatus = shouldUseRoadmapQueue() ? 'queued' : 'processing';
-
   try {
     return await AIJob.findOneAndUpdate(
-      { _id: jobId, user: userId, type: ROADMAP_JOB_TYPE, status: 'failed' },
+      { _id: job._id, user: userId, type: ROADMAP_JOB_TYPE, status: 'failed' },
       {
         $set: {
           status: nextStatus,
-          lockKey: ROADMAP_LOCK_KEY,
+          lockKey: roadmapLockKey(enrollmentId),
           error: '',
           errorCode: '',
           output: {},
@@ -284,22 +263,13 @@ const claimFailedRoadmapJob = async ({ userId, jobId }) => {
     );
   } catch (error) {
     if (!isDuplicateKeyError(error)) throw error;
-    throw new ApiError(
-      409,
-      'Another roadmap generation is already in progress',
-      [],
-      'ROADMAP_GENERATION_IN_PROGRESS'
-    );
+    throw new ApiError(409, 'Another roadmap generation is already in progress for this enrollment', [], 'ROADMAP_GENERATION_IN_PROGRESS');
   }
 };
 
 const resolveExistingRoadmapJob = async ({ userId, job, req = null, retryFailed = true }) => {
   if (!job) return null;
-
-  let currentJob = job;
-  if (isRoadmapJobStale(currentJob)) {
-    currentJob = await markStaleRoadmapJobFailed(currentJob);
-  }
+  let currentJob = isRoadmapJobStale(job) ? await markStaleRoadmapJobFailed(job) : job;
   if (!currentJob) return null;
 
   if (currentJob.status === 'completed') {
@@ -314,12 +284,10 @@ const resolveExistingRoadmapJob = async ({ userId, job, req = null, retryFailed 
     await currentJob.save();
   }
 
-  if (activeStatuses.includes(currentJob.status)) {
-    return { mode: currentJob.status, job: currentJob };
-  }
+  if (activeStatuses.includes(currentJob.status)) return { mode: currentJob.status, job: currentJob };
 
   if (currentJob.status === 'failed' && retryFailed) {
-    const claimedJob = await claimFailedRoadmapJob({ userId, jobId: currentJob._id });
+    const claimedJob = await claimFailedRoadmapJob({ userId, job: currentJob });
     if (!claimedJob) {
       const latestJob = await AIJob.findOne({ _id: currentJob._id, user: userId });
       return resolveExistingRoadmapJob({ userId, job: latestJob, req, retryFailed: false });
@@ -330,38 +298,24 @@ const resolveExistingRoadmapJob = async ({ userId, job, req = null, retryFailed 
   return { mode: currentJob.status, job: currentJob };
 };
 
-export const createRoadmapGenerationJobOrRun = async ({
-  userId,
-  payload,
-  req = null,
-  idempotent = false
-}) => {
+export const createRoadmapGenerationJobOrRun = async ({ userId, payload, req = null, idempotent = false }) => {
+  if (!payload?.enrollmentId) throw new ApiError(400, 'Enrollment is required for roadmap generation', [], 'ENROLLMENT_REQUIRED');
   const idempotencyKey = idempotent ? createRoadmapIdempotencyKey(payload) : undefined;
 
   if (idempotencyKey) {
-    const existingJob = await AIJob.findOne({
-      user: userId,
-      type: ROADMAP_JOB_TYPE,
-      idempotencyKey
-    }).sort({ createdAt: -1 });
-
+    const existingJob = await AIJob.findOne({ user: userId, type: ROADMAP_JOB_TYPE, idempotencyKey }).sort({ createdAt: -1 });
     const resolved = await resolveExistingRoadmapJob({ userId, job: existingJob, req });
     if (resolved) return resolved;
   }
 
-  const activeJob = await findBlockingActiveRoadmapJob(userId);
+  const activeJob = await findBlockingActiveRoadmapJob(userId, payload.enrollmentId);
   if (activeJob) {
-    throw new ApiError(
-      409,
-      'A roadmap generation job is already in progress. Please wait for it to finish.',
-      [],
-      'ROADMAP_GENERATION_IN_PROGRESS'
-    );
+    throw new ApiError(409, 'A roadmap generation job is already in progress for this enrollment.', [], 'ROADMAP_GENERATION_IN_PROGRESS');
   }
 
   if (idempotencyKey) {
-    const legacyCourse = await findLegacyExistingCourse({ userId, payload });
-    if (legacyCourse) return { mode: 'existing', course: legacyCourse, job: null };
+    const existingCourse = await findExistingCourse({ userId, payload });
+    if (existingCourse) return { mode: 'existing', course: existingCourse, job: null };
   }
 
   let aiJob;
@@ -373,32 +327,20 @@ export const createRoadmapGenerationJobOrRun = async ({
       input: payload,
       attempts: 0,
       idempotencyKey,
-      lockKey: ROADMAP_LOCK_KEY
+      lockKey: roadmapLockKey(payload.enrollmentId)
     });
   } catch (error) {
     if (!isDuplicateKeyError(error)) throw error;
-
     if (idempotencyKey) {
-      const existingJob = await AIJob.findOne({
-        user: userId,
-        type: ROADMAP_JOB_TYPE,
-        idempotencyKey
-      });
+      const existingJob = await AIJob.findOne({ user: userId, type: ROADMAP_JOB_TYPE, idempotencyKey });
       const resolved = await resolveExistingRoadmapJob({ userId, job: existingJob, req });
       if (resolved) return resolved;
     }
-
-    const concurrentJob = await findBlockingActiveRoadmapJob(userId);
+    const concurrentJob = await findBlockingActiveRoadmapJob(userId, payload.enrollmentId);
     if (concurrentJob?.idempotencyKey && concurrentJob.idempotencyKey === idempotencyKey) {
       return { mode: concurrentJob.status, job: concurrentJob };
     }
-
-    throw new ApiError(
-      409,
-      'Another roadmap generation is already in progress',
-      [],
-      'ROADMAP_GENERATION_IN_PROGRESS'
-    );
+    throw new ApiError(409, 'Another roadmap generation is already in progress for this enrollment', [], 'ROADMAP_GENERATION_IN_PROGRESS');
   }
 
   return runRoadmapJob({ aiJob, payload, req });
@@ -407,11 +349,8 @@ export const createRoadmapGenerationJobOrRun = async ({
 export const retryRoadmapGenerationJob = async ({ userId, jobId, req = null }) => {
   const job = await AIJob.findOne({ _id: jobId, user: userId, type: ROADMAP_JOB_TYPE });
   if (!job) throw new ApiError(404, 'Roadmap job not found', [], 'ROADMAP_JOB_NOT_FOUND');
-
   const result = await resolveExistingRoadmapJob({ userId, job, req, retryFailed: true });
-  if (!result) {
-    throw new ApiError(409, 'Roadmap job cannot be retried', [], 'ROADMAP_JOB_NOT_RETRYABLE');
-  }
+  if (!result) throw new ApiError(409, 'Roadmap job cannot be retried', [], 'ROADMAP_JOB_NOT_RETRYABLE');
   return result;
 };
 
@@ -421,33 +360,24 @@ export const getJobForUser = async ({ userId, jobId, isAdmin = false }) => {
 
   let job = await AIJob.findOne(filter);
   if (!job) throw new ApiError(404, 'Job not found');
-
-  if (job.type === ROADMAP_JOB_TYPE && isRoadmapJobStale(job)) {
-    job = await markStaleRoadmapJobFailed(job);
-  }
+  if (job.type === ROADMAP_JOB_TYPE && isRoadmapJobStale(job)) job = await markStaleRoadmapJobFailed(job);
   if (isAdmin && job) await job.populate('user', 'name email role');
 
   let course = null;
-
   if (job.output?.coursePlanId) {
-    course = await CoursePlan.findById(job.output.coursePlanId).select(
-      '_id title version status isActive roadmapType'
-    );
+    course = await CoursePlan.findById(job.output.coursePlanId).select('_id enrollment course title level version status isActive roadmapType');
   }
-
   if (!course) {
     course = await CoursePlan.findOne({ generationJob: job._id })
-      .select('_id title version status isActive roadmapType')
+      .select('_id enrollment course title level version status isActive roadmapType')
       .sort({ createdAt: -1 });
   }
-
   return { job, course };
 };
 
 export const listJobs = async (query = {}) => {
   const search = makeSearchRegex(query.search);
   const filter = {};
-
   if (search) filter.$or = [{ type: search }, { status: search }, { error: search }];
   if (query.type) filter.type = query.type;
   if (query.status) filter.status = query.status;
