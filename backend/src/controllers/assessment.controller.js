@@ -3,8 +3,8 @@ import { sendResponse } from '../utils/ApiResponse.js';
 import { getAssessmentQuestions, submitAssessment, getAssessmentReport } from '../services/assessment.service.js';
 
 export const startAssessment = asyncHandler(async (req, res) => {
-  const { level, learningGoalId } = req.query;
-  const data = await getAssessmentQuestions({ userId: req.user._id, learningGoalId, level });
+  const { level, enrollmentId } = req.query;
+  const data = await getAssessmentQuestions({ userId: req.user._id, enrollmentId, level });
   sendResponse(res, 200, 'Assessment questions', data);
 });
 
