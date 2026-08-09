@@ -55,8 +55,7 @@ import {
   createTemplate,
   updateTemplate,
   updateTemplateStatus,
-  archiveTemplate,
-  duplicateTemplate
+  deleteTemplate
 } from '../controllers/admin.controller.js';
 
 const router = Router();
@@ -99,7 +98,6 @@ router.post('/templates', adminWriteLimiter, validate(templateSchema), createTem
 router.get('/templates/:id', validate(idParamSchema), getTemplate);
 router.patch('/templates/:id', adminWriteLimiter, validate(idParamSchema), validate(templateUpdateSchema), updateTemplate);
 router.patch('/templates/:id/status', adminWriteLimiter, validate(idParamSchema), validate(statusUpdateSchema), updateTemplateStatus);
-router.post('/templates/:id/duplicate', adminWriteLimiter, validate(idParamSchema), duplicateTemplate);
-router.delete('/templates/:id', adminWriteLimiter, validate(idParamSchema), archiveTemplate);
+router.delete('/templates/:id', adminWriteLimiter, validate(idParamSchema), deleteTemplate);
 
 export default router;
