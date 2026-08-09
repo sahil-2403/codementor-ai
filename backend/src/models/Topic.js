@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { Course } from './Course.js';
 
 const topicSchema = new mongoose.Schema(
   {
@@ -23,6 +24,14 @@ const topicSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+topicSchema.pre('validate', async function validateCourse() {
+  if (!this.course) return;
+  const course = await Course.findById(this.course).select('_id status').lean();
+  if (!course || course.status === 'archived') {
+    this.invalidate('course', 'Topic must belong to an available course');
+  }
+});
 
 topicSchema.index({ course: 1, slug: 1 }, { unique: true });
 topicSchema.index({ course: 1, status: 1, category: 1, difficulty: 1, order: 1 });
