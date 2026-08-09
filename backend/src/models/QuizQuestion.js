@@ -20,7 +20,8 @@ const quizQuestionSchema = new mongoose.Schema(
     statusBeforeManualArchive: { type: String, enum: ['draft', 'published'], default: null },
     archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
     archivedByLessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }],
-    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null }
+    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
+    statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null }
   },
   { timestamps: true }
 );
