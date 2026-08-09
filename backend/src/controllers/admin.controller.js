@@ -50,6 +50,11 @@ export const getLesson = asyncHandler(async (req, res) => {
   sendResponse(res, 200, 'Lesson details', { lesson });
 });
 
+export const lessonImpact = asyncHandler(async (req, res) => {
+  const { lesson, counts } = await adminContent.getLessonImpact(req.params.id);
+  sendResponse(res, 200, 'Lesson impact', { lesson, impact: counts });
+});
+
 export const createLesson = asyncHandler(async (req, res) => {
   const lesson = await adminContent.createLesson(req.body);
   sendResponse(res, 201, 'Lesson draft created', { lesson });
@@ -61,13 +66,16 @@ export const updateLesson = asyncHandler(async (req, res) => {
 });
 
 export const updateLessonStatus = asyncHandler(async (req, res) => {
-  const lesson = await adminContent.changeLessonStatus({ id: req.params.id, ...req.body });
-  sendResponse(res, 200, `Lesson ${lesson.status}`, { lesson });
+  const result = await adminContent.changeLessonStatus({ id: req.params.id, ...req.body });
+  const lesson = result?.lesson || result;
+  const counts = result?.counts || null;
+  const message = req.body.status === 'restored' ? 'Lesson restored' : `Lesson ${lesson.status}`;
+  sendResponse(res, 200, message, { lesson, ...(counts ? { impact: counts } : {}) });
 });
 
-export const archiveLesson = asyncHandler(async (req, res) => {
-  const lesson = await adminContent.changeLessonStatus({ id: req.params.id, status: 'archived' });
-  sendResponse(res, 200, 'Lesson archived', { lesson });
+export const deleteLesson = asyncHandler(async (req, res) => {
+  const { lesson, counts } = await adminContent.deleteLesson(req.params.id);
+  sendResponse(res, 200, 'Lesson and related content deleted', { lesson, impact: counts });
 });
 
 export const listQuestions = asyncHandler(async (req, res) => {
