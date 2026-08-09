@@ -33,6 +33,29 @@ const lessonCascadeQueryKeys = [
   ['reports']
 ];
 
+const questionLifecycleQueryKeys = [
+  ['admin-questions'],
+  ['admin-question'],
+  ['admin-question-impact'],
+  ['admin-topic-impact'],
+  ['admin-lesson-impact'],
+  ['quiz'],
+  ['quiz-attempt'],
+  ['roadmap'],
+  ['dashboard'],
+  ['onboarding-status']
+];
+
+const interviewQuestionLifecycleQueryKeys = [
+  ['admin-interview-questions'],
+  ['admin-interview-question'],
+  ['admin-interview-question-impact'],
+  ['admin-topic-impact'],
+  ['interview-questions'],
+  ['interview-attempts'],
+  ['dashboard']
+];
+
 export const useAdminTopics = (params = {}) => useQuery({ queryKey: queryKeys.adminTopics(params), queryFn: () => adminApi.topics(params), placeholderData: keepPreviousData });
 export const useAdminTopic = (topicId) => useQuery({ queryKey: queryKeys.adminTopic(topicId), queryFn: () => adminApi.topic(topicId), enabled: Boolean(topicId) });
 export const useAdminTopicImpact = (topicId, enabled = true) => useQuery({ queryKey: queryKeys.adminTopicImpact(topicId), queryFn: () => adminApi.topicImpact(topicId), enabled: Boolean(topicId) && enabled });
@@ -40,7 +63,11 @@ export const useAdminLessons = (params = {}) => useQuery({ queryKey: queryKeys.a
 export const useAdminLesson = (lessonId) => useQuery({ queryKey: queryKeys.adminLesson(lessonId), queryFn: () => adminApi.lesson(lessonId), enabled: Boolean(lessonId) });
 export const useAdminLessonImpact = (lessonId, enabled = true) => useQuery({ queryKey: queryKeys.adminLessonImpact(lessonId), queryFn: () => adminApi.lessonImpact(lessonId), enabled: Boolean(lessonId) && enabled });
 export const useAdminQuestions = (params = {}) => useQuery({ queryKey: queryKeys.adminQuestions(params), queryFn: () => adminApi.questions(params), placeholderData: keepPreviousData });
+export const useAdminQuestion = (questionId) => useQuery({ queryKey: queryKeys.adminQuestion(questionId), queryFn: () => adminApi.question(questionId), enabled: Boolean(questionId) });
+export const useAdminQuestionImpact = (questionId, enabled = true) => useQuery({ queryKey: queryKeys.adminQuestionImpact(questionId), queryFn: () => adminApi.questionImpact(questionId), enabled: Boolean(questionId) && enabled });
 export const useAdminInterviewQuestions = (params = {}) => useQuery({ queryKey: queryKeys.adminInterviewQuestions(params), queryFn: () => adminApi.interviewQuestions(params), placeholderData: keepPreviousData });
+export const useAdminInterviewQuestion = (questionId) => useQuery({ queryKey: queryKeys.adminInterviewQuestion(questionId), queryFn: () => adminApi.interviewQuestion(questionId), enabled: Boolean(questionId) });
+export const useAdminInterviewQuestionImpact = (questionId, enabled = true) => useQuery({ queryKey: queryKeys.adminInterviewQuestionImpact(questionId), queryFn: () => adminApi.interviewQuestionImpact(questionId), enabled: Boolean(questionId) && enabled });
 export const useAdminTemplates = (params = {}) => useQuery({ queryKey: queryKeys.adminTemplates(params), queryFn: () => adminApi.templates(params), placeholderData: keepPreviousData });
 
 export const useCreateTopic = () => useInvalidatingMutation(adminApi.createTopic, [['admin-topics']]);
@@ -54,14 +81,14 @@ export const useUpdateLessonStatus = () => useInvalidatingMutation(adminApi.upda
 export const useDeleteLesson = () => useInvalidatingMutation(adminApi.deleteLesson, lessonCascadeQueryKeys);
 
 export const useCreateQuestion = () => useInvalidatingMutation(adminApi.createQuestion, [['admin-questions']]);
-export const useUpdateQuestion = () => useInvalidatingMutation(adminApi.updateQuestion, [['admin-questions']]);
-export const useUpdateQuestionStatus = () => useInvalidatingMutation(adminApi.updateQuestionStatus, [['admin-questions']]);
-export const useArchiveQuestion = () => useInvalidatingMutation(adminApi.archiveQuestion, [['admin-questions']]);
+export const useUpdateQuestion = () => useInvalidatingMutation(adminApi.updateQuestion, [['admin-questions'], ['admin-question']]);
+export const useUpdateQuestionStatus = () => useInvalidatingMutation(adminApi.updateQuestionStatus, questionLifecycleQueryKeys);
+export const useDeleteQuestion = () => useInvalidatingMutation(adminApi.deleteQuestion, questionLifecycleQueryKeys);
 
 export const useCreateInterviewQuestion = () => useInvalidatingMutation(adminApi.createInterviewQuestion, [['admin-interview-questions']]);
-export const useUpdateInterviewQuestion = () => useInvalidatingMutation(adminApi.updateInterviewQuestion, [['admin-interview-questions']]);
-export const useUpdateInterviewQuestionStatus = () => useInvalidatingMutation(adminApi.updateInterviewQuestionStatus, [['admin-interview-questions']]);
-export const useArchiveInterviewQuestion = () => useInvalidatingMutation(adminApi.archiveInterviewQuestion, [['admin-interview-questions']]);
+export const useUpdateInterviewQuestion = () => useInvalidatingMutation(adminApi.updateInterviewQuestion, [['admin-interview-questions'], ['admin-interview-question']]);
+export const useUpdateInterviewQuestionStatus = () => useInvalidatingMutation(adminApi.updateInterviewQuestionStatus, interviewQuestionLifecycleQueryKeys);
+export const useDeleteInterviewQuestion = () => useInvalidatingMutation(adminApi.deleteInterviewQuestion, interviewQuestionLifecycleQueryKeys);
 
 export const useCreateTemplate = () => useInvalidatingMutation(adminApi.createTemplate, [['admin-templates']]);
 export const useUpdateTemplate = () => useInvalidatingMutation(adminApi.updateTemplate, [['admin-templates']]);
