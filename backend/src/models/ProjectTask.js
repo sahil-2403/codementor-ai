@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import { Course } from './Course.js';
+import { Lesson } from './Lesson.js';
 
 const projectTaskSchema = new mongoose.Schema(
   {
@@ -26,6 +28,21 @@ const projectTaskSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+projectTaskSchema.pre('validate', async function validateOwnership() {
+  if (!this.course) return;
+  const [course, lessons] = await Promise.all([
+    Course.findById(this.course).select('_id status').lean(),
+    this.relatedLessons?.length
+      ? Lesson.find({ _id: { $in: this.relatedLessons } }).select('_id course').lean()
+      : []
+  ]);
+  if (!course || course.status === 'archived') this.invalidate('course', 'Project must belong to an available course');
+  if (lessons.length !== (this.relatedLessons || []).length) this.invalidate('relatedLessons', 'One or more related lessons do not exist');
+  else if (lessons.some((lesson) => lesson.course.toString() !== this.course.toString())) {
+    this.invalidate('relatedLessons', 'All related lessons must belong to the same course');
+  }
+});
 
 projectTaskSchema.index({ course: 1, slug: 1 }, { unique: true });
 projectTaskSchema.index({ course: 1, status: 1, difficulty: 1, moduleTitle: 1 });
