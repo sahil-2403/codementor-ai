@@ -12,6 +12,7 @@ const interviewQuestionSchema = new mongoose.Schema(
     tags: [{ type: String }],
     status: { type: String, enum: ['draft', 'published', 'archived'], default: 'published', index: true },
     archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
+    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
     statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null }
   },
   { timestamps: true }
