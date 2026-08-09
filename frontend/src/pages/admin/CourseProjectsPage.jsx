@@ -1,0 +1,106 @@
+import { useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Archive, Hammer, Pencil, Plus, Trash2 } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { adminProjectApi } from '../../api/adminProjectApi.js';
+import Button from '../../components/common/Button.jsx';
+import Card from '../../components/common/Card.jsx';
+import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
+import EmptyState from '../../components/common/EmptyState.jsx';
+import ErrorMessage from '../../components/common/ErrorMessage.jsx';
+import Input from '../../components/common/Input.jsx';
+import Loader from '../../components/common/Loader.jsx';
+import PageHeader from '../../components/common/PageHeader.jsx';
+import PageShell from '../../components/common/PageShell.jsx';
+import Select from '../../components/common/Select.jsx';
+import StatusPill from '../../components/common/StatusPill.jsx';
+import { useAdminCourses } from '../../queries/adminQueries.js';
+
+export default function CourseProjectsPage() {
+  const [searchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+  const [filters, setFilters] = useState({ page: 1, limit: 50, search: '', status: '', difficulty: '', course: searchParams.get('course') || '' });
+  const [statusTarget, setStatusTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const projectsQuery = useQuery({ queryKey: ['admin-project-tasks', filters], queryFn: () => adminProjectApi.list(filters) });
+  const coursesQuery = useAdminCourses({ limit: 100 });
+  const invalidate = async () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['admin-project-tasks'] }),
+    queryClient.invalidateQueries({ queryKey: ['admin-course-workspace'] }),
+    queryClient.invalidateQueries({ queryKey: ['admin-content-overview'] })
+  ]);
+  const statusMutation = useMutation({ mutationFn: adminProjectApi.updateStatus, onSuccess: async () => { await invalidate(); setStatusTarget(null); } });
+  const deleteMutation = useMutation({ mutationFn: adminProjectApi.delete, onSuccess: async () => { await invalidate(); setDeleteTarget(null); setDeleteConfirmation(''); } });
+
+  if (projectsQuery.isLoading || coursesQuery.isLoading) return <Loader label="Loading Course projects..." />;
+  const projects = projectsQuery.data?.projectTasks || [];
+  const courses = (coursesQuery.data?.courses || []).filter((course) => course.status !== 'archived');
+  const update = (key, value) => setFilters((current) => ({ ...current, [key]: value, page: 1 }));
+
+  return (
+    <PageShell className="space-y-5 pb-8">
+      <PageHeader
+        eyebrow="Course projects"
+        eyebrowIcon={Hammer}
+        title="Project tasks"
+        description="Projects belong to one Course and can reference only Lessons from that same Course. Publish them when requirements and expected output are ready for learners."
+        actions={<Link to={filters.course ? `/admin/project-tasks/new?course=${filters.course}` : '/admin/project-tasks/new'} className="ui-button ui-button--primary gap-2"><Plus size={16} /> Add project</Link>}
+      />
+      <ErrorMessage message={projectsQuery.error?.message || coursesQuery.error?.message} />
+
+      <Card className="shadow-sm">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Select label="Course" value={filters.course} onChange={(event) => update('course', event.target.value)}>
+            <option value="">All courses</option>{courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}
+          </Select>
+          <Input label="Search" value={filters.search} onChange={(event) => update('search', event.target.value)} placeholder="Project title, module, tag" />
+          <Select label="Difficulty" value={filters.difficulty} onChange={(event) => update('difficulty', event.target.value)}><option value="">All difficulties</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></Select>
+          <Select label="Status" value={filters.status} onChange={(event) => update('status', event.target.value)}><option value="">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></Select>
+        </div>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        {projects.length ? projects.map((project) => (
+          <Card key={project._id} className="min-w-0 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="break-words text-lg font-bold text-foreground">{project.title}</h2><StatusPill status={project.status} /></div><p className="mt-1 text-xs font-semibold text-primary-strong">{project.course?.title || 'Unknown course'}</p></div>
+              <span className="shrink-0 rounded-full bg-surface-secondary px-2.5 py-1 text-xs font-semibold capitalize text-muted-foreground">{project.difficulty}</span>
+            </div>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">{project.description}</p>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground"><span>{project.estimatedMinutes || 0} min</span>{project.moduleTitle ? <span>• {project.moduleTitle}</span> : null}<span>• {(project.relatedLessons || []).length} related lesson(s)</span></div>
+            <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
+              {project.status !== 'archived' ? <Link to={`/admin/project-tasks/${project._id}/edit`} className="ui-button ui-button--ghost min-h-9 gap-1.5 px-3 text-xs"><Pencil size={14} /> Edit</Link> : null}
+              {project.status === 'draft' ? <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => setStatusTarget({ item: project, status: 'published' })}>Publish</Button> : null}
+              {project.status !== 'archived' ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: project, status: 'archived' })}><Archive size={14} /> Archive</Button> : null}
+              {project.status !== 'published' ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { setDeleteTarget(project); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
+            </div>
+          </Card>
+        )) : <div className="lg:col-span-2"><EmptyState title="No project tasks found" description="Choose a Course, create its first project task, or adjust the filters." /></div>}
+      </div>
+
+      <ConfirmDialog
+        open={Boolean(statusTarget)}
+        title={statusTarget?.status === 'published' ? 'Publish project task?' : 'Archive project task?'}
+        description={statusTarget?.status === 'published' ? 'Publishing requires a published Course, published related Lessons, at least one requirement, and an expected output.' : 'Archiving removes this project from new learner project lists while preserving learner submissions.'}
+        confirmLabel={statusTarget?.status === 'published' ? 'Publish' : 'Archive'}
+        tone="primary"
+        isLoading={statusMutation.isPending}
+        onCancel={() => setStatusTarget(null)}
+        onConfirm={() => statusMutation.mutate({ id: statusTarget.item._id, status: statusTarget.status, confirmPublish: statusTarget.status === 'published' })}
+      ><ErrorMessage message={statusMutation.error?.message} /></ConfirmDialog>
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        title="Delete project task permanently?"
+        description="Permanent deletion is blocked after learners submit work. Archive used projects instead."
+        confirmLabel="Delete permanently"
+        tone="danger"
+        isLoading={deleteMutation.isPending}
+        confirmDisabled={deleteConfirmation !== 'DELETE'}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => deleteMutation.mutate(deleteTarget._id)}
+      ><Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /><ErrorMessage message={deleteMutation.error?.message} /></ConfirmDialog>
+    </PageShell>
+  );
+}
