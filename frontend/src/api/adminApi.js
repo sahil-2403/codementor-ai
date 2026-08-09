@@ -20,16 +20,20 @@ export const adminApi = {
   deleteLesson: (id) => api.delete(`/admin/lessons/${id}`).then((res) => res.data.data),
 
   questions: (params) => api.get('/admin/questions', withParams(params)).then((res) => res.data.data),
+  question: (id) => api.get(`/admin/questions/${id}`).then((res) => res.data.data),
+  questionImpact: (id) => api.get(`/admin/questions/${id}/impact`).then((res) => res.data.data),
   createQuestion: (payload) => api.post('/admin/questions', payload).then((res) => res.data.data),
   updateQuestion: ({ id, payload }) => api.patch(`/admin/questions/${id}`, payload).then((res) => res.data.data),
   updateQuestionStatus: ({ id, status, confirmPublish = false }) => api.patch(`/admin/questions/${id}/status`, { status, confirmPublish }).then((res) => res.data.data),
-  archiveQuestion: (id) => api.delete(`/admin/questions/${id}`).then((res) => res.data.data),
+  deleteQuestion: (id) => api.delete(`/admin/questions/${id}`).then((res) => res.data.data),
 
   interviewQuestions: (params) => api.get('/admin/interview-questions', withParams(params)).then((res) => res.data.data),
+  interviewQuestion: (id) => api.get(`/admin/interview-questions/${id}`).then((res) => res.data.data),
+  interviewQuestionImpact: (id) => api.get(`/admin/interview-questions/${id}/impact`).then((res) => res.data.data),
   createInterviewQuestion: (payload) => api.post('/admin/interview-questions', payload).then((res) => res.data.data),
   updateInterviewQuestion: ({ id, payload }) => api.patch(`/admin/interview-questions/${id}`, payload).then((res) => res.data.data),
   updateInterviewQuestionStatus: ({ id, status, confirmPublish = false }) => api.patch(`/admin/interview-questions/${id}/status`, { status, confirmPublish }).then((res) => res.data.data),
-  archiveInterviewQuestion: (id) => api.delete(`/admin/interview-questions/${id}`).then((res) => res.data.data),
+  deleteInterviewQuestion: (id) => api.delete(`/admin/interview-questions/${id}`).then((res) => res.data.data),
 
   templates: (params) => api.get('/admin/templates', withParams(params)).then((res) => res.data.data),
   createTemplate: (payload) => api.post('/admin/templates', payload).then((res) => res.data.data),
