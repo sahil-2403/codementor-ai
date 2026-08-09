@@ -12,10 +12,12 @@ export const adminApi = {
   deleteTopic: (id) => api.delete(`/admin/topics/${id}`).then((res) => res.data.data),
 
   lessons: (params) => api.get('/admin/lessons', withParams(params)).then((res) => res.data.data),
+  lesson: (id) => api.get(`/admin/lessons/${id}`).then((res) => res.data.data),
+  lessonImpact: (id) => api.get(`/admin/lessons/${id}/impact`).then((res) => res.data.data),
   createLesson: (payload) => api.post('/admin/lessons', payload).then((res) => res.data.data),
   updateLesson: ({ id, payload }) => api.patch(`/admin/lessons/${id}`, payload).then((res) => res.data.data),
   updateLessonStatus: ({ id, status, confirmPublish = false }) => api.patch(`/admin/lessons/${id}/status`, { status, confirmPublish }).then((res) => res.data.data),
-  archiveLesson: (id) => api.delete(`/admin/lessons/${id}`).then((res) => res.data.data),
+  deleteLesson: (id) => api.delete(`/admin/lessons/${id}`).then((res) => res.data.data),
 
   questions: (params) => api.get('/admin/questions', withParams(params)).then((res) => res.data.data),
   createQuestion: (payload) => api.post('/admin/questions', payload).then((res) => res.data.data),
