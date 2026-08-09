@@ -21,7 +21,8 @@ const projectTaskSchema = new mongoose.Schema(
     status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft', index: true },
     archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
     archivedByLessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }],
-    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null }
+    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
+    statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null }
   },
   { timestamps: true }
 );
