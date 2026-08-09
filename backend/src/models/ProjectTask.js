@@ -18,6 +18,8 @@ const projectTaskSchema = new mongoose.Schema(
     estimatedMinutes: { type: Number, default: 60 },
     status: { type: String, enum: ['draft', 'published', 'archived'], default: 'published', index: true },
     archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
+    archivedByLessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }],
+    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
     statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null }
   },
   { timestamps: true }
@@ -25,6 +27,6 @@ const projectTaskSchema = new mongoose.Schema(
 
 projectTaskSchema.index({ title: 'text', description: 'text', tags: 'text' });
 projectTaskSchema.index({ status: 1, difficulty: 1, moduleTitle: 1 });
-projectTaskSchema.index({ archivedByTopics: 1, status: 1 });
+projectTaskSchema.index({ archivedByTopics: 1, archivedByLessons: 1, status: 1 });
 
 export const ProjectTask = mongoose.model('ProjectTask', projectTaskSchema);
