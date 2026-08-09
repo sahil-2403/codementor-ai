@@ -9,9 +9,79 @@ const questionLifecycleStatusEnum = z.enum(['published', 'archived', 'restored']
 const topicLifecycleStatusEnum = z.enum(['active', 'archived']);
 const questionBankEnum = z.enum(['quiz', 'skill_check']);
 const cleanString = z.string().trim();
+const contentStatusEnum = z.enum(['draft', 'published', 'archived']);
+const technologyTypeEnum = z.enum(['language', 'framework', 'runtime', 'database', 'library', 'platform', 'tool']);
+const courseCategoryEnum = z.enum(['fundamentals', 'frontend', 'backend', 'fullstack', 'database', 'mobile', 'devops', 'data-ai', 'interview', 'other']);
+
+const courseContextFields = {
+  course: objectId,
+  technologies: z.array(objectId).optional().default([])
+};
+
+export const technologySchema = z.object({
+  body: z.object({
+    name: cleanString.min(2).max(100),
+    type: technologyTypeEnum,
+    description: cleanString.max(1000).optional().default(''),
+    parentTechnology: objectId.optional().nullable(),
+    iconKey: cleanString.max(80).optional().default(''),
+    order: z.coerce.number().int().min(0).optional().default(0)
+  })
+});
+
+export const technologyUpdateSchema = z.object({
+  body: technologySchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
+});
+
+export const courseSchema = z.object({
+  body: z.object({
+    title: cleanString.min(2).max(160),
+    description: cleanString.max(2000).optional().default(''),
+    category: courseCategoryEnum,
+    technologies: z.array(objectId).min(1),
+    primaryTechnology: objectId.optional().nullable(),
+    availableLevels: z.array(difficultyEnum).min(1).default(['beginner', 'intermediate', 'advanced']),
+    recommendedPrerequisites: z.array(objectId).optional().default([]),
+    featured: z.boolean().optional().default(false),
+    order: z.coerce.number().int().min(0).optional().default(0)
+  })
+});
+
+export const courseUpdateSchema = z.object({
+  body: courseSchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
+});
+
+const learningPathCourseSchema = z.object({
+  course: objectId,
+  order: z.coerce.number().int().min(1),
+  defaultLevel: difficultyEnum.optional().nullable(),
+  required: z.boolean().optional().default(true)
+});
+
+export const learningPathSchema = z.object({
+  body: z.object({
+    title: cleanString.min(2).max(160),
+    description: cleanString.max(2000).optional().default(''),
+    category: courseCategoryEnum,
+    technologies: z.array(objectId).optional().default([]),
+    availableLevels: z.array(difficultyEnum).min(1).default(['beginner', 'intermediate', 'advanced']),
+    courses: z.array(learningPathCourseSchema).min(1),
+    featured: z.boolean().optional().default(false),
+    order: z.coerce.number().int().min(0).optional().default(0)
+  })
+});
+
+export const learningPathUpdateSchema = z.object({
+  body: learningPathSchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
+});
+
+export const catalogStatusUpdateSchema = z.object({
+  body: z.object({ status: contentStatusEnum, confirmPublish: z.boolean().optional().default(false) })
+});
 
 export const topicSchema = z.object({
   body: z.object({
+    ...courseContextFields,
     title: cleanString.min(2),
     category: cleanString.min(2),
     difficulty: difficultyEnum.default('beginner'),
@@ -24,17 +94,13 @@ export const topicUpdateSchema = z.object({
   body: topicSchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
 });
 
-export const topicStatusUpdateSchema = z.object({
-  body: z.object({ status: topicLifecycleStatusEnum })
-});
+export const topicStatusUpdateSchema = z.object({ body: z.object({ status: topicLifecycleStatusEnum }) });
 
-const interviewPairSchema = z.object({
-  question: cleanString.min(1),
-  answer: cleanString.min(1)
-});
+const interviewPairSchema = z.object({ question: cleanString.min(1), answer: cleanString.min(1) });
 
 export const lessonSchema = z.object({
   body: z.object({
+    ...courseContextFields,
     title: cleanString.min(2),
     topic: objectId,
     difficulty: difficultyEnum.default('beginner'),
@@ -60,17 +126,14 @@ export const lessonStatusUpdateSchema = z.object({
     confirmPublish: z.boolean().optional().default(false)
   }).superRefine((body, context) => {
     if (body.status === 'published' && body.confirmPublish !== true) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['confirmPublish'],
-        message: 'Confirm that the lesson has been reviewed before publishing'
-      });
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['confirmPublish'], message: 'Confirm that the lesson has been reviewed before publishing' });
     }
   })
 });
 
 export const questionSchema = z.object({
   body: z.object({
+    ...courseContextFields,
     question: cleanString.min(5),
     bank: questionBankEnum.optional().default('quiz'),
     type: z.enum(['mcq', 'code_output', 'short_answer']).default('mcq'),
@@ -95,17 +158,14 @@ export const questionStatusUpdateSchema = z.object({
     confirmPublish: z.boolean().optional().default(false)
   }).superRefine((body, context) => {
     if (body.status === 'published' && body.confirmPublish !== true) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['confirmPublish'],
-        message: 'Confirm that the question has been reviewed before publishing'
-      });
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['confirmPublish'], message: 'Confirm that the question has been reviewed before publishing' });
     }
   })
 });
 
 export const interviewQuestionSchema = z.object({
   body: z.object({
+    ...courseContextFields,
     question: cleanString.min(5),
     topic: cleanString.optional().default(''),
     topicRef: objectId.optional().nullable(),
@@ -126,13 +186,13 @@ const templateModuleSchema = z.object({
   description: z.string().optional().default(''),
   order: z.coerce.number().int().min(1),
   durationDays: z.coerce.number().int().min(1).max(90).optional().default(7),
-  lessonSlugs: z.array(cleanString.min(1)).optional().default([]),
+  lessons: z.array(objectId).optional().default([]),
   quizTags: z.array(cleanString.min(1)).optional().default([])
 });
 
 export const templateSchema = z.object({
   body: z.object({
-    goalKey: cleanString.min(2),
+    course: objectId,
     level: difficultyEnum,
     title: cleanString.min(2),
     description: z.string().optional().default(''),
@@ -151,11 +211,7 @@ export const statusUpdateSchema = z.object({
     confirmPublish: z.boolean().optional().default(false)
   }).superRefine((body, context) => {
     if (body.status === 'published' && body.confirmPublish !== true) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['confirmPublish'],
-        message: 'Confirm that the content has been reviewed before publishing'
-      });
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['confirmPublish'], message: 'Confirm that the content has been reviewed before publishing' });
     }
   })
 });
