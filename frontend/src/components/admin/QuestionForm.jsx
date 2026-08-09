@@ -95,6 +95,7 @@ export default function QuestionForm({
   const type = useWatch({ control, name: 'type' });
   const selectedTopic = useWatch({ control, name: 'topic' });
   const relatedLesson = useWatch({ control, name: 'relatedLesson' });
+  const correctOptionIndex = useWatch({ control, name: 'correctOptionIndex' });
 
   useEffect(() => {
     reset(toForm(initialData, topics, bank));
@@ -110,6 +111,18 @@ export default function QuestionForm({
     const stillAvailable = availableLessons.some((lesson) => lesson._id === relatedLesson);
     if (!stillAvailable) setValue('relatedLesson', '');
   }, [availableLessons, bank, relatedLesson, setValue]);
+
+  const removeOption = (index) => {
+    const selectedIndex = Number(correctOptionIndex);
+    optionFields.remove(index);
+
+    if (!Number.isInteger(selectedIndex)) return;
+    if (selectedIndex === index) {
+      setValue('correctOptionIndex', '', { shouldValidate: true });
+    } else if (selectedIndex > index) {
+      setValue('correctOptionIndex', String(selectedIndex - 1), { shouldValidate: true });
+    }
+  };
 
   const submit = (values) => {
     const options = values.options.map((item) => item.value.trim()).filter(Boolean);
@@ -225,7 +238,7 @@ export default function QuestionForm({
                     type="button"
                     variant="ghost"
                     className="mt-6 min-h-9 w-9 p-0 text-muted-foreground"
-                    onClick={() => optionFields.remove(index)}
+                    onClick={() => removeOption(index)}
                     disabled={optionFields.fields.length <= 2}
                     aria-label={`Remove option ${index + 1}`}
                   >
