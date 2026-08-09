@@ -17,6 +17,8 @@ export const queryKeys = {
   adminTopic: (topicId) => ['admin-topic', topicId],
   adminTopicImpact: (topicId) => ['admin-topic-impact', topicId],
   adminLessons: (params = {}) => ['admin-lessons', params],
+  adminLesson: (lessonId) => ['admin-lesson', lessonId],
+  adminLessonImpact: (lessonId) => ['admin-lesson-impact', lessonId],
   adminQuestions: (params = {}) => ['admin-questions', params],
   adminInterviewQuestions: (params = {}) => ['admin-interview-questions', params],
   adminTemplates: (params = {}) => ['admin-templates', params]
