@@ -3,7 +3,9 @@ import mongoose from 'mongoose';
 const quizQuestionSchema = new mongoose.Schema(
   {
     question: { type: String, required: true },
+    bank: { type: String, enum: ['quiz', 'skill_check'], default: 'quiz', index: true },
     type: { type: String, enum: ['mcq', 'code_output', 'short_answer'], default: 'mcq' },
+    codeSnippet: { type: String, default: '' },
     options: [{ type: String }],
     correctAnswer: { type: String, required: true },
     explanation: { type: String, default: '' },
@@ -12,6 +14,7 @@ const quizQuestionSchema = new mongoose.Schema(
     relatedLesson: { type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' },
     tags: [{ type: String }],
     status: { type: String, enum: ['draft', 'published', 'archived'], default: 'published' },
+    manualArchive: { type: Boolean, default: false },
     archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
     archivedByLessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }],
     statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
@@ -20,9 +23,10 @@ const quizQuestionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-quizQuestionSchema.index({ status: 1, difficulty: 1, topic: 1, type: 1 });
+// Missing bank values are treated as legacy quiz questions by the services.
+quizQuestionSchema.index({ bank: 1, status: 1, difficulty: 1, topic: 1, type: 1 });
 quizQuestionSchema.index({ archivedByTopics: 1, archivedByLessons: 1, status: 1 });
-quizQuestionSchema.index({ tags: 1, status: 1 });
+quizQuestionSchema.index({ tags: 1, bank: 1, status: 1 });
 quizQuestionSchema.index({ question: 'text', explanation: 'text', tags: 'text' });
 
 export const QuizQuestion = mongoose.model('QuizQuestion', quizQuestionSchema);
