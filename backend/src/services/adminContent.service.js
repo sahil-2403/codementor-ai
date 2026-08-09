@@ -1,3 +1,4 @@
+export * from './adminContent/catalog.service.js';
 export * from './adminContent/topic.service.js';
 export * from './adminContent/lesson.service.js';
 export * from './adminContent/question.service.js';
