@@ -1,4 +1,6 @@
-import { LearningGoal } from '../models/LearningGoal.js';
+import { Enrollment } from '../models/Enrollment.js';
+import { Course } from '../models/Course.js';
+import { LearningPath } from '../models/LearningPath.js';
 import { CoursePlan } from '../models/CoursePlan.js';
 import { Assessment } from '../models/Assessment.js';
 import { AIJob } from '../models/AIJob.js';
@@ -16,233 +18,264 @@ const incompleteStates = [
   ONBOARDING_STATES.ROADMAP_FAILED
 ];
 
-const findCurrentGoal = (userId) => LearningGoal.findOne({
-  user: userId,
-  status: { $ne: 'archived' }
-}).sort({ createdAt: -1 });
+const enrollmentPopulate = [
+  { path: 'course', select: 'title slug description category technologies primaryTechnology availableLevels status', populate: { path: 'technologies primaryTechnology', select: 'name slug type iconKey' } },
+  { path: 'learningPath', select: 'title slug description category technologies availableLevels courses status', populate: [{ path: 'technologies', select: 'name slug type iconKey' }, { path: 'courses.course', select: 'title slug category availableLevels status' }] },
+  { path: 'currentCourse', select: 'title slug description category technologies primaryTechnology availableLevels status', populate: { path: 'technologies primaryTechnology', select: 'name slug type iconKey' } }
+];
 
-const requireCurrentGoal = async ({ userId, learningGoalId = null }) => {
-  const filter = { user: userId, status: { $ne: 'archived' } };
-  if (learningGoalId) filter._id = learningGoalId;
-  const goal = await LearningGoal.findOne(filter).sort({ createdAt: -1 });
-  if (!goal) throw new ApiError(404, 'Learning goal not found', [], 'LEARNING_GOAL_NOT_FOUND');
-  return goal;
+const findPendingEnrollment = (userId) => Enrollment.findOne({
+  user: userId,
+  status: 'draft',
+  onboardingState: { $in: incompleteStates }
+}).sort({ updatedAt: -1 });
+
+const requireCurrentEnrollment = async ({ userId, enrollmentId = null, allowActive = true }) => {
+  const filter = { user: userId };
+  if (enrollmentId) filter._id = enrollmentId;
+  else filter.status = allowActive ? { $in: ['draft', 'active'] } : 'draft';
+
+  const enrollment = await Enrollment.findOne(filter).sort({ updatedAt: -1 });
+  if (!enrollment) throw new ApiError(404, 'Enrollment not found', [], 'ENROLLMENT_NOT_FOUND');
+  return enrollment;
 };
 
-const deriveState = ({ goal, activeCourse, assessment, roadmapJob }) => {
-  if (!goal) return activeCourse ? ONBOARDING_STATES.COMPLETED : ONBOARDING_STATES.GOAL_PENDING;
+const deriveState = ({ enrollment, activeCourse, assessment, roadmapJob }) => {
+  if (!enrollment) return activeCourse ? ONBOARDING_STATES.COMPLETED : ONBOARDING_STATES.CATALOG_PENDING;
 
-  if (goal.onboardingState === ONBOARDING_STATES.ROADMAP_GENERATING) {
+  if (enrollment.onboardingState === ONBOARDING_STATES.ROADMAP_GENERATING) {
     if (roadmapJob?.status === 'failed') return ONBOARDING_STATES.ROADMAP_FAILED;
     if (roadmapJob?.status === 'completed' && activeCourse) return ONBOARDING_STATES.COMPLETED;
     return ONBOARDING_STATES.ROADMAP_GENERATING;
   }
-  if (goal.onboardingState === ONBOARDING_STATES.ROADMAP_FAILED) {
-    return ONBOARDING_STATES.ROADMAP_FAILED;
-  }
-  if (goal.onboardingState === ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS) {
+  if (enrollment.onboardingState === ONBOARDING_STATES.ROADMAP_FAILED) return ONBOARDING_STATES.ROADMAP_FAILED;
+  if (enrollment.onboardingState === ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS) {
     return assessment?.status === 'completed'
       ? ONBOARDING_STATES.ASSESSMENT_COMPLETED
       : ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS;
   }
-  if (goal.onboardingState === ONBOARDING_STATES.ASSESSMENT_COMPLETED) {
-    return ONBOARDING_STATES.ASSESSMENT_COMPLETED;
-  }
+  if (enrollment.onboardingState === ONBOARDING_STATES.ASSESSMENT_COMPLETED) return ONBOARDING_STATES.ASSESSMENT_COMPLETED;
 
-  if (activeCourse) return ONBOARDING_STATES.COMPLETED;
-  if (roadmapJob?.status === 'queued' || roadmapJob?.status === 'processing') {
-    return ONBOARDING_STATES.ROADMAP_GENERATING;
+  if (activeCourse?.enrollment?.toString?.() === enrollment._id.toString() && enrollment.status === 'active') {
+    return ONBOARDING_STATES.COMPLETED;
   }
+  if (roadmapJob?.status === 'queued' || roadmapJob?.status === 'processing') return ONBOARDING_STATES.ROADMAP_GENERATING;
   if (roadmapJob?.status === 'failed') return ONBOARDING_STATES.ROADMAP_FAILED;
   if (assessment?.status === 'started') return ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS;
-  if (assessment?.status === 'completed' && goal.assessmentPreference === 'take') {
-    return ONBOARDING_STATES.ASSESSMENT_COMPLETED;
-  }
-  if (goal.onboardingState && isOnboardingState(goal.onboardingState)) {
-    return goal.onboardingState;
-  }
-  if (!goal.level) return ONBOARDING_STATES.LEVEL_PENDING;
-  if (goal.status === 'completed' || goal.assessmentPreference === 'skip') {
-    return ONBOARDING_STATES.ROADMAP_PENDING;
-  }
-  return goal.level === 'beginner'
-    ? ONBOARDING_STATES.PREFERENCES_PENDING
-    : ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
+  if (assessment?.status === 'completed' && enrollment.assessmentPreference === 'take') return ONBOARDING_STATES.ASSESSMENT_COMPLETED;
+  if (enrollment.onboardingState && isOnboardingState(enrollment.onboardingState)) return enrollment.onboardingState;
+  if (!enrollment.level) return ONBOARDING_STATES.LEVEL_PENDING;
+  if (enrollment.assessmentPreference === 'skip' || enrollment.level === 'beginner') return ONBOARDING_STATES.ROADMAP_PENDING;
+  return ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
 };
 
-const persistDerivedState = async (goal, state) => {
-  if (!goal || goal.onboardingState === state) return;
-  goal.onboardingState = state;
-  if (state === ONBOARDING_STATES.COMPLETED && !goal.onboardingCompletedAt) {
-    goal.onboardingCompletedAt = new Date();
+const persistDerivedState = async (enrollment, state) => {
+  if (!enrollment || enrollment.onboardingState === state) return;
+  enrollment.onboardingState = state;
+  if (state === ONBOARDING_STATES.COMPLETED) {
+    enrollment.status = 'active';
+    enrollment.onboardingCompletedAt = enrollment.onboardingCompletedAt || new Date();
   }
-  await goal.save();
+  await enrollment.save();
+};
+
+const resolveSelection = async ({ type, courseId, learningPathId }) => {
+  if (type === 'course') {
+    const course = await Course.findOne({ _id: courseId, status: 'published' });
+    if (!course) throw new ApiError(404, 'Course is not available', [], 'COURSE_NOT_AVAILABLE');
+    return { course, learningPath: null, currentCourse: course };
+  }
+
+  const learningPath = await LearningPath.findOne({ _id: learningPathId, status: 'published' })
+    .populate({ path: 'courses.course', match: { status: 'published' }, select: '_id title slug availableLevels status' });
+  if (!learningPath) throw new ApiError(404, 'Learning path is not available', [], 'LEARNING_PATH_NOT_AVAILABLE');
+
+  const firstCourseEntry = (learningPath.courses || [])
+    .filter((item) => Boolean(item.course))
+    .sort((a, b) => a.order - b.order)[0];
+  if (!firstCourseEntry?.course) {
+    throw new ApiError(409, 'Learning path has no available courses', [], 'LEARNING_PATH_EMPTY');
+  }
+
+  return { course: null, learningPath, currentCourse: firstCourseEntry.course };
 };
 
 export const getOnboardingStatus = async (userId) => {
-  const [activeCourse, latestGoal] = await Promise.all([
+  const [pendingEnrollment, activeCourse] = await Promise.all([
+    findPendingEnrollment(userId),
     CoursePlan.findOne({ user: userId, status: 'active', isActive: true })
-      .select('_id title status version roadmapType aiGenerated')
-      .sort({ createdAt: -1 }),
-    findCurrentGoal(userId)
+      .select('_id title status version roadmapType aiGenerated enrollment course learningPath')
+      .sort({ updatedAt: -1 })
   ]);
 
-  const [latestAssessment, roadmapJob] = latestGoal
+  let currentEnrollment = pendingEnrollment;
+  if (!currentEnrollment && activeCourse?.enrollment) {
+    currentEnrollment = await Enrollment.findById(activeCourse.enrollment);
+  }
+  if (!currentEnrollment) {
+    currentEnrollment = await Enrollment.findOne({ user: userId, status: 'active' }).sort({ updatedAt: -1 });
+  }
+
+  const [latestAssessment, roadmapJob] = currentEnrollment
     ? await Promise.all([
-      Assessment.findOne({ user: userId, learningGoal: latestGoal._id })
-        .select('_id status score completedAt level')
+      Assessment.findOne({ user: userId, enrollment: currentEnrollment._id })
+        .select('_id status score completedAt level course enrollment')
         .sort({ createdAt: -1 }),
       AIJob.findOne({
         user: userId,
         type: 'roadmap_generation',
-        'input.learningGoalId': latestGoal._id
+        'input.enrollmentId': currentEnrollment._id
       }).select('_id status error attempts completedAt createdAt').sort({ createdAt: -1 })
     ])
     : [null, null];
 
-  const state = deriveState({ goal: latestGoal, activeCourse, assessment: latestAssessment, roadmapJob });
-  await persistDerivedState(latestGoal, state);
+  const state = deriveState({ enrollment: currentEnrollment, activeCourse, assessment: latestAssessment, roadmapJob });
+  await persistDerivedState(currentEnrollment, state);
 
   let nextPath = ONBOARDING_NEXT_PATH[state];
   if (state === ONBOARDING_STATES.ASSESSMENT_COMPLETED && latestAssessment?._id) {
     nextPath = `/onboarding/assessment-report/${latestAssessment._id}`;
   }
 
+  if (currentEnrollment) {
+    await currentEnrollment.populate(enrollmentPopulate);
+  }
+
   return {
     state,
     nextPath,
     hasActiveCourse: Boolean(activeCourse),
+    hasPendingEnrollment: Boolean(pendingEnrollment),
     activeCourse,
-    currentGoal: latestGoal,
-    latestGoal,
+    currentEnrollment,
     latestAssessment,
     roadmapJob,
-    canResume: state !== ONBOARDING_STATES.COMPLETED,
+    canResume: Boolean(pendingEnrollment),
     error: state === ONBOARDING_STATES.ROADMAP_FAILED
       ? {
-        code: latestGoal?.onboardingErrorCode || 'ROADMAP_GENERATION_FAILED',
-        message: latestGoal?.onboardingErrorMessage || roadmapJob?.error || 'Roadmap generation failed'
+        code: currentEnrollment?.onboardingErrorCode || 'ROADMAP_GENERATION_FAILED',
+        message: currentEnrollment?.onboardingErrorMessage || roadmapJob?.error || 'Roadmap generation failed'
       }
       : null
   };
 };
 
-export const saveGoalSelection = async ({ userId, goalKey, goalTitle }) => {
-  const activeCourse = await CoursePlan.exists({ user: userId, status: 'active', isActive: true });
-  if (activeCourse) {
-    throw new ApiError(409, 'Onboarding is already complete', [], 'ONBOARDING_ALREADY_COMPLETED');
+export const selectEnrollmentTarget = async ({ userId, type, courseId = null, learningPathId = null }) => {
+  const selection = await resolveSelection({ type, courseId, learningPathId });
+  let enrollment = await findPendingEnrollment(userId);
+
+  if (!enrollment) enrollment = new Enrollment({ user: userId, type });
+
+  const previousTarget = enrollment.type === 'course'
+    ? enrollment.course?.toString?.()
+    : enrollment.learningPath?.toString?.();
+  const nextTarget = type === 'course' ? selection.course._id.toString() : selection.learningPath._id.toString();
+  const changedTarget = enrollment.type !== type || previousTarget !== nextTarget;
+
+  enrollment.type = type;
+  enrollment.course = selection.course?._id || null;
+  enrollment.learningPath = selection.learningPath?._id || null;
+  enrollment.currentCourse = selection.currentCourse?._id || null;
+  enrollment.status = 'draft';
+  enrollment.onboardingState = ONBOARDING_STATES.LEVEL_PENDING;
+  enrollment.onboardingErrorCode = '';
+  enrollment.onboardingErrorMessage = '';
+
+  if (changedTarget) {
+    enrollment.level = null;
+    enrollment.preferencesCompletedAt = null;
+    enrollment.assessmentChoiceAt = null;
+    enrollment.assessmentPreference = 'not_applicable';
+    enrollment.roadmapJob = null;
   }
 
-  let goal = await LearningGoal.findOne({
-    user: userId,
-    status: { $ne: 'archived' },
-    $or: [
-      { onboardingState: { $in: incompleteStates } },
-      { onboardingState: { $exists: false } }
-    ]
-  }).sort({ createdAt: -1 });
-
-  if (!goal) goal = new LearningGoal({ user: userId });
-
-  const changedGoal = goal.goalKey !== goalKey;
-  goal.goalKey = goalKey;
-  goal.goalTitle = goalTitle;
-  goal.onboardingState = ONBOARDING_STATES.LEVEL_PENDING;
-  goal.status = 'draft';
-  goal.onboardingErrorCode = '';
-  goal.onboardingErrorMessage = '';
-
-  if (changedGoal) {
-    goal.level = null;
-    goal.preferencesCompletedAt = null;
-    goal.assessmentChoiceAt = null;
-    goal.assessmentPreference = 'not_applicable';
-  }
-
-  await goal.save();
-  return goal;
+  await enrollment.save();
+  await enrollment.populate(enrollmentPopulate);
+  return enrollment;
 };
 
-export const saveLevelSelection = async ({ userId, learningGoalId = null, level }) => {
-  const goal = await requireCurrentGoal({ userId, learningGoalId });
-  goal.level = level;
-  goal.assessmentPreference = 'not_applicable';
-  goal.assessmentChoiceAt = null;
-  goal.onboardingErrorCode = '';
-  goal.onboardingErrorMessage = '';
-  goal.onboardingState = level === 'beginner'
+export const saveLevelSelection = async ({ userId, enrollmentId = null, level }) => {
+  const enrollment = await requireCurrentEnrollment({ userId, enrollmentId, allowActive: true });
+  const offering = enrollment.type === 'course'
+    ? await Course.findById(enrollment.course).select('availableLevels status')
+    : await LearningPath.findById(enrollment.learningPath).select('availableLevels status');
+
+  if (!offering || offering.status !== 'published') {
+    throw new ApiError(409, 'Selected learning option is no longer available', [], 'OFFERING_NOT_AVAILABLE');
+  }
+  if (!(offering.availableLevels || []).includes(level)) {
+    throw new ApiError(400, 'Selected level is not available for this learning option', [], 'LEVEL_NOT_AVAILABLE');
+  }
+
+  enrollment.level = level;
+  enrollment.assessmentPreference = 'not_applicable';
+  enrollment.assessmentChoiceAt = null;
+  enrollment.onboardingErrorCode = '';
+  enrollment.onboardingErrorMessage = '';
+  enrollment.onboardingState = level === 'beginner'
     ? ONBOARDING_STATES.PREFERENCES_PENDING
     : ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
-  await goal.save();
-  return goal;
+  await enrollment.save();
+  return enrollment;
 };
 
-export const createLearningGoal = async ({ userId, goalKey, goalTitle, level = null }) => {
-  const goal = await saveGoalSelection({ userId, goalKey, goalTitle });
-  if (!level) return goal;
-  return saveLevelSelection({ userId, learningGoalId: goal._id, level });
-};
+export const savePreferencesOnly = async ({ userId, enrollmentId = null, preferences }) => {
+  const enrollment = await requireCurrentEnrollment({ userId, enrollmentId, allowActive: true });
+  if (!enrollment.level) throw new ApiError(409, 'Choose your current level first', [], 'ONBOARDING_STEP_REQUIRED');
 
-export const savePreferencesOnly = async ({ userId, learningGoalId = null, preferences }) => {
-  const goal = await requireCurrentGoal({ userId, learningGoalId });
-  if (!goal.level) throw new ApiError(409, 'Choose your current level first', [], 'ONBOARDING_STEP_REQUIRED');
+  Object.assign(enrollment, preferences);
+  enrollment.preferencesCompletedAt = new Date();
+  enrollment.onboardingErrorCode = '';
+  enrollment.onboardingErrorMessage = '';
 
-  Object.assign(goal, preferences);
-  goal.preferencesCompletedAt = new Date();
-  goal.onboardingErrorCode = '';
-  goal.onboardingErrorMessage = '';
-
-  if (goal.level === 'beginner') {
-    goal.assessmentPreference = 'not_applicable';
-    goal.status = 'completed';
-    goal.onboardingState = ONBOARDING_STATES.ROADMAP_PENDING;
+  if (enrollment.level === 'beginner') {
+    enrollment.assessmentPreference = 'not_applicable';
+    enrollment.onboardingState = ONBOARDING_STATES.ROADMAP_PENDING;
   } else {
-    goal.onboardingState = ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
+    enrollment.onboardingState = ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
   }
 
-  await goal.save();
-  return goal;
+  await enrollment.save();
+  return enrollment;
 };
 
-export const markAssessmentSkipped = async ({ userId, learningGoalId = null }) => {
-  const goal = await requireCurrentGoal({ userId, learningGoalId });
-  if (!goal.level) throw new ApiError(409, 'Choose your current level first', [], 'ONBOARDING_STEP_REQUIRED');
+export const markAssessmentSkipped = async ({ userId, enrollmentId = null }) => {
+  const enrollment = await requireCurrentEnrollment({ userId, enrollmentId, allowActive: true });
+  if (!enrollment.level) throw new ApiError(409, 'Choose your current level first', [], 'ONBOARDING_STEP_REQUIRED');
 
-  goal.assessmentPreference = goal.level === 'beginner' ? 'not_applicable' : 'skip';
-  goal.assessmentChoiceAt = new Date();
-  goal.status = 'completed';
-  goal.onboardingState = ONBOARDING_STATES.ROADMAP_PENDING;
-  goal.onboardingErrorCode = '';
-  goal.onboardingErrorMessage = '';
-  await goal.save();
-  return goal;
+  enrollment.assessmentPreference = enrollment.level === 'beginner' ? 'not_applicable' : 'skip';
+  enrollment.assessmentChoiceAt = new Date();
+  enrollment.onboardingState = ONBOARDING_STATES.ROADMAP_PENDING;
+  enrollment.onboardingErrorCode = '';
+  enrollment.onboardingErrorMessage = '';
+  await enrollment.save();
+  return enrollment;
 };
 
-export const markAssessmentStarted = async ({ userId, learningGoalId }) => {
-  const goal = await requireCurrentGoal({ userId, learningGoalId });
-  goal.assessmentPreference = 'take';
-  goal.assessmentChoiceAt = goal.assessmentChoiceAt || new Date();
-  goal.onboardingState = ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS;
-  goal.onboardingErrorCode = '';
-  goal.onboardingErrorMessage = '';
-  await goal.save();
-  return goal;
+export const markAssessmentStarted = async ({ userId, enrollmentId }) => {
+  const enrollment = await requireCurrentEnrollment({ userId, enrollmentId, allowActive: true });
+  enrollment.assessmentPreference = 'take';
+  enrollment.assessmentChoiceAt = enrollment.assessmentChoiceAt || new Date();
+  enrollment.onboardingState = ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS;
+  enrollment.onboardingErrorCode = '';
+  enrollment.onboardingErrorMessage = '';
+  await enrollment.save();
+  return enrollment;
 };
 
-export const markAssessmentCompleted = async ({ userId, learningGoalId }) => {
-  const goal = await requireCurrentGoal({ userId, learningGoalId });
-  goal.assessmentPreference = 'take';
-  goal.status = 'completed';
-  goal.onboardingState = ONBOARDING_STATES.ASSESSMENT_COMPLETED;
-  goal.onboardingErrorCode = '';
-  goal.onboardingErrorMessage = '';
-  await goal.save();
-  return goal;
+export const markAssessmentCompleted = async ({ userId, enrollmentId }) => {
+  const enrollment = await requireCurrentEnrollment({ userId, enrollmentId, allowActive: true });
+  enrollment.assessmentPreference = 'take';
+  enrollment.onboardingState = ONBOARDING_STATES.ASSESSMENT_COMPLETED;
+  enrollment.onboardingErrorCode = '';
+  enrollment.onboardingErrorMessage = '';
+  await enrollment.save();
+  return enrollment;
 };
 
 export const setRoadmapOnboardingState = async ({
   userId,
-  learningGoalId,
+  enrollmentId,
   state,
   roadmapJobId = null,
   errorCode = '',
@@ -252,14 +285,15 @@ export const setRoadmapOnboardingState = async ({
     throw new ApiError(500, 'Invalid roadmap onboarding state', [], 'INVALID_ONBOARDING_STATE');
   }
 
-  const goal = await requireCurrentGoal({ userId, learningGoalId });
-  goal.onboardingState = state;
-  goal.roadmapJob = roadmapJobId || goal.roadmapJob;
-  goal.onboardingErrorCode = errorCode;
-  goal.onboardingErrorMessage = errorMessage;
+  const enrollment = await requireCurrentEnrollment({ userId, enrollmentId, allowActive: true });
+  enrollment.onboardingState = state;
+  enrollment.roadmapJob = roadmapJobId || enrollment.roadmapJob;
+  enrollment.onboardingErrorCode = errorCode;
+  enrollment.onboardingErrorMessage = errorMessage;
   if (state === ONBOARDING_STATES.COMPLETED) {
-    goal.onboardingCompletedAt = new Date();
+    enrollment.status = 'active';
+    enrollment.onboardingCompletedAt = enrollment.onboardingCompletedAt || new Date();
   }
-  await goal.save();
-  return goal;
+  await enrollment.save();
+  return enrollment;
 };
