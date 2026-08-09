@@ -118,6 +118,8 @@ export default function QuestionBankManagement({ bank = 'quiz' }) {
 
   const updateFilter = (key, value) => setFilters((previous) => ({ ...previous, [key]: value, page: 1 }));
   const openAction = (mode, question) => {
+    updateStatus.reset();
+    deleteQuestion.reset();
     setDeleteConfirmation('');
     setActionTarget({ mode, question });
   };
@@ -133,13 +135,18 @@ export default function QuestionBankManagement({ bank = 'quiz' }) {
       : actionTarget.mode === 'restore'
         ? 'restored'
         : 'archived';
+    const closeOnError = actionTarget.mode !== 'publish';
+
     updateStatus.mutate(
       {
         id: actionTarget.question._id,
         status,
         confirmPublish: status === 'published'
       },
-      { onSuccess: closeDialog }
+      {
+        onSuccess: closeDialog,
+        ...(closeOnError ? { onError: closeDialog } : {})
+      }
     );
   };
 
