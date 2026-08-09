@@ -9,7 +9,7 @@ export const SEVERITY = Object.freeze({ LOW: 'low', MEDIUM: 'medium', HIGH: 'hig
 export const ASSESSMENT_STATUS = Object.freeze({ NOT_REQUIRED: 'not_required', SKIPPED: 'skipped', COMPLETED: 'completed' });
 export const ROADMAP_TYPE = Object.freeze({ TEMPLATE: 'template', TEMPLATE_AI_ADJUSTED: 'template_ai_adjusted', ASSESSMENT_AI_PERSONALIZED: 'assessment_ai_personalized' });
 export const ONBOARDING_STATE = Object.freeze({
-  GOAL_PENDING: 'goal_pending', LEVEL_PENDING: 'level_pending', PREFERENCES_PENDING: 'preferences_pending',
+  CATALOG_PENDING: 'catalog_pending', LEVEL_PENDING: 'level_pending', PREFERENCES_PENDING: 'preferences_pending',
   ASSESSMENT_CHOICE_PENDING: 'assessment_choice_pending', ASSESSMENT_IN_PROGRESS: 'assessment_in_progress',
   ASSESSMENT_COMPLETED: 'assessment_completed', ROADMAP_PENDING: 'roadmap_pending', ROADMAP_GENERATING: 'roadmap_generating',
   ROADMAP_FAILED: 'roadmap_failed', COMPLETED: 'completed'
@@ -23,7 +23,7 @@ const STATUS_TONE = Object.freeze({
   [REVIEW_STATUS.SUBMITTED]: 'neutral', [REVIEW_STATUS.REVIEWING]: 'info', [REVIEW_STATUS.REVIEWED]: 'success', [REVIEW_STATUS.UNAVAILABLE]: 'warning',
   [JOB_STATUS.QUEUED]: 'info', [JOB_STATUS.PROCESSING]: 'warning', [REVISION_STATUS.PENDING]: 'warning', [REVISION_STATUS.SKIPPED]: 'neutral',
   [ASSESSMENT_STATUS.NOT_REQUIRED]: 'neutral', [SEVERITY.LOW]: 'neutral', [SEVERITY.MEDIUM]: 'info', [SEVERITY.HIGH]: 'warning', [SEVERITY.CRITICAL]: 'danger',
-  success: 'success', blocked: 'warning'
+  success: 'success', blocked: 'warning', active: 'success', missing: 'warning'
 });
 
 export const getStatusTone = (status) => STATUS_TONE[String(status || '').toLowerCase()] || 'neutral';
