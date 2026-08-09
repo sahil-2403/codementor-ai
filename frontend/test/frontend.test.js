@@ -108,6 +108,23 @@ test('admin publishing uses the shared confirmed lifecycle', async () => {
   }
 });
 
+test('roadmap template admin uses a structured editor and explicit deletion', async () => {
+  const [routes, form, page, api] = await Promise.all([
+    readFrontend('src/routes/AppRoutes.jsx'),
+    readFrontend('src/components/admin/TemplateForm.jsx'),
+    readFrontend('src/pages/admin/TemplatesPage.jsx'),
+    readFrontend('src/api/adminApi.js')
+  ]);
+  assert.match(routes, /\/admin\/templates\/new/);
+  assert.match(routes, /\/admin\/templates\/:templateId\/edit/);
+  assert.match(form, /useFieldArray/);
+  assert.doesNotMatch(form, /modulesText|Modules JSON|JSON\.parse|JSON\.stringify/);
+  assert.match(page, /Type DELETE to confirm/);
+  assert.doesNotMatch(page, /Duplicate/);
+  assert.match(api, /deleteTemplate/);
+  assert.doesNotMatch(api, /duplicateTemplate|archiveTemplate/);
+});
+
 test('frontend enum values match backend API contracts', async () => {
   assert.deepEqual(Object.values(CONTENT_STATUS), ['draft', 'published', 'archived']);
   assert.deepEqual(Object.values(REVIEW_STATUS), ['submitted', 'reviewing', 'reviewed', 'review_unavailable']);
@@ -173,7 +190,7 @@ test('frontend has render recovery, lazy routes, and a real not-found page', asy
   assert.match(notFound, /Page not found/);
 });
 
-test('legacy frontend exports and unused API wrappers stay removed', async () => {
+test('frontend API wrappers match active admin editor flows', async () => {
   const [onboarding, authSchema, keys, projectQueries, projectApiSource, adminApiSource] = await Promise.all([
     readFrontend('src/constants/onboardingSteps.js'),
     readFrontend('src/validations/auth.schema.js'),
@@ -187,6 +204,9 @@ test('legacy frontend exports and unused API wrappers stay removed', async () =>
   assert.doesNotMatch(keys, /auth:\s*\['auth'\]|projectSubmissions/);
   assert.doesNotMatch(projectQueries, /useProjectSubmissions|queryKeys\.projectSubmissions/);
   assert.doesNotMatch(projectApiSource, /^\s*submissions:/m);
-  assert.doesNotMatch(adminApiSource, /^\s*lesson:|^\s*interviewQuestion:/m);
+  assert.match(adminApiSource, /^\s*lesson:/m);
+  assert.match(adminApiSource, /^\s*interviewQuestion:/m);
+  assert.match(adminApiSource, /^\s*template:/m);
+  assert.doesNotMatch(adminApiSource, /duplicateTemplate|archiveTemplate/);
   assert.match(projectQueries, /\['project-tasks'\]/);
 });
