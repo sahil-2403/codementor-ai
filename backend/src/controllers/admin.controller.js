@@ -181,12 +181,7 @@ export const updateTemplateStatus = asyncHandler(async (req, res) => {
   sendResponse(res, 200, `Roadmap template ${template.status}`, { template });
 });
 
-export const archiveTemplate = asyncHandler(async (req, res) => {
-  const template = await adminContent.changeTemplateStatus({ id: req.params.id, status: 'archived' });
-  sendResponse(res, 200, 'Roadmap template archived', { template });
-});
-
-export const duplicateTemplate = asyncHandler(async (req, res) => {
-  const template = await adminContent.duplicateTemplate(req.params.id);
-  sendResponse(res, 201, 'Roadmap template duplicated', { template });
+export const deleteTemplate = asyncHandler(async (req, res) => {
+  const template = await adminContent.deleteTemplate(req.params.id);
+  sendResponse(res, 200, 'Roadmap template permanently deleted', { template });
 });
