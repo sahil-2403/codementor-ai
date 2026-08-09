@@ -57,9 +57,12 @@ import {
   updateTemplateStatus,
   deleteTemplate
 } from '../controllers/admin.controller.js';
+import { contentOverview } from '../controllers/adminOverview.controller.js';
 
 const router = Router();
 router.use(requireAuth, requireRole(ROLES.ADMIN));
+
+router.get('/content-overview', contentOverview);
 
 router.get('/topics', listTopics);
 router.post('/topics', adminWriteLimiter, validate(topicSchema), createTopic);
