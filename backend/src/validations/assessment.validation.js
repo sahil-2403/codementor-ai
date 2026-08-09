@@ -4,13 +4,13 @@ import { objectIdSchema } from '../utils/zod.js';
 export const startAssessmentSchema = z.object({
   query: z.object({
     level: z.enum(['intermediate', 'advanced']).default('intermediate'),
-    learningGoalId: objectIdSchema
+    enrollmentId: objectIdSchema
   })
 });
 
 export const submitAssessmentSchema = z.object({
   body: z.object({
-    learningGoalId: objectIdSchema,
+    enrollmentId: objectIdSchema,
     sessionId: objectIdSchema,
     answers: z.array(z.object({
       questionId: objectIdSchema,
