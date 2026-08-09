@@ -12,6 +12,7 @@ import { requestId } from './middlewares/requestId.middleware.js';
 import { getLiveness, getReadiness } from './services/health.service.js';
 
 import authRoutes from './routes/auth.routes.js';
+import catalogRoutes from './routes/catalog.routes.js';
 import onboardingRoutes from './routes/onboarding.routes.js';
 import assessmentRoutes from './routes/assessment.routes.js';
 import roadmapRoutes from './routes/roadmap.routes.js';
@@ -50,6 +51,7 @@ app.use('/api', apiLimiter);
 app.use('/api', csrfProtection);
 
 app.use('/api/auth', authRoutes);
+app.use('/api/catalog', catalogRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 app.use('/api/assessments', assessmentRoutes);
 app.use('/api/roadmaps', roadmapRoutes);
