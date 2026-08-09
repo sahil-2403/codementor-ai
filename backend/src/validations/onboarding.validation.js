@@ -1,30 +1,23 @@
 import { z } from 'zod';
 import { objectIdSchema } from '../utils/zod.js';
 
-const goalFields = {
-  goalKey: z.string().trim().min(2).max(100).default('junior-mern-stack'),
-  goalTitle: z.string().trim().min(2).max(160).default('Junior MERN Stack Developer')
-};
-
-export const goalSchema = z.object({
-  body: z.object({
-    ...goalFields,
-    level: z.enum(['beginner', 'intermediate', 'advanced']).optional()
-  })
+export const selectionSchema = z.object({
+  body: z.discriminatedUnion('type', [
+    z.object({ type: z.literal('course'), courseId: objectIdSchema }),
+    z.object({ type: z.literal('learning_path'), learningPathId: objectIdSchema })
+  ])
 });
-
-export const saveGoalSchema = z.object({ body: z.object(goalFields) });
 
 export const levelSchema = z.object({
   body: z.object({
-    learningGoalId: objectIdSchema.optional(),
+    enrollmentId: objectIdSchema.optional(),
     level: z.enum(['beginner', 'intermediate', 'advanced'])
   })
 });
 
 export const preferencesSchema = z.object({
   body: z.object({
-    learningGoalId: objectIdSchema.optional(),
+    enrollmentId: objectIdSchema.optional(),
     dailyStudyTime: z.coerce.number().min(15).max(600),
     targetDurationDays: z.coerce.number().min(7).max(365),
     learningStyle: z.string().trim().min(2).max(80),
@@ -34,5 +27,5 @@ export const preferencesSchema = z.object({
 });
 
 export const skipAssessmentSchema = z.object({
-  body: z.object({ learningGoalId: objectIdSchema.optional() })
+  body: z.object({ enrollmentId: objectIdSchema.optional() })
 });
