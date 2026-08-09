@@ -45,6 +45,7 @@ const QuestionEditorPage = lazy(() => import('../pages/admin/QuestionEditorPage.
 const InterviewQuestionsPage = lazy(() => import('../pages/admin/InterviewQuestionsPage.jsx'));
 const InterviewQuestionEditorPage = lazy(() => import('../pages/admin/InterviewQuestionEditorPage.jsx'));
 const TemplatesPage = lazy(() => import('../pages/admin/TemplatesPage.jsx'));
+const TemplateEditorPage = lazy(() => import('../pages/admin/TemplateEditorPage.jsx'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage.jsx'));
 
 export default function AppRoutes() {
@@ -106,6 +107,8 @@ export default function AppRoutes() {
             <Route path="/admin/questions/interview/new" element={<InterviewQuestionEditorPage />} />
             <Route path="/admin/questions/interview/:questionId/edit" element={<InterviewQuestionEditorPage />} />
             <Route path="/admin/templates" element={<TemplatesPage />} />
+            <Route path="/admin/templates/new" element={<TemplateEditorPage />} />
+            <Route path="/admin/templates/:templateId/edit" element={<TemplateEditorPage />} />
           </Route>
         </Route>
       </Route>
