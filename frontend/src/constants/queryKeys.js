@@ -20,6 +20,10 @@ export const queryKeys = {
   adminLesson: (lessonId) => ['admin-lesson', lessonId],
   adminLessonImpact: (lessonId) => ['admin-lesson-impact', lessonId],
   adminQuestions: (params = {}) => ['admin-questions', params],
+  adminQuestion: (questionId) => ['admin-question', questionId],
+  adminQuestionImpact: (questionId) => ['admin-question-impact', questionId],
   adminInterviewQuestions: (params = {}) => ['admin-interview-questions', params],
+  adminInterviewQuestion: (questionId) => ['admin-interview-question', questionId],
+  adminInterviewQuestionImpact: (questionId) => ['admin-interview-question-impact', questionId],
   adminTemplates: (params = {}) => ['admin-templates', params]
 };
