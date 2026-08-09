@@ -3,6 +3,7 @@ import { QuizQuestion } from '../../models/QuizQuestion.js';
 import { QuizAttempt } from '../../models/QuizAttempt.js';
 import { Assessment } from '../../models/Assessment.js';
 import { CoursePlan } from '../../models/CoursePlan.js';
+import { RoadmapTemplate } from '../../models/RoadmapTemplate.js';
 import { env } from '../../config/env.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
@@ -10,8 +11,10 @@ import { listWithPagination } from '../listQuery.service.js';
 import { invalidateContentCache } from '../cacheInvalidation.service.js';
 import {
   PUBLISHABLE_STATUS,
+  assertCourseExists,
   assertRelatedLesson,
   assertTopicExists,
+  cleanReferenceArray,
   cleanStringArray,
   ensureEditable,
   ensureFound,
@@ -19,10 +22,8 @@ import {
 } from './common.js';
 
 const QUESTION_BANKS = Object.freeze({ QUIZ: 'quiz', SKILL_CHECK: 'skill_check' });
-const legacyQuizBankFilter = { $or: [{ bank: QUESTION_BANKS.QUIZ }, { bank: { $exists: false } }] };
 const withSession = (query, session) => (session ? query.session(session) : query);
 const operationOptions = (session) => (session ? { session } : undefined);
-const resolvedBank = (question) => question?.bank || QUESTION_BANKS.QUIZ;
 
 const runLifecycleOperation = async (operation) => {
   if (!env.enableMongoTransactions) return operation(null);
@@ -36,8 +37,9 @@ const runLifecycleOperation = async (operation) => {
   return result;
 };
 
-const assertQuestionBankRules = async ({ bank, topic, relatedLesson, difficulty }) => {
-  await assertTopicExists(topic);
+const assertQuestionBankRules = async ({ bank, course, topic, relatedLesson, difficulty, requirePublished = false }) => {
+  await assertCourseExists(course, { requirePublished });
+  await assertTopicExists({ topicId: topic, courseId: course });
   if (bank === QUESTION_BANKS.SKILL_CHECK) {
     if (difficulty === 'beginner') {
       throw new ApiError(400, 'Skill checks are only used for intermediate and advanced diagnostic assessments', [{ field: 'difficulty', message: 'Choose Intermediate or Advanced' }], 'CONTENT_REFERENCE_INVALID');
@@ -47,14 +49,13 @@ const assertQuestionBankRules = async ({ bank, topic, relatedLesson, difficulty 
     }
     return;
   }
-  if (relatedLesson) await assertRelatedLesson({ lessonId: relatedLesson, topicId: topic });
+  if (relatedLesson) await assertRelatedLesson({ lessonId: relatedLesson, topicId: topic, courseId: course, requirePublished });
 };
 
 const assertQuestionPublishable = async (question) => {
   const errors = [];
   const options = cleanStringArray(question.options);
   const answer = String(question.correctAnswer || '').trim();
-  const bank = resolvedBank(question);
 
   if (question.type === 'short_answer') errors.push({ field: 'type', message: 'Short-answer grading is not supported yet; keep this question as a draft' });
   if (question.type === 'mcq') {
@@ -65,16 +66,52 @@ const assertQuestionPublishable = async (question) => {
   if (question.type === 'code_output' && !String(question.codeSnippet || '').trim()) errors.push({ field: 'codeSnippet', message: 'Add the code snippet learners should evaluate' });
   if (!answer) errors.push({ field: 'correctAnswer', message: 'Correct answer is required' });
   if (String(question.explanation || '').trim().length < 10) errors.push({ field: 'explanation', message: 'Add an explanation of at least 10 characters' });
-  if (bank === QUESTION_BANKS.QUIZ && !question.relatedLesson) errors.push({ field: 'relatedLesson', message: 'Choose a related lesson before publishing a quiz question' });
-  if (bank === QUESTION_BANKS.SKILL_CHECK && question.difficulty === 'beginner') errors.push({ field: 'difficulty', message: 'Skill checks support Intermediate and Advanced learners only' });
-
+  if (question.bank === QUESTION_BANKS.QUIZ && !question.relatedLesson) errors.push({ field: 'relatedLesson', message: 'Choose a related lesson before publishing a quiz question' });
+  if (question.bank === QUESTION_BANKS.SKILL_CHECK && question.difficulty === 'beginner') errors.push({ field: 'difficulty', message: 'Skill checks support Intermediate and Advanced learners only' });
   if (errors.length) throw new ApiError(400, 'Question is not ready to publish', errors, 'CONTENT_NOT_READY');
-  await assertTopicExists(question.topic);
-  if (bank === QUESTION_BANKS.QUIZ) await assertRelatedLesson({ lessonId: question.relatedLesson, topicId: question.topic, requirePublished: true });
+
+  await assertQuestionBankRules({
+    bank: question.bank,
+    course: question.course,
+    topic: question.topic,
+    relatedLesson: question.relatedLesson,
+    difficulty: question.difficulty,
+    requirePublished: true
+  });
+};
+
+const assertQuestionCanLeavePublished = async (question) => {
+  if (question.bank !== QUESTION_BANKS.QUIZ || question.status !== PUBLISHABLE_STATUS.PUBLISHED || !question.tags?.length) return;
+  const templates = await RoadmapTemplate.find({ course: question.course, status: PUBLISHABLE_STATUS.PUBLISHED, 'modules.quizTags': { $in: question.tags } })
+    .select('_id title modules.quizTags').lean();
+  if (!templates.length) return;
+
+  const relevantTags = new Set(templates.flatMap((template) => template.modules.flatMap((module) => module.quizTags || [])));
+  const remaining = await QuizQuestion.find({
+    _id: { $ne: question._id },
+    course: question.course,
+    bank: QUESTION_BANKS.QUIZ,
+    status: PUBLISHABLE_STATUS.PUBLISHED,
+    tags: { $in: [...relevantTags] }
+  }).select('tags').lean();
+  const coveredTags = new Set(remaining.flatMap((item) => item.tags || []));
+  const uncovered = [...relevantTags].filter((tag) => !coveredTags.has(tag));
+  if (uncovered.length) {
+    throw new ApiError(409, 'This question provides required coverage for a published roadmap template', uncovered.map((tag) => ({ field: 'tags', message: tag })), 'TEMPLATE_DEPENDENCY_EXISTS');
+  }
 };
 
 export const resolveQuestionImpact = async (questionId, { session = null } = {}) => {
-  const question = ensureFound(await withSession(QuizQuestion.findById(questionId).populate('topic', 'title status').populate('relatedLesson', 'title status'), session), 'Question');
+  const question = ensureFound(
+    await withSession(
+      QuizQuestion.findById(questionId)
+        .populate('course', 'title slug status')
+        .populate('topic', 'title status course')
+        .populate('relatedLesson', 'title status course topic'),
+      session
+    ),
+    'Question'
+  );
   const [quizAttempts, affectedCoursePlans, startedAssessments, completedAssessments] = await Promise.all([
     withSession(QuizAttempt.countDocuments({ 'answers.question': question._id }), session),
     withSession(CoursePlan.countDocuments({ 'modules.quizQuestions': question._id }), session),
@@ -87,72 +124,113 @@ export const resolveQuestionImpact = async (questionId, { session = null } = {})
 export const listQuestions = async (query = {}) => {
   const search = makeSearchRegex(query.search);
   const filter = {};
-  const conditions = [];
-  if (search) conditions.push({ $or: [{ question: search }, { explanation: search }, { tags: search }] });
-  if (query.bank === QUESTION_BANKS.QUIZ) conditions.push(legacyQuizBankFilter);
-  if (query.bank === QUESTION_BANKS.SKILL_CHECK) filter.bank = QUESTION_BANKS.SKILL_CHECK;
+  if (search) filter.$or = [{ question: search }, { explanation: search }, { tags: search }];
+  if (query.bank) filter.bank = query.bank;
   if (query.status) filter.status = query.status;
   if (query.difficulty) filter.difficulty = query.difficulty;
   if (query.type) filter.type = query.type;
+  if (query.course && mongoose.isValidObjectId(query.course)) filter.course = query.course;
   if (query.topic && mongoose.isValidObjectId(query.topic)) filter.topic = query.topic;
-  if (conditions.length) filter.$and = conditions;
-  return listWithPagination({ model: QuizQuestion, filter, query, populate: ['topic', { path: 'relatedLesson', select: 'title slug status topic' }] });
+  return listWithPagination({
+    model: QuizQuestion,
+    filter,
+    query,
+    populate: [
+      { path: 'course', select: 'title slug status' },
+      { path: 'topic', select: 'title status course' },
+      { path: 'relatedLesson', select: 'title slug status topic course' }
+    ]
+  });
 };
 
-export const getQuestion = async (id) => ensureFound(await QuizQuestion.findById(id).populate('topic', 'title status').populate('relatedLesson', 'title slug status topic'), 'Question');
+export const getQuestion = async (id) => ensureFound(
+  await QuizQuestion.findById(id)
+    .populate('course', 'title slug status')
+    .populate('topic', 'title status course')
+    .populate('relatedLesson', 'title slug status topic course'),
+  'Question'
+);
 export const getQuestionImpact = async (id) => { const impact = await resolveQuestionImpact(id); return { question: impact.question, counts: impact.counts }; };
 
 export const createQuestion = async (payload) => {
   const bank = payload.bank === QUESTION_BANKS.SKILL_CHECK ? QUESTION_BANKS.SKILL_CHECK : QUESTION_BANKS.QUIZ;
-  await assertQuestionBankRules({ bank, topic: payload.topic, relatedLesson: bank === QUESTION_BANKS.QUIZ ? payload.relatedLesson : null, difficulty: payload.difficulty });
-  const question = await QuizQuestion.create({ ...payload, bank, codeSnippet: String(payload.codeSnippet || ''), options: cleanStringArray(payload.options), tags: cleanStringArray(payload.tags), relatedLesson: bank === QUESTION_BANKS.QUIZ && payload.relatedLesson ? payload.relatedLesson : undefined, status: PUBLISHABLE_STATUS.DRAFT, manualArchive: false });
+  await assertQuestionBankRules({ bank, course: payload.course, topic: payload.topic, relatedLesson: bank === QUESTION_BANKS.QUIZ ? payload.relatedLesson : null, difficulty: payload.difficulty });
+  const question = await QuizQuestion.create({
+    ...payload,
+    bank,
+    technologies: cleanReferenceArray(payload.technologies),
+    codeSnippet: String(payload.codeSnippet || ''),
+    options: cleanStringArray(payload.options),
+    tags: cleanStringArray(payload.tags),
+    relatedLesson: bank === QUESTION_BANKS.QUIZ && payload.relatedLesson ? payload.relatedLesson : undefined,
+    status: PUBLISHABLE_STATUS.DRAFT,
+    manualArchive: false
+  });
   await invalidateContentCache();
-  return question.populate('topic', 'title status');
+  return question.populate([
+    { path: 'course', select: 'title slug status' },
+    { path: 'topic', select: 'title status course' }
+  ]);
 };
 
 export const updateQuestion = async ({ id, payload }) => {
   const question = ensureFound(await QuizQuestion.findById(id), 'Question');
   ensureEditable(question, 'Question');
-  const bank = resolvedBank(question);
-  if (payload.bank && payload.bank !== bank) throw new ApiError(409, 'Move between question banks by creating a new question instead', [], 'QUESTION_BANK_IMMUTABLE');
+  if (payload.bank && payload.bank !== question.bank) throw new ApiError(409, 'Move between question banks by creating a new question instead', [], 'QUESTION_BANK_IMMUTABLE');
+  if (payload.course && payload.course.toString() !== question.course.toString()) throw new ApiError(409, 'Question course cannot be changed. Create it under the target course instead.', [], 'CONTENT_COURSE_IMMUTABLE');
 
   const nextTopic = payload.topic || question.topic;
   const nextDifficulty = payload.difficulty || question.difficulty;
   const hasRelatedLesson = Object.prototype.hasOwnProperty.call(payload, 'relatedLesson');
   const nextRelatedLesson = hasRelatedLesson ? payload.relatedLesson : question.relatedLesson;
-  await assertQuestionBankRules({ bank, topic: nextTopic, relatedLesson: bank === QUESTION_BANKS.QUIZ ? nextRelatedLesson : null, difficulty: nextDifficulty });
+  await assertQuestionBankRules({ bank: question.bank, course: question.course, topic: nextTopic, relatedLesson: question.bank === QUESTION_BANKS.QUIZ ? nextRelatedLesson : null, difficulty: nextDifficulty });
 
-  const normalized = { ...payload, bank, ...(payload.options ? { options: cleanStringArray(payload.options) } : {}), ...(payload.tags ? { tags: cleanStringArray(payload.tags) } : {}) };
-  if (bank === QUESTION_BANKS.SKILL_CHECK) normalized.relatedLesson = undefined;
+  const normalized = {
+    ...payload,
+    bank: question.bank,
+    ...(payload.options ? { options: cleanStringArray(payload.options) } : {}),
+    ...(payload.tags ? { tags: cleanStringArray(payload.tags) } : {}),
+    ...(payload.technologies ? { technologies: cleanReferenceArray(payload.technologies) } : {})
+  };
+  delete normalized.course;
+  if (question.bank === QUESTION_BANKS.SKILL_CHECK) normalized.relatedLesson = undefined;
   else if (hasRelatedLesson) normalized.relatedLesson = payload.relatedLesson || undefined;
-  delete normalized.status;
-  delete normalized.manualArchive;
-  delete normalized.statusBeforeManualArchive;
-  delete normalized.archivedByTopics;
-  delete normalized.archivedByLessons;
-  delete normalized.statusBeforeCascadeArchive;
-  delete normalized.statusBeforeTopicArchive;
+  for (const field of ['status', 'manualArchive', 'statusBeforeManualArchive', 'archivedByTopics', 'archivedByLessons', 'statusBeforeCascadeArchive', 'statusBeforeTopicArchive']) delete normalized[field];
 
   Object.assign(question, normalized);
+  if (question.status === PUBLISHABLE_STATUS.PUBLISHED) await assertQuestionPublishable(question);
   await question.save();
   await invalidateContentCache();
-  return question.populate('topic', 'title status');
+  return question.populate([
+    { path: 'course', select: 'title slug status' },
+    { path: 'topic', select: 'title status course' }
+  ]);
 };
 
 export const changeQuestionStatus = async ({ id, status, confirmPublish = false }) => {
   if (status === PUBLISHABLE_STATUS.PUBLISHED) {
-    return transitionStatus({ model: QuizQuestion, id, label: 'Question', status, confirmPublish, validatePublish: assertQuestionPublishable, populate: ['topic', { path: 'relatedLesson', select: 'title slug status topic' }] });
+    return transitionStatus({
+      model: QuizQuestion,
+      id,
+      label: 'Question',
+      status,
+      confirmPublish,
+      validatePublish: assertQuestionPublishable,
+      populate: [
+        { path: 'course', select: 'title slug status' },
+        { path: 'topic', select: 'title status course' },
+        { path: 'relatedLesson', select: 'title slug status topic course' }
+      ]
+    });
   }
   if (!['archived', 'restored'].includes(status)) throw new ApiError(400, 'Invalid question status', [], 'VALIDATION_ERROR');
 
   const result = await runLifecycleOperation(async (session) => {
     const impact = await resolveQuestionImpact(id, { session });
     const question = impact.question;
-    const topicBlockers = question.archivedByTopics || [];
-    const lessonBlockers = question.archivedByLessons || [];
-
     if (status === 'archived') {
       if (question.status === PUBLISHABLE_STATUS.ARCHIVED) return { question, counts: impact.counts };
+      await assertQuestionCanLeavePublished(question);
       question.statusBeforeManualArchive = ['draft', 'published'].includes(question.status) ? question.status : PUBLISHABLE_STATUS.DRAFT;
       question.manualArchive = true;
       question.status = PUBLISHABLE_STATUS.ARCHIVED;
@@ -161,11 +239,11 @@ export const changeQuestionStatus = async ({ id, status, confirmPublish = false 
     }
 
     if (question.status !== PUBLISHABLE_STATUS.ARCHIVED) return { question, counts: impact.counts };
-    if (topicBlockers.length || lessonBlockers.length) throw new ApiError(409, 'Restore the parent topic or lesson before restoring this question.', [], 'QUESTION_ARCHIVED_BY_PARENT');
-
-    const previousStatus = question.statusBeforeManualArchive || PUBLISHABLE_STATUS.DRAFT;
+    if ((question.archivedByTopics || []).length || (question.archivedByLessons || []).length) {
+      throw new ApiError(409, 'Restore the parent topic or lesson before restoring this question.', [], 'QUESTION_ARCHIVED_BY_PARENT');
+    }
     question.manualArchive = false;
-    question.status = ['draft', 'published'].includes(previousStatus) ? previousStatus : PUBLISHABLE_STATUS.DRAFT;
+    question.status = ['draft', 'published'].includes(question.statusBeforeManualArchive) ? question.statusBeforeManualArchive : PUBLISHABLE_STATUS.DRAFT;
     question.statusBeforeManualArchive = null;
     question.statusBeforeCascadeArchive = null;
     question.statusBeforeTopicArchive = null;
@@ -181,6 +259,7 @@ export const deleteQuestion = async (id) => {
   const result = await runLifecycleOperation(async (session) => {
     const impact = await resolveQuestionImpact(id, { session });
     const question = impact.question;
+    await assertQuestionCanLeavePublished(question);
 
     await QuizAttempt.updateMany({ 'answers.question': question._id }, [{ $set: { answers: { $map: { input: { $ifNull: ['$answers', []] }, as: 'answer', in: { $cond: [{ $eq: ['$$answer.question', question._id] }, { $mergeObjects: ['$$answer', { question: null }] }, '$$answer'] } } } } }], operationOptions(session));
     await CoursePlan.updateMany({ 'modules.quizQuestions': question._id }, [{ $set: { modules: { $map: { input: { $ifNull: ['$modules', []] }, as: 'module', in: { $mergeObjects: ['$$module', { quizQuestions: { $filter: { input: { $ifNull: ['$$module.quizQuestions', []] }, as: 'questionId', cond: { $ne: ['$$questionId', question._id] } } } }] } } } } }], operationOptions(session));
