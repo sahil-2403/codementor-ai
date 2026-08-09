@@ -1,12 +1,11 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendResponse } from '../utils/ApiResponse.js';
 import {
-  createLearningGoal,
   getOnboardingStatus,
   markAssessmentSkipped,
-  saveGoalSelection,
   saveLevelSelection,
-  savePreferencesOnly
+  savePreferencesOnly,
+  selectEnrollmentTarget
 } from '../services/onboarding.service.js';
 
 export const status = asyncHandler(async (req, res) => {
@@ -14,28 +13,23 @@ export const status = asyncHandler(async (req, res) => {
   sendResponse(res, 200, 'Onboarding status', data);
 });
 
-export const createGoal = asyncHandler(async (req, res) => {
-  const goal = await createLearningGoal({ userId: req.user._id, ...req.body });
-  sendResponse(res, 201, 'Learning goal saved', { goal });
-});
-
-export const saveGoal = asyncHandler(async (req, res) => {
-  const goal = await saveGoalSelection({ userId: req.user._id, ...req.body });
-  sendResponse(res, 200, 'Learning goal saved', { goal });
+export const selectOffering = asyncHandler(async (req, res) => {
+  const enrollment = await selectEnrollmentTarget({ userId: req.user._id, ...req.body });
+  sendResponse(res, 200, 'Learning option selected', { enrollment });
 });
 
 export const saveLevel = asyncHandler(async (req, res) => {
-  const goal = await saveLevelSelection({ userId: req.user._id, ...req.body });
-  sendResponse(res, 200, 'Current level saved', { goal });
+  const enrollment = await saveLevelSelection({ userId: req.user._id, ...req.body });
+  sendResponse(res, 200, 'Current level saved', { enrollment });
 });
 
 export const savePreferences = asyncHandler(async (req, res) => {
-  const { learningGoalId, ...preferences } = req.body;
-  const goal = await savePreferencesOnly({ userId: req.user._id, learningGoalId, preferences });
-  sendResponse(res, 200, 'Preferences saved', { goal });
+  const { enrollmentId, ...preferences } = req.body;
+  const enrollment = await savePreferencesOnly({ userId: req.user._id, enrollmentId, preferences });
+  sendResponse(res, 200, 'Preferences saved', { enrollment });
 });
 
 export const skipAssessment = asyncHandler(async (req, res) => {
-  const goal = await markAssessmentSkipped({ userId: req.user._id, learningGoalId: req.body.learningGoalId });
-  sendResponse(res, 200, 'Assessment choice saved', { goal });
+  const enrollment = await markAssessmentSkipped({ userId: req.user._id, enrollmentId: req.body.enrollmentId });
+  sendResponse(res, 200, 'Assessment choice saved', { enrollment });
 });
