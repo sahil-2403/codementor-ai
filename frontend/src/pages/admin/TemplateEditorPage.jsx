@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Map } from 'lucide-react';
 import TemplateForm from '../../components/admin/TemplateForm.jsx';
@@ -83,14 +82,10 @@ export default function TemplateEditorPage() {
   const templates = templatesQuery.data?.templates || [];
   const archived = template?.status === 'archived';
   const mutation = isEditing ? updateTemplate : createTemplate;
-
-  const quizTags = useMemo(() => buildQuizTagOptions(questions), [questions]);
-  const unavailableLevels = useMemo(
-    () => templates
-      .filter((item) => item._id !== templateId && item.goalKey === (template?.goalKey || 'junior-mern-stack'))
-      .map((item) => item.level),
-    [template?.goalKey, templateId, templates]
-  );
+  const quizTags = buildQuizTagOptions(questions);
+  const unavailableLevels = templates
+    .filter((item) => item._id !== templateId && item.goalKey === (template?.goalKey || 'junior-mern-stack'))
+    .map((item) => item.level);
 
   const submit = (payload) => {
     const options = { onSuccess: () => navigate('/admin/templates') };
