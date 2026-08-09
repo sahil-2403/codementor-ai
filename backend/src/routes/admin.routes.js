@@ -13,6 +13,7 @@ import {
   lessonStatusUpdateSchema,
   questionSchema,
   questionUpdateSchema,
+  questionStatusUpdateSchema,
   interviewQuestionSchema,
   interviewQuestionUpdateSchema,
   templateSchema,
@@ -37,16 +38,18 @@ import {
   deleteLesson,
   listQuestions,
   getQuestion,
+  questionImpact,
   createQuestion,
   updateQuestion,
   updateQuestionStatus,
-  archiveQuestion,
+  deleteQuestion,
   listInterviewQuestions,
   getInterviewQuestion,
+  interviewQuestionImpact,
   createInterviewQuestion,
   updateInterviewQuestion,
   updateInterviewQuestionStatus,
-  archiveInterviewQuestion,
+  deleteInterviewQuestion,
   listTemplates,
   getTemplate,
   createTemplate,
@@ -77,17 +80,19 @@ router.delete('/lessons/:id', adminWriteLimiter, validate(idParamSchema), delete
 
 router.get('/questions', listQuestions);
 router.post('/questions', adminWriteLimiter, validate(questionSchema), createQuestion);
+router.get('/questions/:id/impact', validate(idParamSchema), questionImpact);
 router.get('/questions/:id', validate(idParamSchema), getQuestion);
 router.patch('/questions/:id', adminWriteLimiter, validate(idParamSchema), validate(questionUpdateSchema), updateQuestion);
-router.patch('/questions/:id/status', adminWriteLimiter, validate(idParamSchema), validate(statusUpdateSchema), updateQuestionStatus);
-router.delete('/questions/:id', adminWriteLimiter, validate(idParamSchema), archiveQuestion);
+router.patch('/questions/:id/status', adminWriteLimiter, validate(idParamSchema), validate(questionStatusUpdateSchema), updateQuestionStatus);
+router.delete('/questions/:id', adminWriteLimiter, validate(idParamSchema), deleteQuestion);
 
 router.get('/interview-questions', listInterviewQuestions);
 router.post('/interview-questions', adminWriteLimiter, validate(interviewQuestionSchema), createInterviewQuestion);
+router.get('/interview-questions/:id/impact', validate(idParamSchema), interviewQuestionImpact);
 router.get('/interview-questions/:id', validate(idParamSchema), getInterviewQuestion);
 router.patch('/interview-questions/:id', adminWriteLimiter, validate(idParamSchema), validate(interviewQuestionUpdateSchema), updateInterviewQuestion);
-router.patch('/interview-questions/:id/status', adminWriteLimiter, validate(idParamSchema), validate(statusUpdateSchema), updateInterviewQuestionStatus);
-router.delete('/interview-questions/:id', adminWriteLimiter, validate(idParamSchema), archiveInterviewQuestion);
+router.patch('/interview-questions/:id/status', adminWriteLimiter, validate(idParamSchema), validate(questionStatusUpdateSchema), updateInterviewQuestionStatus);
+router.delete('/interview-questions/:id', adminWriteLimiter, validate(idParamSchema), deleteInterviewQuestion);
 
 router.get('/templates', listTemplates);
 router.post('/templates', adminWriteLimiter, validate(templateSchema), createTemplate);
