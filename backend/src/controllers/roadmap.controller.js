@@ -1,11 +1,11 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendResponse } from '../utils/ApiResponse.js';
-import { LearningGoal } from '../models/LearningGoal.js';
 import {
   getRoadmapVersions,
   personalizeCurrentRoadmapLater
 } from '../services/roadmap.service.js';
 import { getActiveCourseForUser } from '../services/dataIntegrity.service.js';
+import { getOnboardingStatus } from '../services/onboarding.service.js';
 import {
   createRoadmapGenerationJobOrRun,
   getJobForUser,
@@ -22,9 +22,7 @@ const toLearnerRoadmapJob = (job) => {
     status: value.status,
     attempts: value.attempts || 0,
     errorCode: value.errorCode || '',
-    error: value.status === 'failed'
-      ? 'Roadmap generation could not be completed. Please retry.'
-      : '',
+    error: value.status === 'failed' ? 'Roadmap generation could not be completed. Please retry.' : '',
     completedAt: value.completedAt || null,
     createdAt: value.createdAt,
     updatedAt: value.updatedAt
@@ -33,34 +31,20 @@ const toLearnerRoadmapJob = (job) => {
 
 const sendGenerationResult = (res, result, createdMessage) => {
   if (['queued', 'processing'].includes(result.mode)) {
-    return sendResponse(res, 202, 'Roadmap generation is in progress', {
-      job: toLearnerRoadmapJob(result.job),
-      mode: result.mode
-    });
+    return sendResponse(res, 202, 'Roadmap generation is in progress', { job: toLearnerRoadmapJob(result.job), mode: result.mode });
   }
-
   if (result.mode === 'existing') {
-    return sendResponse(res, 200, 'Existing roadmap found', {
-      course: result.course,
-      job: toLearnerRoadmapJob(result.job),
-      mode: result.mode
-    });
+    return sendResponse(res, 200, 'Existing roadmap found', { course: result.course, job: toLearnerRoadmapJob(result.job), mode: result.mode });
   }
-
-  return sendResponse(res, 201, createdMessage, {
-    course: result.course,
-    job: toLearnerRoadmapJob(result.job),
-    mode: result.mode
-  });
+  return sendResponse(res, 201, createdMessage, { course: result.course, job: toLearnerRoadmapJob(result.job), mode: result.mode });
 };
 
 export const generateOrGetRoadmap = asyncHandler(async (req, res) => {
-  const latestGoal = await LearningGoal.findOne({ user: req.user._id, status: { $ne: 'archived' } }).sort({ createdAt: -1 });
-  if (!latestGoal) {
-    return sendResponse(res, 400, 'Choose a learning goal before generating a roadmap');
-  }
+  const onboarding = await getOnboardingStatus(req.user._id);
+  const enrollment = onboarding.currentEnrollment;
+  if (!enrollment) return sendResponse(res, 400, 'Choose a course or learning path before generating a roadmap');
 
-  const roadmapType = latestGoal.assessmentPreference === 'not_applicable'
+  const roadmapType = enrollment.assessmentPreference === 'not_applicable'
     ? ROADMAP_TYPES.TEMPLATE_AI_ADJUSTED
     : ROADMAP_TYPES.TEMPLATE;
 
@@ -70,11 +54,9 @@ export const generateOrGetRoadmap = asyncHandler(async (req, res) => {
     idempotent: true,
     payload: {
       userId: req.user._id,
-      learningGoalId: latestGoal._id,
+      enrollmentId: enrollment._id,
       roadmapType,
-      generatedReason: latestGoal.assessmentPreference === 'skip'
-        ? 'initial_template'
-        : 'preference_adjusted'
+      generatedReason: enrollment.assessmentPreference === 'skip' ? 'initial_template' : 'preference_adjusted'
     }
   });
 
@@ -92,31 +74,24 @@ export const currentRoadmap = asyncHandler(async (req, res) => {
 });
 
 export const generateFromAssessment = asyncHandler(async (req, res) => {
-  const { learningGoalId, assessmentId, forceNewVersion = false } = req.body;
-
+  const { enrollmentId, assessmentId, forceNewVersion = false } = req.body;
   const result = await createRoadmapGenerationJobOrRun({
     userId: req.user._id,
     req,
     idempotent: !forceNewVersion,
     payload: {
       userId: req.user._id,
-      learningGoalId,
+      enrollmentId,
       assessmentId,
       roadmapType: ROADMAP_TYPES.ASSESSMENT_AI_PERSONALIZED,
       generatedReason: 'assessment_personalized'
     }
   });
-
   return sendGenerationResult(res, result, 'Personalized roadmap version created from assessment');
 });
 
 export const retryRoadmapJob = asyncHandler(async (req, res) => {
-  const result = await retryRoadmapGenerationJob({
-    userId: req.user._id,
-    jobId: req.params.jobId,
-    req
-  });
-
+  const result = await retryRoadmapGenerationJob({ userId: req.user._id, jobId: req.params.jobId, req });
   return sendGenerationResult(res, result, 'Roadmap regenerated');
 });
 
@@ -131,12 +106,6 @@ export const personalizeLater = asyncHandler(async (req, res) => {
 });
 
 export const roadmapJobStatus = asyncHandler(async (req, res) => {
-  const data = await getJobForUser({
-    userId: req.user._id,
-    jobId: req.params.jobId
-  });
-  sendResponse(res, 200, 'Roadmap job status', {
-    job: toLearnerRoadmapJob(data.job),
-    course: data.course
-  });
+  const data = await getJobForUser({ userId: req.user._id, jobId: req.params.jobId });
+  sendResponse(res, 200, 'Roadmap job status', { job: toLearnerRoadmapJob(data.job), course: data.course });
 });
