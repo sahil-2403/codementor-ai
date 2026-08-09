@@ -38,13 +38,17 @@ export const getAssessmentQuestions = async ({ userId, learningGoalId, level }) 
     return { sessionId: recentSession._id, questions: recentSession.questionIds };
   }
 
-  const questions = await QuizQuestion.find({ difficulty: level, status: 'published' })
+  const questions = await QuizQuestion.find({
+    bank: 'skill_check',
+    difficulty: level,
+    status: 'published'
+  })
     .populate('topic', 'title category')
     .limit(12)
     .select('-correctAnswer -explanation')
     .lean();
 
-  if (!questions.length) throw new ApiError(404, 'No assessment questions found for this level');
+  if (!questions.length) throw new ApiError(404, 'No skill-check questions found for this level');
 
   const session = await Assessment.create({
     user: userId,
