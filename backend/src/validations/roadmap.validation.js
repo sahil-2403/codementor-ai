@@ -1,16 +1,14 @@
-import { z } from "zod";
-import { objectIdSchema } from "../utils/zod.js";
+import { z } from 'zod';
+import { objectIdSchema } from '../utils/zod.js';
 
 export const generateFromAssessmentSchema = z.object({
   body: z.object({
-    learningGoalId: objectIdSchema,
+    enrollmentId: objectIdSchema,
     assessmentId: objectIdSchema,
-    forceNewVersion: z.boolean().optional().default(false),
-  }),
+    forceNewVersion: z.boolean().optional().default(false)
+  })
 });
 
 export const roadmapJobParamSchema = z.object({
-  params: z.object({
-    jobId: objectIdSchema,
-  }),
+  params: z.object({ jobId: objectIdSchema })
 });
