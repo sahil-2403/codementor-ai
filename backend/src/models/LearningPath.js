@@ -18,6 +18,7 @@ const learningPathSchema = new mongoose.Schema(
     description: { type: String, default: '', trim: true },
     category: { type: String, enum: COURSE_CATEGORIES, required: true, index: true },
     technologies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Technology' }],
+    availableLevels: [{ type: String, enum: COURSE_LEVELS }],
     courses: [learningPathCourseSchema],
     featured: { type: Boolean, default: false, index: true },
     order: { type: Number, default: 0 },
@@ -26,6 +27,7 @@ const learningPathSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+learningPathSchema.path('availableLevels').default(() => [...COURSE_LEVELS]);
 learningPathSchema.index({ status: 1, category: 1, featured: -1, order: 1, title: 1 });
 learningPathSchema.index({ technologies: 1, status: 1 });
 learningPathSchema.index({ 'courses.course': 1, status: 1 });
