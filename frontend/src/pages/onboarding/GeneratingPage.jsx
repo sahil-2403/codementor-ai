@@ -20,6 +20,8 @@ const statusMeta = {
   queued: { icon: Clock3, title: 'Your roadmap is waiting to start', iconClass: 'bg-primary-soft text-primary-strong' }
 };
 
+const sameId = (left, right) => Boolean(left && right && String(left) === String(right));
+
 export default function GeneratingPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -37,6 +39,11 @@ export default function GeneratingPage() {
     retry: false
   });
   const onboardingStatus = onboardingStatusQuery.data;
+  const enrollment = onboardingStatus?.currentEnrollment;
+  const offering = enrollment?.type === 'learning_path' ? enrollment?.learningPath : enrollment?.course;
+  const currentCourse = enrollment?.currentCourse || enrollment?.course;
+  const targetEnrollmentId = enrollment?._id;
+  const activeCourseMatchesEnrollment = sameId(onboardingStatus?.activeCourse?.enrollment, targetEnrollmentId);
 
   const generateMutation = useMutation({ mutationFn: roadmapApi.generateOrGet });
   const retryMutation = useMutation({ mutationFn: roadmapApi.retryJob });
@@ -59,7 +66,7 @@ export default function GeneratingPage() {
   useEffect(() => {
     if (jobId || startedRef.current || onboardingStatusQuery.isLoading) return;
 
-    if (onboardingStatus?.state === 'completed' || onboardingStatus?.hasActiveCourse) {
+    if (onboardingStatus?.state === 'completed' && activeCourseMatchesEnrollment) {
       redirectToDashboard();
       return;
     }
@@ -67,6 +74,11 @@ export default function GeneratingPage() {
     const existingJob = onboardingStatus?.roadmapJob;
     if (existingJob?._id && ['queued', 'processing'].includes(existingJob.status)) {
       navigate(`/onboarding/generating?jobId=${existingJob._id}${isPersonalizeFlow ? '&personalize=true' : ''}`, { replace: true });
+      return;
+    }
+
+    if (!targetEnrollmentId) {
+      setLocalError('Choose a course or learning path before creating a roadmap.');
       return;
     }
 
@@ -94,15 +106,7 @@ export default function GeneratingPage() {
       },
       onError: (error) => setLocalError(error?.message || 'Could not start creating your roadmap. Please try again.')
     });
-  }, [jobId, onboardingStatus?.state, onboardingStatus?.hasActiveCourse, onboardingStatus?.roadmapJob?._id, onboardingStatusQuery.isLoading, isPersonalizeFlow]);
-
-  const currentRoadmapQuery = useQuery({
-    queryKey: queryKeys.roadmap,
-    queryFn: roadmapApi.current,
-    refetchInterval: 2000,
-    retry: false
-  });
-  const currentCourse = currentRoadmapQuery.data?.course;
+  }, [jobId, onboardingStatus?.state, onboardingStatus?.roadmapJob?._id, onboardingStatusQuery.isLoading, isPersonalizeFlow, targetEnrollmentId, activeCourseMatchesEnrollment]);
 
   const jobQuery = useQuery({
     queryKey: ['roadmap-job', jobId],
@@ -119,8 +123,8 @@ export default function GeneratingPage() {
   const jobCourse = jobQuery.data?.course;
 
   useEffect(() => {
-    if (currentCourse || jobCourse || job?.status === 'completed') redirectToDashboard();
-  }, [currentCourse?._id, jobCourse?._id, job?.status]);
+    if (jobCourse || job?.status === 'completed') redirectToDashboard();
+  }, [jobCourse?._id, job?.status]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSlowHint(true), 8000);
@@ -133,8 +137,7 @@ export default function GeneratingPage() {
     || onboardingStatusQuery.error?.message
     || generateMutation.error?.message
     || retryMutation.error?.message
-    || jobQuery.error?.message
-    || currentRoadmapQuery.error?.message;
+    || jobQuery.error?.message;
 
   if (onboardingStatusQuery.isLoading || (!jobId && generateMutation.isPending)) return <Loader label="Creating your roadmap..." />;
 
@@ -162,16 +165,16 @@ export default function GeneratingPage() {
   return <OnboardingShell
     current="roadmap"
     eyebrow="Step 4 · Create your roadmap"
-    title="Creating your learning roadmap"
-    description="We’re organising your lessons, quizzes, projects, and practice in the order that best fits your starting point."
+    title={`Creating ${offering?.title || currentCourse?.title || 'your course'} roadmap`}
+    description="We’re organising this enrollment’s lessons, quizzes, projects, and practice without affecting any other course you may be learning."
     aside={<>
-      <OnboardingInsightCard title="What is being prepared?" badge="Roadmap" items={[
-        { title: 'Your learning plan', description: 'Modules, lessons, quizzes, and projects are arranged into a clear sequence.' },
-        { title: 'A reliable starting point', description: 'If personalised suggestions are unavailable, you will still receive a reviewed roadmap for your level.' }
+      <OnboardingInsightCard title="What is being prepared?" badge="Course roadmap" items={[
+        { title: 'Enrollment-specific plan', description: `This roadmap belongs only to ${offering?.title || currentCourse?.title || 'the selected course'} and its chosen level.` },
+        { title: 'Authoritative curriculum', description: 'Personalization may change emphasis and pacing, but lesson and quiz references still come from the selected course template.' }
       ]} />
       <Card>
-        <p className="font-bold text-foreground">Your progress is protected</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">Refreshing this page will continue the same roadmap instead of starting over.</p>
+        <p className="font-bold text-foreground">Other courses stay independent</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">Refreshing this page continues the same enrollment job. Existing course roadmaps are not replaced by this generation.</p>
       </Card>
     </>}
   >
@@ -180,21 +183,21 @@ export default function GeneratingPage() {
         <Icon className={job?.status === 'processing' || !job?.status ? 'animate-spin' : ''} aria-hidden="true" />
       </div>
       <h2 className="mt-5 text-3xl font-bold text-foreground">{meta.title}</h2>
-      <p className="mt-3 text-muted-foreground">{job ? `Status: ${String(job.status).replaceAll('_', ' ')}` : 'Your roadmap is being prepared. Updates will appear here.'}</p>
+      <p className="mt-3 text-muted-foreground">{job ? `Status: ${String(job.status).replaceAll('_', ' ')}` : 'Your course roadmap is being prepared. Updates will appear here.'}</p>
       <div className="mt-5"><ErrorMessage message={displayedError} /></div>
 
       {job && <div className="mt-6 rounded-panel bg-surface-secondary p-5 text-left">
         <div className="flex items-center justify-between gap-4"><b className="text-foreground">Roadmap status</b><StatusPill status={job.status} /></div>
-        <p className="mt-2 text-sm text-muted-foreground">This page updates automatically while your roadmap is being created.</p>
+        <p className="mt-2 text-sm text-muted-foreground">This page updates automatically while this enrollment roadmap is being created.</p>
         {job.error && <div className="ui-alert ui-alert--error mt-3" role="alert">We could not finish your roadmap. Please try again.</div>}
       </div>}
 
-      {showSlowHint && !currentCourse && job?.status !== 'failed' && <div className="ui-alert ui-alert--info mt-6 text-left">
-        This is taking longer than usual. You can keep this page open or refresh it; your progress will continue.
+      {showSlowHint && !jobCourse && job?.status !== 'failed' && <div className="ui-alert ui-alert--info mt-6 text-left">
+        This is taking longer than usual. You can keep this page open or refresh it; the same enrollment job will continue.
       </div>}
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        {(currentCourse || jobCourse || job?.status === 'completed') && <Button onClick={redirectToDashboard}>Open dashboard</Button>}
+        {(jobCourse || job?.status === 'completed') && <Button onClick={redirectToDashboard}>Open dashboard</Button>}
         {job?.status === 'failed' && <>
           <Button onClick={retryRoadmap} isLoading={retryMutation.isPending} loadingLabel="Trying again...">Try again</Button>
           <Link to={isPersonalizeFlow ? '/dashboard' : '/onboarding/preferences'} className="ui-button ui-button--secondary">{isPersonalizeFlow ? 'Back to dashboard' : 'Back to setup'}</Link>
