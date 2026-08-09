@@ -19,12 +19,14 @@ export default function AssessmentPage() {
   const isPersonalizeFlow = searchParams.get('personalize') === 'true';
   const personalizeQuery = isPersonalizeFlow ? '?personalize=true' : '';
   const { data: statusData, isLoading: statusLoading, error: statusError } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status });
-  const level = statusData?.currentGoal?.level || statusData?.latestGoal?.level || 'intermediate';
-  const learningGoalId = statusData?.currentGoal?._id || statusData?.latestGoal?._id;
+  const enrollment = statusData?.currentEnrollment;
+  const course = enrollment?.currentCourse || enrollment?.course;
+  const level = enrollment?.level || 'intermediate';
+  const enrollmentId = enrollment?._id;
   const { data, isLoading, error: assessmentError } = useQuery({
-    queryKey: ['assessment', level, learningGoalId],
-    queryFn: () => assessmentApi.start({ level, learningGoalId }),
-    enabled: Boolean(learningGoalId) && !statusLoading && level !== 'beginner',
+    queryKey: ['assessment', enrollmentId, level],
+    queryFn: () => assessmentApi.start({ level, enrollmentId }),
+    enabled: Boolean(enrollmentId) && !statusLoading && level !== 'beginner',
     staleTime: 1000 * 60 * 20,
     refetchOnWindowFocus: false,
     retry: false
@@ -44,9 +46,11 @@ export default function AssessmentPage() {
     try {
       setSubmitting(true);
       setError('');
-      const payload = questions.map((question) => ({ questionId: question._id, selectedAnswer: answers[question._id] || '' })).filter((answer) => answer.selectedAnswer);
+      const payload = questions
+        .map((question) => ({ questionId: question._id, selectedAnswer: answers[question._id] || '' }))
+        .filter((answer) => answer.selectedAnswer);
       if (payload.length !== questions.length) throw new Error('Please answer all questions before submitting.');
-      const result = await assessmentApi.submit({ learningGoalId, sessionId: data?.sessionId, answers: payload });
+      const result = await assessmentApi.submit({ enrollmentId, sessionId: data?.sessionId, answers: payload });
       navigate(`/onboarding/assessment-report/${result.assessment._id}${personalizeQuery}`);
     } catch (err) {
       setError(err?.message || 'Could not submit your answers.');
@@ -56,20 +60,20 @@ export default function AssessmentPage() {
   };
 
   if (statusError) return <EmptyState title="Your setup could not load" description={statusError.message} actionLabel="Back to dashboard" onAction={() => navigate('/dashboard')} />;
-  if (level === 'beginner') return <EmptyState title="No skill check is required" description="Beginner setup uses your learning preferences to create a foundation-first roadmap." actionLabel="Continue setup" onAction={() => navigate('/onboarding/preferences')} />;
-  if (!learningGoalId) return <EmptyState title="Learning goal not found" description="Restart setup so this skill check can be connected to your learning goal." actionLabel="Restart setup" onAction={() => navigate('/onboarding/goal')} />;
-  if (assessmentError || !questions.length) return <EmptyState title="Skill check unavailable" description={assessmentError?.message || 'No skill-check questions are available for this level yet.'} actionLabel="Back to options" onAction={() => navigate(backTo)} />;
+  if (level === 'beginner') return <EmptyState title="No skill check is required" description="Beginner setup uses your learning preferences to create a foundation-first roadmap." actionLabel="Continue setup" onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : '/onboarding/preferences')} />;
+  if (!enrollmentId || !course) return <EmptyState title="Course enrollment not found" description="Choose a course or learning path before starting a diagnostic." actionLabel={isPersonalizeFlow ? 'Back to dashboard' : 'Open learning catalog'} onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : '/onboarding/catalog')} />;
+  if (assessmentError || !questions.length) return <EmptyState title="Skill check unavailable" description={assessmentError?.message || `No ${level} skill-check questions are available for ${course.title} yet.`} actionLabel="Back to options" onAction={() => navigate(backTo)} />;
 
   return <OnboardingShell
     current="setup"
-    eyebrow="Skill check"
-    title={`${level} MERN skill check`}
-    description="Answer every question, then review your topic scores before updating your roadmap."
+    eyebrow="Course skill check"
+    title={`${level[0].toUpperCase()}${level.slice(1)} ${course.title} skill check`}
+    description="Answer every question, then review your topic scores before generating or updating this course roadmap."
     backTo={backTo}
     aside={<>
       <OnboardingInsightCard title="Your progress" badge={`${completion}%`} items={[
         { title: `${answeredCount}/${questions.length} answered`, description: 'Answer every question to get a complete result.' },
-        { title: 'After submission', description: 'You will see your topic scores, stronger areas, topics to practise, and a roadmap recommendation.' }
+        { title: 'Course-scoped questions', description: `Every question comes from ${course.title}; diagnostics from unrelated technologies are excluded.` }
       ]} />
       <Card>
         <div className="mb-2 flex justify-between text-sm font-semibold text-muted-foreground"><span>Completion</span><span>{completion}%</span></div>
