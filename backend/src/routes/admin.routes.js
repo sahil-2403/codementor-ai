@@ -5,6 +5,13 @@ import { ROLES } from '../constants/roles.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import { adminWriteLimiter } from '../middlewares/rateLimit.middleware.js';
 import {
+  technologySchema,
+  technologyUpdateSchema,
+  courseSchema,
+  courseUpdateSchema,
+  learningPathSchema,
+  learningPathUpdateSchema,
+  catalogStatusUpdateSchema,
   topicSchema,
   topicUpdateSchema,
   topicStatusUpdateSchema,
@@ -57,12 +64,53 @@ import {
   updateTemplateStatus,
   deleteTemplate
 } from '../controllers/admin.controller.js';
+import {
+  listTechnologies,
+  getTechnology,
+  createTechnology,
+  updateTechnology,
+  updateTechnologyStatus,
+  deleteTechnology,
+  listCourses,
+  getCourse,
+  createCourse,
+  updateCourse,
+  updateCourseStatus,
+  deleteCourse,
+  listLearningPaths,
+  getLearningPath,
+  createLearningPath,
+  updateLearningPath,
+  updateLearningPathStatus,
+  deleteLearningPath
+} from '../controllers/adminCatalog.controller.js';
 import { contentOverview } from '../controllers/adminOverview.controller.js';
 
 const router = Router();
 router.use(requireAuth, requireRole(ROLES.ADMIN));
 
 router.get('/content-overview', contentOverview);
+
+router.get('/technologies', listTechnologies);
+router.post('/technologies', adminWriteLimiter, validate(technologySchema), createTechnology);
+router.get('/technologies/:id', validate(idParamSchema), getTechnology);
+router.patch('/technologies/:id', adminWriteLimiter, validate(idParamSchema), validate(technologyUpdateSchema), updateTechnology);
+router.patch('/technologies/:id/status', adminWriteLimiter, validate(idParamSchema), validate(catalogStatusUpdateSchema), updateTechnologyStatus);
+router.delete('/technologies/:id', adminWriteLimiter, validate(idParamSchema), deleteTechnology);
+
+router.get('/courses', listCourses);
+router.post('/courses', adminWriteLimiter, validate(courseSchema), createCourse);
+router.get('/courses/:id', validate(idParamSchema), getCourse);
+router.patch('/courses/:id', adminWriteLimiter, validate(idParamSchema), validate(courseUpdateSchema), updateCourse);
+router.patch('/courses/:id/status', adminWriteLimiter, validate(idParamSchema), validate(catalogStatusUpdateSchema), updateCourseStatus);
+router.delete('/courses/:id', adminWriteLimiter, validate(idParamSchema), deleteCourse);
+
+router.get('/learning-paths', listLearningPaths);
+router.post('/learning-paths', adminWriteLimiter, validate(learningPathSchema), createLearningPath);
+router.get('/learning-paths/:id', validate(idParamSchema), getLearningPath);
+router.patch('/learning-paths/:id', adminWriteLimiter, validate(idParamSchema), validate(learningPathUpdateSchema), updateLearningPath);
+router.patch('/learning-paths/:id/status', adminWriteLimiter, validate(idParamSchema), validate(catalogStatusUpdateSchema), updateLearningPathStatus);
+router.delete('/learning-paths/:id', adminWriteLimiter, validate(idParamSchema), deleteLearningPath);
 
 router.get('/topics', listTopics);
 router.post('/topics', adminWriteLimiter, validate(topicSchema), createTopic);
