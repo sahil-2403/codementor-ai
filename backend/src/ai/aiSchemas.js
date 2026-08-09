@@ -12,12 +12,11 @@ export const roadmapResponseSchema = z.object({
   title: z.string().min(2),
   description: z.string().default(''),
   modules: z.array(z.object({
+    sourceOrder: z.coerce.number().int().min(1),
     title: z.string().min(1),
     description: z.string().default(''),
-    order: z.coerce.number().optional(),
-    durationDays: z.coerce.number().optional(),
-    lessonSlugs: z.array(z.string()).default([]),
-    quizTags: z.array(z.string()).default([])
+    order: z.coerce.number().int().min(1),
+    durationDays: z.coerce.number().int().min(1).max(90)
   })).min(1)
 });
 
