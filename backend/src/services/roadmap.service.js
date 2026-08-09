@@ -41,6 +41,33 @@ const ensureGeneratedCourseReady = async ({ course, userId, session = null }) =>
   return course;
 };
 
+const mergeAiModules = (templateModules = [], aiModules = []) => {
+  if (!templateModules.length || aiModules.length !== templateModules.length) return null;
+  const bySourceOrder = new Map(templateModules.map((module) => [Number(module.order), module]));
+  const used = new Set();
+  const merged = [];
+
+  for (const aiModule of aiModules) {
+    const sourceOrder = Number(aiModule.sourceOrder);
+    const source = bySourceOrder.get(sourceOrder);
+    if (!source || used.has(sourceOrder)) return null;
+    used.add(sourceOrder);
+    merged.push({
+      ...source,
+      title: aiModule.title || source.title,
+      description: aiModule.description ?? source.description,
+      order: Number(aiModule.order) || source.order,
+      durationDays: Number(aiModule.durationDays) || source.durationDays
+    });
+  }
+
+  const outputOrders = merged.map((module) => Number(module.order));
+  if (new Set(outputOrders).size !== outputOrders.length || outputOrders.some((order) => !Number.isInteger(order) || order < 1)) {
+    return null;
+  }
+  return merged;
+};
+
 const resolveEnrollmentCourse = async ({ userId, enrollmentId }) => {
   const enrollment = await Enrollment.findOne({ _id: enrollmentId, user: userId })
     .populate('course', 'title slug description category technologies primaryTechnology availableLevels status')
@@ -98,11 +125,12 @@ export const createCourseFromTemplate = async ({
         course: catalogCourse.toObject(),
         assessment
       });
-      if (aiRoadmap?.modules?.length) {
+      const personalizedModules = mergeAiModules(template.modules || [], aiRoadmap?.modules || []);
+      if (personalizedModules) {
         roadmapTitle = aiRoadmap.title || template.title;
         roadmapDescription = aiRoadmap.description || template.description;
         const templateObject = typeof template.toObject === 'function' ? template.toObject() : template;
-        templateForResolution = { ...templateObject, modules: aiRoadmap.modules, _aiGenerated: true };
+        templateForResolution = { ...templateObject, modules: personalizedModules, _aiGenerated: true };
         aiGenerated = true;
         await logAIUsage({
           user: userId,
