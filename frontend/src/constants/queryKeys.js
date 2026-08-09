@@ -13,6 +13,7 @@ export const queryKeys = {
   projectTask: (taskId) => ['project-task', taskId],
   interviewQuestions: (params = {}) => ['interview-questions', params],
   interviewAttempts: ['interview-attempts'],
+  adminContentOverview: ['admin-content-overview'],
   adminTopics: (params = {}) => ['admin-topics', params],
   adminTopic: (topicId) => ['admin-topic', topicId],
   adminTopicImpact: (topicId) => ['admin-topic-impact', topicId],
