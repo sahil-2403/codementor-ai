@@ -21,7 +21,14 @@ export const getQuizForModule = async ({ userId, moduleId }) => {
     courseId: course._id,
     moduleId,
     moduleTitle: module.title,
-    questions: module.quizQuestions.map((question) => ({ _id: question._id, question: question.question, type: question.type, options: question.options, difficulty: question.difficulty }))
+    questions: module.quizQuestions.map((question) => ({
+      _id: question._id,
+      question: question.question,
+      type: question.type,
+      codeSnippet: question.codeSnippet || '',
+      options: question.options,
+      difficulty: question.difficulty
+    }))
   };
 };
 
