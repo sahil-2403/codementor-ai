@@ -93,6 +93,32 @@ export default function TemplateEditorPage() {
     else createTemplate.mutate(payload, options);
   };
 
+  if (!isEditing && ['beginner', 'intermediate', 'advanced'].every((level) => unavailableLevels.includes(level))) {
+    return (
+      <PageShell className="space-y-5 pb-6">
+        <PageHeader
+          variant="compact"
+          eyebrow="Content administration"
+          eyebrowIcon={MapIcon}
+          title="Create roadmap template draft"
+          description="Each learning-path level can have only one roadmap template at a time."
+          actions={
+            <Link to="/admin/templates" className="ui-button ui-button--secondary gap-2">
+              <ArrowLeft size={16} aria-hidden="true" />
+              Back to templates
+            </Link>
+          }
+        />
+        <EmptyState
+          title="All learner levels are already configured"
+          description="Beginner, Intermediate, and Advanced already have templates. Edit an existing template, or delete an archived template before creating its replacement."
+          actionLabel="Open template management"
+          onAction={() => navigate('/admin/templates')}
+        />
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell className="space-y-5 pb-6">
       <PageHeader
