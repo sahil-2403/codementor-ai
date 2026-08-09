@@ -19,23 +19,28 @@ export default function OnboardingGuard({ mode = 'needs-onboarding' }) {
   if (isLoading) return <Loader label="Checking onboarding status..." />;
 
   const hasActiveCourse = Boolean(data?.hasActiveCourse);
+  const hasPendingEnrollment = Boolean(data?.hasPendingEnrollment);
+  const isCatalog = location.pathname === '/onboarding/catalog';
   const isPersonalizeFlow = new URLSearchParams(location.search).get('personalize') === 'true';
 
-  if (mode === 'needs-onboarding' && hasActiveCourse && !isPersonalizeFlow) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  if (mode === 'needs-onboarding' && !hasActiveCourse) {
-    if (data?.state === ONBOARDING_STATE.GOAL_PENDING && location.pathname !== '/onboarding/goal') {
-      return <Navigate to="/onboarding/goal" replace />;
+  if (mode === 'needs-onboarding') {
+    if (data?.state === ONBOARDING_STATE.CATALOG_PENDING && !isCatalog) {
+      return <Navigate to="/onboarding/catalog" replace />;
     }
+
+    // Catalog remains intentionally available even after the learner has an active
+    // course so they can start another independent course or learning path later.
+    if (hasActiveCourse && !hasPendingEnrollment && !isCatalog && !isPersonalizeFlow) {
+      return <Navigate to="/dashboard" replace />;
+    }
+
     if (ROADMAP_SETUP_STATES.includes(data?.state) && location.pathname !== '/onboarding/generating') {
       return <Navigate to={data?.nextPath || '/onboarding/generating'} replace />;
     }
   }
 
   if (mode === 'needs-course' && !hasActiveCourse) {
-    return <Navigate to={data?.nextPath || '/onboarding/goal'} replace />;
+    return <Navigate to={data?.nextPath || '/onboarding/catalog'} replace />;
   }
 
   return <Outlet />;
