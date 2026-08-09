@@ -13,6 +13,8 @@ import {
   transitionStatus
 } from './common.js';
 
+const legacyQuizBankFilter = { $or: [{ bank: 'quiz' }, { bank: { $exists: false } }] };
+
 const assertTemplateIdentityAvailable = async ({ goalKey, level, excludeId = null }) => {
   const filter = { goalKey, level };
   if (excludeId) filter._id = { $ne: excludeId };
@@ -51,23 +53,35 @@ const assertTemplatePublishable = async (template) => {
 
   const [lessons, questions] = await Promise.all([
     Lesson.find({ slug: { $in: allLessonSlugs }, status: PUBLISHABLE_STATUS.PUBLISHED }).select('slug').lean(),
-    QuizQuestion.find({ tags: { $in: allQuizTags }, status: PUBLISHABLE_STATUS.PUBLISHED }).select('tags').lean()
+    QuizQuestion.find({
+      $and: [
+        { tags: { $in: allQuizTags } },
+        { status: PUBLISHABLE_STATUS.PUBLISHED },
+        legacyQuizBankFilter
+      ]
+    }).select('tags').lean()
   ]);
 
   const publishedLessonSlugs = new Set(lessons.map((lesson) => lesson.slug));
   const missingLessons = allLessonSlugs.filter((slug) => !publishedLessonSlugs.has(slug));
   if (missingLessons.length) {
-    throw new ApiError(400, 'Roadmap template references lessons that are missing or not published',
+    throw new ApiError(
+      400,
+      'Roadmap template references lessons that are missing or not published',
       missingLessons.map((slug) => ({ field: 'modules.lessonSlugs', message: slug })),
-      'CONTENT_REFERENCE_INVALID');
+      'CONTENT_REFERENCE_INVALID'
+    );
   }
 
   const publishedQuestionTags = new Set(questions.flatMap((question) => question.tags || []));
   const missingQuizTags = Array.from(new Set(allQuizTags)).filter((tag) => !publishedQuestionTags.has(tag));
   if (missingQuizTags.length) {
-    throw new ApiError(400, 'Roadmap template references quiz tags with no published questions',
+    throw new ApiError(
+      400,
+      'Roadmap template references quiz tags with no published quiz questions',
       missingQuizTags.map((tag) => ({ field: 'modules.quizTags', message: tag })),
-      'CONTENT_REFERENCE_INVALID');
+      'CONTENT_REFERENCE_INVALID'
+    );
   }
 };
 
@@ -120,17 +134,18 @@ export const changeTemplateStatus = (args) => transitionStatus({
   ...args
 });
 
-export const duplicateTemplate = async (id) => {
-  const original = ensureFound(await RoadmapTemplate.findById(id), 'Roadmap template');
-  const duplicate = await RoadmapTemplate.create({
-    goalKey: `${original.goalKey}-copy-${Date.now()}`,
-    level: original.level,
-    title: `${original.title} Copy`,
-    description: original.description,
-    modules: original.modules,
-    estimatedDurationDays: original.estimatedDurationDays,
-    status: PUBLISHABLE_STATUS.DRAFT
-  });
+export const deleteTemplate = async (id) => {
+  const template = ensureFound(await RoadmapTemplate.findById(id), 'Roadmap template');
+  if (template.status === PUBLISHABLE_STATUS.PUBLISHED) {
+    throw new ApiError(
+      409,
+      'Archive the roadmap template before permanently deleting it',
+      [],
+      'TEMPLATE_DELETE_REQUIRES_ARCHIVE'
+    );
+  }
+
+  await template.deleteOne();
   await invalidateContentCache();
-  return duplicate;
+  return template;
 };
