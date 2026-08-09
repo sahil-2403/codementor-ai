@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 
 const interviewQuestionSchema = new mongoose.Schema(
   {
+    course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true, index: true },
+    technologies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Technology' }],
     question: { type: String, required: true },
     topic: { type: String, required: true, index: true },
     topicRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Topic', default: null, index: true },
@@ -10,16 +12,17 @@ const interviewQuestionSchema = new mongoose.Schema(
     expectedAnswer: { type: String, required: true },
     answerChecklist: [{ type: String }],
     tags: [{ type: String }],
-    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'published', index: true },
+    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft', index: true },
     manualArchive: { type: Boolean, default: false },
     statusBeforeManualArchive: { type: String, enum: ['draft', 'published'], default: null },
     archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
-    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
-    statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null }
+    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null }
   },
   { timestamps: true }
 );
 
+interviewQuestionSchema.index({ course: 1, status: 1, difficulty: 1, topic: 1 });
+interviewQuestionSchema.index({ technologies: 1, status: 1 });
 interviewQuestionSchema.index({ question: 'text', topic: 'text', tags: 'text' });
 interviewQuestionSchema.index({ archivedByTopics: 1, status: 1 });
 
