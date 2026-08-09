@@ -8,6 +8,8 @@ const topicCascadeQueryKeys = [
   ['admin-topic'],
   ['admin-topic-impact'],
   ['admin-lessons'],
+  ['admin-lesson'],
+  ['admin-lesson-impact'],
   ['admin-questions'],
   ['admin-interview-questions'],
   ['project-tasks'],
@@ -16,10 +18,26 @@ const topicCascadeQueryKeys = [
   ['dashboard']
 ];
 
+const lessonCascadeQueryKeys = [
+  ['admin-lessons'],
+  ['admin-lesson'],
+  ['admin-lesson-impact'],
+  ['admin-questions'],
+  ['project-tasks'],
+  ['project-task'],
+  ['lesson'],
+  ['quiz'],
+  ['roadmap'],
+  ['dashboard'],
+  ['reports']
+];
+
 export const useAdminTopics = (params = {}) => useQuery({ queryKey: queryKeys.adminTopics(params), queryFn: () => adminApi.topics(params), placeholderData: keepPreviousData });
 export const useAdminTopic = (topicId) => useQuery({ queryKey: queryKeys.adminTopic(topicId), queryFn: () => adminApi.topic(topicId), enabled: Boolean(topicId) });
 export const useAdminTopicImpact = (topicId, enabled = true) => useQuery({ queryKey: queryKeys.adminTopicImpact(topicId), queryFn: () => adminApi.topicImpact(topicId), enabled: Boolean(topicId) && enabled });
 export const useAdminLessons = (params = {}) => useQuery({ queryKey: queryKeys.adminLessons(params), queryFn: () => adminApi.lessons(params), placeholderData: keepPreviousData });
+export const useAdminLesson = (lessonId) => useQuery({ queryKey: queryKeys.adminLesson(lessonId), queryFn: () => adminApi.lesson(lessonId), enabled: Boolean(lessonId) });
+export const useAdminLessonImpact = (lessonId, enabled = true) => useQuery({ queryKey: queryKeys.adminLessonImpact(lessonId), queryFn: () => adminApi.lessonImpact(lessonId), enabled: Boolean(lessonId) && enabled });
 export const useAdminQuestions = (params = {}) => useQuery({ queryKey: queryKeys.adminQuestions(params), queryFn: () => adminApi.questions(params), placeholderData: keepPreviousData });
 export const useAdminInterviewQuestions = (params = {}) => useQuery({ queryKey: queryKeys.adminInterviewQuestions(params), queryFn: () => adminApi.interviewQuestions(params), placeholderData: keepPreviousData });
 export const useAdminTemplates = (params = {}) => useQuery({ queryKey: queryKeys.adminTemplates(params), queryFn: () => adminApi.templates(params), placeholderData: keepPreviousData });
@@ -30,9 +48,9 @@ export const useUpdateTopicStatus = () => useInvalidatingMutation(adminApi.updat
 export const useDeleteTopic = () => useInvalidatingMutation(adminApi.deleteTopic, topicCascadeQueryKeys);
 
 export const useCreateLesson = () => useInvalidatingMutation(adminApi.createLesson, [['admin-lessons']]);
-export const useUpdateLesson = () => useInvalidatingMutation(adminApi.updateLesson, [['admin-lessons']]);
-export const useUpdateLessonStatus = () => useInvalidatingMutation(adminApi.updateLessonStatus, [['admin-lessons']]);
-export const useArchiveLesson = () => useInvalidatingMutation(adminApi.archiveLesson, [['admin-lessons']]);
+export const useUpdateLesson = () => useInvalidatingMutation(adminApi.updateLesson, [['admin-lessons'], ['admin-lesson']]);
+export const useUpdateLessonStatus = () => useInvalidatingMutation(adminApi.updateLessonStatus, lessonCascadeQueryKeys);
+export const useDeleteLesson = () => useInvalidatingMutation(adminApi.deleteLesson, lessonCascadeQueryKeys);
 
 export const useCreateQuestion = () => useInvalidatingMutation(adminApi.createQuestion, [['admin-questions']]);
 export const useUpdateQuestion = () => useInvalidatingMutation(adminApi.updateQuestion, [['admin-questions']]);
