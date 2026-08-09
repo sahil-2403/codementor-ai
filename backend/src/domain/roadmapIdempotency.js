@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 
 const normalizeRoadmapPayload = (payload = {}) => ({
-  learningGoalId: payload.learningGoalId?.toString?.() || String(payload.learningGoalId || ''),
+  enrollmentId: payload.enrollmentId?.toString?.() || String(payload.enrollmentId || ''),
   assessmentId: payload.assessmentId?.toString?.() || String(payload.assessmentId || ''),
   roadmapType: payload.roadmapType || '',
   generatedReason: payload.generatedReason || ''
