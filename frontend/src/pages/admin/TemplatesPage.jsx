@@ -105,6 +105,7 @@ export default function TemplatesPage() {
         <div className="mt-4 space-y-3">
           {templates.length ? templates.map((template) => {
             const modules = template.modules || [];
+            const calculatedDurationDays = modules.reduce((sum, module) => sum + (Number(module.durationDays) || 0), 0);
             const canDelete = template.status !== 'published';
 
             return (
@@ -122,7 +123,7 @@ export default function TemplatesPage() {
 
                     <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
                       <span className="rounded-full bg-surface-secondary px-3 py-1.5">{modules.length} module{modules.length === 1 ? '' : 's'}</span>
-                      <span className="rounded-full bg-surface-secondary px-3 py-1.5">{template.estimatedDurationDays || 0} days</span>
+                      <span className="rounded-full bg-surface-secondary px-3 py-1.5">{calculatedDurationDays} days</span>
                     </div>
 
                     {modules.length ? (
