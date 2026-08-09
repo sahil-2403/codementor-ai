@@ -26,7 +26,10 @@ const quizQuestionSchema = new mongoose.Schema(
 
 // Missing bank values are treated as legacy quiz questions by the services.
 quizQuestionSchema.index({ bank: 1, status: 1, difficulty: 1, topic: 1, type: 1 });
-quizQuestionSchema.index({ archivedByTopics: 1, archivedByLessons: 1, status: 1 });
+// MongoDB cannot create one compound multikey index across both archive arrays.
+// Keep separate indexes so topic and lesson cascade lookups remain efficient.
+quizQuestionSchema.index({ archivedByTopics: 1, status: 1 });
+quizQuestionSchema.index({ archivedByLessons: 1, status: 1 });
 quizQuestionSchema.index({ tags: 1, bank: 1, status: 1 });
 quizQuestionSchema.index({ question: 'text', explanation: 'text', tags: 'text' });
 
