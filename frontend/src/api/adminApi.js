@@ -3,6 +3,8 @@ import api from './axiosInstance.js';
 const withParams = (params = {}) => ({ params: Object.fromEntries(Object.entries(params).filter(([, value]) => value !== '' && value !== undefined && value !== null)) });
 
 export const adminApi = {
+  contentOverview: () => api.get('/admin/content-overview').then((res) => res.data.data),
+
   topics: (params) => api.get('/admin/topics', withParams(params)).then((res) => res.data.data),
   topic: (id) => api.get(`/admin/topics/${id}`).then((res) => res.data.data),
   topicImpact: (id) => api.get(`/admin/topics/${id}/impact`).then((res) => res.data.data),
