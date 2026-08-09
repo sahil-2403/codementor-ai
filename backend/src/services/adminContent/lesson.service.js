@@ -8,6 +8,7 @@ import { CoursePlan } from '../../models/CoursePlan.js';
 import { Progress } from '../../models/Progress.js';
 import { RevisionItem } from '../../models/RevisionItem.js';
 import { WeeklyReport } from '../../models/WeeklyReport.js';
+import { RoadmapTemplate } from '../../models/RoadmapTemplate.js';
 import { env } from '../../config/env.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { generateSlug } from '../../utils/generateSlug.js';
@@ -16,8 +17,10 @@ import { listWithPagination } from '../listQuery.service.js';
 import { invalidateContentCache } from '../cacheInvalidation.service.js';
 import {
   PUBLISHABLE_STATUS,
+  assertCourseExists,
   assertTopicExists,
   cleanInterviewPairs,
+  cleanReferenceArray,
   cleanStringArray,
   ensureEditable,
   ensureFound,
@@ -30,46 +33,47 @@ const operationOptions = (session) => (session ? { session } : undefined);
 
 const runLifecycleOperation = async (operation) => {
   if (!env.enableMongoTransactions) return operation(null);
-
   const session = await mongoose.startSession();
   let result;
   try {
-    await session.withTransaction(async () => {
-      result = await operation(session);
-    });
+    await session.withTransaction(async () => { result = await operation(session); });
   } finally {
     await session.endSession();
   }
   return result;
 };
 
+const assertNotUsedByTemplate = async (lessonId, { publishedOnly = false } = {}) => {
+  const filter = { 'modules.lessons': lessonId };
+  if (publishedOnly) filter.status = PUBLISHABLE_STATUS.PUBLISHED;
+  const template = await RoadmapTemplate.findOne(filter).select('_id title status').lean();
+  if (template) {
+    throw new ApiError(
+      409,
+      publishedOnly
+        ? 'This lesson is used by a published roadmap template. Update or archive the template first.'
+        : 'This lesson is still referenced by a roadmap template. Remove it from the template first.',
+      [{ field: 'template', message: template.title }],
+      'TEMPLATE_DEPENDENCY_EXISTS'
+    );
+  }
+};
+
 const archiveDependentContent = async ({ model, contentIds, lessonId, session }) => {
   if (!contentIds.length) return;
-
   await model.updateMany(
     { _id: { $in: contentIds } },
     [
       {
         $set: {
-          archivedByLessons: {
-            $setUnion: [{ $ifNull: ['$archivedByLessons', []] }, [lessonId]]
-          },
+          archivedByLessons: { $setUnion: [{ $ifNull: ['$archivedByLessons', []] }, [lessonId]] },
           statusBeforeCascadeArchive: {
             $cond: [
-              { $ne: [{ $ifNull: ['$statusBeforeCascadeArchive', null] }, null] },
-              '$statusBeforeCascadeArchive',
-              {
-                $cond: [
-                  { $in: ['$status', ['draft', 'published']] },
-                  '$status',
-                  { $ifNull: ['$statusBeforeTopicArchive', null] }
-                ]
-              }
+              { $in: ['$status', ['draft', 'published']] },
+              '$status',
+              { $ifNull: ['$statusBeforeCascadeArchive', 'draft'] }
             ]
           },
-          // If a Topic archived this item first, move the original status into the
-          // shared cascade field so restoring the Topic cannot bypass this Lesson blocker.
-          statusBeforeTopicArchive: null,
           status: 'archived'
         }
       }
@@ -80,17 +84,10 @@ const archiveDependentContent = async ({ model, contentIds, lessonId, session })
 
 const restoreDependentContent = async ({ model, contentIds, lessonId, session }) => {
   if (!contentIds.length) return;
-
   await model.updateMany(
     { _id: { $in: contentIds } },
     [
-      {
-        $set: {
-          archivedByLessons: {
-            $setDifference: [{ $ifNull: ['$archivedByLessons', []] }, [lessonId]]
-          }
-        }
-      },
+      { $set: { archivedByLessons: { $setDifference: [{ $ifNull: ['$archivedByLessons', []] }, [lessonId]] } } },
       {
         $set: {
           status: {
@@ -111,8 +108,7 @@ const restoreDependentContent = async ({ model, contentIds, lessonId, session })
               {
                 $and: [
                   { $eq: [{ $size: { $ifNull: ['$archivedByLessons', []] } }, 0] },
-                  { $eq: [{ $size: { $ifNull: ['$archivedByTopics', []] } }, 0] },
-                  { $in: ['$statusBeforeCascadeArchive', ['draft', 'published']] }
+                  { $eq: [{ $size: { $ifNull: ['$archivedByTopics', []] } }, 0] }
                 ]
               },
               null,
@@ -131,78 +127,41 @@ const assertLessonPublishable = async (lesson) => {
   if (String(lesson.title || '').trim().length < 2) errors.push({ field: 'title', message: 'Title is required' });
   if (String(lesson.theory || '').trim().length < 10) errors.push({ field: 'theory', message: 'Theory must contain at least 10 characters' });
   if (!lesson.topic) errors.push({ field: 'topic', message: 'Topic is required' });
-  if (lesson.codeExample && !String(lesson.codeExplanation || '').trim()) {
-    errors.push({ field: 'codeExplanation', message: 'Explain the code example before publishing' });
-  }
-  lesson.interviewQuestions.forEach((item, index) => {
-    if (!String(item.question || '').trim() || !String(item.answer || '').trim()) {
-      errors.push({ field: `interviewQuestions.${index}`, message: 'Each interview question must include both a question and answer' });
-    }
+  if (lesson.codeExample && !String(lesson.codeExplanation || '').trim()) errors.push({ field: 'codeExplanation', message: 'Explain the code example before publishing' });
+  (lesson.interviewQuestions || []).forEach((item, index) => {
+    if (!String(item.question || '').trim() || !String(item.answer || '').trim()) errors.push({ field: `interviewQuestions.${index}`, message: 'Each interview question must include both a question and answer' });
   });
   if (errors.length) throw new ApiError(400, 'Lesson is not ready to publish', errors, 'CONTENT_NOT_READY');
-  await assertTopicExists(lesson.topic);
+  await assertCourseExists(lesson.course, { requirePublished: true });
+  await assertTopicExists({ topicId: lesson.topic, courseId: lesson.course });
 };
 
 export const resolveLessonImpact = async (lessonId, { session = null } = {}) => {
   const lesson = ensureFound(
-    await withSession(Lesson.findById(lessonId).populate('topic', 'title status'), session),
-    'Lesson'
-  );
-
-  const quizDocs = await withSession(
-    QuizQuestion.find({ relatedLesson: lesson._id }).select('_id'),
-    session
-  );
-  const quizQuestionIds = ids(quizDocs);
-
-  const projectDocs = await withSession(
-    ProjectTask.find({ relatedLessons: lesson._id }).select('_id'),
-    session
-  );
-  const projectTaskIds = ids(projectDocs);
-
-  const [
-    projectSubmissions,
-    quizAttempts,
-    affectedCoursePlans,
-    progressRecords,
-    revisionItems,
-    weeklyReports
-  ] = await Promise.all([
-    projectTaskIds.length
-      ? withSession(ProjectSubmission.countDocuments({ projectTask: { $in: projectTaskIds } }), session)
-      : 0,
-    quizQuestionIds.length
-      ? withSession(QuizAttempt.countDocuments({ 'answers.question': { $in: quizQuestionIds } }), session)
-      : 0,
-    withSession(
-      CoursePlan.countDocuments({
-        $or: [
-          { 'modules.lessons.lesson': lesson._id },
-          ...(quizQuestionIds.length ? [{ 'modules.quizQuestions': { $in: quizQuestionIds } }] : [])
-        ]
-      }),
+    await withSession(
+      Lesson.findById(lessonId).populate('course', 'title slug status').populate('topic', 'title status course'),
       session
     ),
+    'Lesson'
+  );
+  const quizDocs = await withSession(QuizQuestion.find({ relatedLesson: lesson._id }).select('_id'), session);
+  const projectDocs = await withSession(ProjectTask.find({ relatedLessons: lesson._id }).select('_id'), session);
+  const quizQuestionIds = ids(quizDocs);
+  const projectTaskIds = ids(projectDocs);
+  const [projectSubmissions, quizAttempts, affectedCoursePlans, progressRecords, revisionItems, weeklyReports, templates] = await Promise.all([
+    projectTaskIds.length ? withSession(ProjectSubmission.countDocuments({ projectTask: { $in: projectTaskIds } }), session) : 0,
+    quizQuestionIds.length ? withSession(QuizAttempt.countDocuments({ 'answers.question': { $in: quizQuestionIds } }), session) : 0,
+    withSession(CoursePlan.countDocuments({ $or: [{ 'modules.lessons.lesson': lesson._id }, ...(quizQuestionIds.length ? [{ 'modules.quizQuestions': { $in: quizQuestionIds } }] : [])] }), session),
     withSession(Progress.countDocuments({ completedLessons: lesson._id }), session),
     withSession(RevisionItem.countDocuments({ relatedLesson: lesson._id }), session),
-    withSession(WeeklyReport.countDocuments({ completedLessons: lesson._id }), session)
+    withSession(WeeklyReport.countDocuments({ completedLessons: lesson._id }), session),
+    withSession(RoadmapTemplate.countDocuments({ 'modules.lessons': lesson._id }), session)
   ]);
-
   return {
     lesson,
     quizQuestionIds,
     projectTaskIds,
-    counts: {
-      quizQuestions: quizQuestionIds.length,
-      projects: projectTaskIds.length,
-      projectSubmissions,
-      quizAttempts,
-      affectedCoursePlans,
-      progressRecords,
-      revisionItems,
-      weeklyReports
-    }
+    counts: { quizQuestions: quizQuestionIds.length, projects: projectTaskIds.length, projectSubmissions, quizAttempts, affectedCoursePlans, progressRecords, revisionItems, weeklyReports, templates }
   };
 };
 
@@ -212,12 +171,21 @@ export const listLessons = async (query = {}) => {
   if (search) filter.$or = [{ title: search }, { theory: search }, { tags: search }];
   if (query.status) filter.status = query.status;
   if (query.difficulty) filter.difficulty = query.difficulty;
+  if (query.course && mongoose.isValidObjectId(query.course)) filter.course = query.course;
   if (query.topic && mongoose.isValidObjectId(query.topic)) filter.topic = query.topic;
-  return listWithPagination({ model: Lesson, filter, query, populate: ['topic'] });
+  return listWithPagination({
+    model: Lesson,
+    filter,
+    query,
+    populate: [
+      { path: 'course', select: 'title slug status' },
+      { path: 'topic', select: 'title status course' }
+    ]
+  });
 };
 
 export const getLesson = async (id) => ensureFound(
-  await Lesson.findById(id).populate('topic', 'title status'),
+  await Lesson.findById(id).populate('course', 'title slug status').populate('topic', 'title status course'),
   'Lesson'
 );
 
@@ -227,9 +195,11 @@ export const getLessonImpact = async (id) => {
 };
 
 export const createLesson = async (payload) => {
-  await assertTopicExists(payload.topic);
+  await assertCourseExists(payload.course);
+  await assertTopicExists({ topicId: payload.topic, courseId: payload.course });
   const lesson = await Lesson.create({
     ...payload,
+    technologies: cleanReferenceArray(payload.technologies),
     slug: generateSlug(payload.title),
     commonMistakes: cleanStringArray(payload.commonMistakes),
     interviewQuestions: cleanInterviewPairs(payload.interviewQuestions),
@@ -238,29 +208,38 @@ export const createLesson = async (payload) => {
     manualArchive: false
   });
   await invalidateContentCache();
-  return lesson.populate('topic', 'title status');
+  return lesson.populate([
+    { path: 'course', select: 'title slug status' },
+    { path: 'topic', select: 'title status course' }
+  ]);
 };
 
 export const updateLesson = async ({ id, payload }) => {
   const lesson = ensureFound(await Lesson.findById(id), 'Lesson');
   ensureEditable(lesson, 'Lesson');
-  if (payload.topic) await assertTopicExists(payload.topic);
+  if (payload.course && payload.course.toString() !== lesson.course.toString()) {
+    throw new ApiError(409, 'Lesson course cannot be changed. Create the lesson under the target course instead.', [], 'CONTENT_COURSE_IMMUTABLE');
+  }
+  const nextTopic = payload.topic || lesson.topic;
+  await assertTopicExists({ topicId: nextTopic, courseId: lesson.course });
   const normalized = {
     ...payload,
     ...(payload.title ? { slug: generateSlug(payload.title) } : {}),
+    ...(payload.technologies ? { technologies: cleanReferenceArray(payload.technologies) } : {}),
     ...(payload.commonMistakes ? { commonMistakes: cleanStringArray(payload.commonMistakes) } : {}),
     ...(payload.interviewQuestions ? { interviewQuestions: cleanInterviewPairs(payload.interviewQuestions) } : {}),
     ...(payload.tags ? { tags: cleanStringArray(payload.tags) } : {})
   };
-  delete normalized.status;
-  delete normalized.manualArchive;
-  delete normalized.archivedByTopics;
-  delete normalized.statusBeforeCascadeArchive;
-  delete normalized.statusBeforeTopicArchive;
+  delete normalized.course;
+  for (const field of ['status', 'manualArchive', 'archivedByTopics', 'statusBeforeCascadeArchive', 'statusBeforeTopicArchive']) delete normalized[field];
   Object.assign(lesson, normalized);
+  if (lesson.status === PUBLISHABLE_STATUS.PUBLISHED) await assertLessonPublishable(lesson);
   await lesson.save();
   await invalidateContentCache();
-  return lesson.populate('topic', 'title status');
+  return lesson.populate([
+    { path: 'course', select: 'title slug status' },
+    { path: 'topic', select: 'title status course' }
+  ]);
 };
 
 export const changeLessonStatus = async ({ id, status, confirmPublish = false }) => {
@@ -272,13 +251,13 @@ export const changeLessonStatus = async ({ id, status, confirmPublish = false })
       status,
       confirmPublish,
       validatePublish: assertLessonPublishable,
-      populate: ['topic']
+      populate: [
+        { path: 'course', select: 'title slug status' },
+        { path: 'topic', select: 'title status course' }
+      ]
     });
   }
-
-  if (!['archived', 'restored'].includes(status)) {
-    throw new ApiError(400, 'Invalid lesson status', [], 'VALIDATION_ERROR');
-  }
+  if (!['archived', 'restored'].includes(status)) throw new ApiError(400, 'Invalid lesson status', [], 'VALIDATION_ERROR');
 
   const result = await runLifecycleOperation(async (session) => {
     const impact = await resolveLessonImpact(id, { session });
@@ -287,81 +266,31 @@ export const changeLessonStatus = async ({ id, status, confirmPublish = false })
 
     if (status === 'archived') {
       if (lesson.status === PUBLISHABLE_STATUS.ARCHIVED) {
-        if (topicBlockers.length) {
-          throw new ApiError(
-            409,
-            'This lesson is archived by its parent topic. Manage the topic lifecycle instead.',
-            [],
-            'LESSON_ARCHIVED_BY_TOPIC'
-          );
-        }
+        if (topicBlockers.length) throw new ApiError(409, 'This lesson is archived by its parent topic. Manage the topic lifecycle instead.', [], 'LESSON_ARCHIVED_BY_TOPIC');
         return { lesson, counts: impact.counts };
       }
-
-      lesson.statusBeforeCascadeArchive =
-        lesson.statusBeforeCascadeArchive ||
-        lesson.statusBeforeTopicArchive ||
-        lesson.status;
+      await assertNotUsedByTemplate(lesson._id, { publishedOnly: true });
+      lesson.statusBeforeCascadeArchive = lesson.statusBeforeCascadeArchive || lesson.statusBeforeTopicArchive || lesson.status;
       lesson.statusBeforeTopicArchive = null;
       lesson.manualArchive = true;
       lesson.status = PUBLISHABLE_STATUS.ARCHIVED;
       await lesson.save(operationOptions(session));
-
-      await archiveDependentContent({
-        model: QuizQuestion,
-        contentIds: impact.quizQuestionIds,
-        lessonId: lesson._id,
-        session
-      });
-      await archiveDependentContent({
-        model: ProjectTask,
-        contentIds: impact.projectTaskIds,
-        lessonId: lesson._id,
-        session
-      });
-
+      await archiveDependentContent({ model: QuizQuestion, contentIds: impact.quizQuestionIds, lessonId: lesson._id, session });
+      await archiveDependentContent({ model: ProjectTask, contentIds: impact.projectTaskIds, lessonId: lesson._id, session });
       return { lesson, counts: impact.counts };
     }
 
-    if (lesson.status !== PUBLISHABLE_STATUS.ARCHIVED) {
-      return { lesson, counts: impact.counts };
-    }
+    if (lesson.status !== PUBLISHABLE_STATUS.ARCHIVED) return { lesson, counts: impact.counts };
+    if (topicBlockers.length) throw new ApiError(409, 'Restore the parent topic before restoring this lesson.', [{ field: 'topic', message: 'The lesson is still archived by its parent topic' }], 'LESSON_ARCHIVED_BY_TOPIC');
 
-    if (topicBlockers.length) {
-      throw new ApiError(
-        409,
-        'Restore the parent topic before restoring this lesson.',
-        [{ field: 'topic', message: 'The lesson is still archived by its parent topic' }],
-        'LESSON_ARCHIVED_BY_TOPIC'
-      );
-    }
-
-    const previousStatus =
-      lesson.statusBeforeCascadeArchive ||
-      lesson.statusBeforeTopicArchive ||
-      PUBLISHABLE_STATUS.DRAFT;
-
+    const previousStatus = lesson.statusBeforeCascadeArchive || lesson.statusBeforeTopicArchive || PUBLISHABLE_STATUS.DRAFT;
     lesson.manualArchive = false;
-    lesson.status = ['draft', 'published'].includes(previousStatus)
-      ? previousStatus
-      : PUBLISHABLE_STATUS.DRAFT;
+    lesson.status = ['draft', 'published'].includes(previousStatus) ? previousStatus : PUBLISHABLE_STATUS.DRAFT;
     lesson.statusBeforeCascadeArchive = null;
     lesson.statusBeforeTopicArchive = null;
     await lesson.save(operationOptions(session));
-
-    await restoreDependentContent({
-      model: QuizQuestion,
-      contentIds: impact.quizQuestionIds,
-      lessonId: lesson._id,
-      session
-    });
-    await restoreDependentContent({
-      model: ProjectTask,
-      contentIds: impact.projectTaskIds,
-      lessonId: lesson._id,
-      session
-    });
-
+    await restoreDependentContent({ model: QuizQuestion, contentIds: impact.quizQuestionIds, lessonId: lesson._id, session });
+    await restoreDependentContent({ model: ProjectTask, contentIds: impact.projectTaskIds, lessonId: lesson._id, session });
     return { lesson, counts: impact.counts };
   });
 
@@ -372,155 +301,19 @@ export const changeLessonStatus = async ({ id, status, confirmPublish = false })
 export const deleteLesson = async (id) => {
   const result = await runLifecycleOperation(async (session) => {
     const impact = await resolveLessonImpact(id, { session });
-    const { lesson, quizQuestionIds, projectTaskIds } = impact;
+    const { lesson, quizQuestionIds, projectTaskIds, counts } = impact;
+    await assertNotUsedByTemplate(lesson._id);
 
-    if (projectTaskIds.length) {
-      await ProjectSubmission.deleteMany(
-        { projectTask: { $in: projectTaskIds } },
-        operationOptions(session)
-      );
+    const historicalUsage = counts.projectSubmissions + counts.quizAttempts + counts.affectedCoursePlans + counts.progressRecords + counts.revisionItems + counts.weeklyReports;
+    if (historicalUsage > 0) {
+      throw new ApiError(409, 'This lesson already has learner history. Archive it instead of deleting it.', [], 'LEARNER_HISTORY_EXISTS');
     }
 
-    if (quizQuestionIds.length) {
-      await QuizAttempt.updateMany(
-        { 'answers.question': { $in: quizQuestionIds } },
-        [
-          {
-            $set: {
-              answers: {
-                $map: {
-                  input: { $ifNull: ['$answers', []] },
-                  as: 'answer',
-                  in: {
-                    $cond: [
-                      { $in: ['$$answer.question', quizQuestionIds] },
-                      { $mergeObjects: ['$$answer', { question: null }] },
-                      '$$answer'
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        ],
-        operationOptions(session)
-      );
-    }
-
-    await CoursePlan.updateMany(
-      {
-        $or: [
-          { 'modules.lessons.lesson': lesson._id },
-          ...(quizQuestionIds.length ? [{ 'modules.quizQuestions': { $in: quizQuestionIds } }] : [])
-        ]
-      },
-      [
-        {
-          $set: {
-            modules: {
-              $map: {
-                input: { $ifNull: ['$modules', []] },
-                as: 'module',
-                in: {
-                  $mergeObjects: [
-                    '$$module',
-                    {
-                      lessons: {
-                        $filter: {
-                          input: { $ifNull: ['$$module.lessons', []] },
-                          as: 'courseLesson',
-                          cond: { $ne: ['$$courseLesson.lesson', lesson._id] }
-                        }
-                      },
-                      quizQuestions: {
-                        $filter: {
-                          input: { $ifNull: ['$$module.quizQuestions', []] },
-                          as: 'questionId',
-                          cond: { $not: [{ $in: ['$$questionId', quizQuestionIds] }] }
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      ],
-      operationOptions(session)
-    );
-
-    await Progress.updateMany(
-      {
-        $or: [
-          { completedLessons: lesson._id },
-          { 'weakTopics.relatedLessons': lesson._id }
-        ]
-      },
-      [
-        {
-          $set: {
-            completedLessons: {
-              $filter: {
-                input: { $ifNull: ['$completedLessons', []] },
-                as: 'lessonId',
-                cond: { $ne: ['$$lessonId', lesson._id] }
-              }
-            },
-            weakTopics: {
-              $map: {
-                input: { $ifNull: ['$weakTopics', []] },
-                as: 'weakTopic',
-                in: {
-                  $mergeObjects: [
-                    '$$weakTopic',
-                    {
-                      relatedLessons: {
-                        $filter: {
-                          input: { $ifNull: ['$$weakTopic.relatedLessons', []] },
-                          as: 'relatedLessonId',
-                          cond: { $ne: ['$$relatedLessonId', lesson._id] }
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          }
-        }
-      ],
-      operationOptions(session)
-    );
-
-    await RevisionItem.deleteMany(
-      { relatedLesson: lesson._id },
-      operationOptions(session)
-    );
-
-    await WeeklyReport.updateMany(
-      { completedLessons: lesson._id },
-      { $pull: { completedLessons: lesson._id } },
-      operationOptions(session)
-    );
-
-    if (projectTaskIds.length) {
-      await ProjectTask.deleteMany(
-        { _id: { $in: projectTaskIds } },
-        operationOptions(session)
-      );
-    }
-    if (quizQuestionIds.length) {
-      await QuizQuestion.deleteMany(
-        { _id: { $in: quizQuestionIds } },
-        operationOptions(session)
-      );
-    }
-
+    if (projectTaskIds.length) await ProjectTask.deleteMany({ _id: { $in: projectTaskIds } }, operationOptions(session));
+    if (quizQuestionIds.length) await QuizQuestion.deleteMany({ _id: { $in: quizQuestionIds } }, operationOptions(session));
     await Lesson.deleteOne({ _id: lesson._id }, operationOptions(session));
-    return { lesson, counts: impact.counts };
+    return { lesson, counts };
   });
-
   await invalidateContentCache();
   return result;
 };
