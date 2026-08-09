@@ -1,3 +1,4 @@
+import { Course } from '../../models/Course.js';
 import { Topic } from '../../models/Topic.js';
 import { Lesson } from '../../models/Lesson.js';
 import { ApiError } from '../../utils/ApiError.js';
@@ -30,6 +31,10 @@ export const cleanStringArray = (values = []) => Array.from(new Set(
   values.map((value) => String(value).trim()).filter(Boolean)
 ));
 
+export const cleanReferenceArray = (values = []) => cleanStringArray(
+  values.map((value) => value?._id || value)
+);
+
 export const cleanInterviewPairs = (values = []) => values
   .map((item) => ({
     question: String(item?.question || '').trim(),
@@ -42,30 +47,48 @@ export const cleanTemplateModules = (modules = []) => modules.map((module, index
   description: String(module.description || '').trim(),
   order: Number(module.order) || index + 1,
   durationDays: Number(module.durationDays) || 7,
-  lessonSlugs: cleanStringArray(module.lessonSlugs),
+  lessons: cleanReferenceArray(module.lessons),
   quizTags: cleanStringArray(module.quizTags)
 }));
 
-export const assertTopicExists = async (topicId) => {
-  const topic = await Topic.findOne({
-    _id: topicId,
-    $or: [{ status: 'active' }, { status: { $exists: false } }]
-  }).select('_id title status').lean();
+export const assertCourseExists = async (courseId, { requirePublished = false } = {}) => {
+  const course = await Course.findById(courseId).select('_id title slug status availableLevels technologies primaryTechnology').lean();
+  if (!course || course.status === PUBLISHABLE_STATUS.ARCHIVED) {
+    throw new ApiError(400, 'Selected course is unavailable', [
+      { field: 'course', message: 'Choose an available course' }
+    ], 'CONTENT_REFERENCE_INVALID');
+  }
+  if (requirePublished && course.status !== PUBLISHABLE_STATUS.PUBLISHED) {
+    throw new ApiError(400, 'Course must be published first', [
+      { field: 'course', message: 'Publish the course before publishing dependent learner content' }
+    ], 'CONTENT_NOT_READY');
+  }
+  return course;
+};
+
+export const assertTopicExists = async ({ topicId, courseId }) => {
+  const topic = await Topic.findOne({ _id: topicId, course: courseId, status: 'active' })
+    .select('_id title status course').lean();
 
   if (!topic) {
-    throw new ApiError(400, 'Selected topic is unavailable', [
-      { field: 'topic', message: 'Choose an active topic' }
+    throw new ApiError(400, 'Selected topic is unavailable for this course', [
+      { field: 'topic', message: 'Choose an active topic from the selected course' }
     ], 'CONTENT_REFERENCE_INVALID');
   }
   return topic;
 };
 
-export const assertRelatedLesson = async ({ lessonId, topicId, requirePublished = false }) => {
+export const assertRelatedLesson = async ({ lessonId, topicId, courseId, requirePublished = false }) => {
   if (!lessonId) return null;
-  const lesson = await Lesson.findById(lessonId).select('_id title topic status').lean();
+  const lesson = await Lesson.findById(lessonId).select('_id title topic course status').lean();
   if (!lesson) {
     throw new ApiError(400, 'Selected related lesson does not exist', [
       { field: 'relatedLesson', message: 'Choose an existing lesson' }
+    ], 'CONTENT_REFERENCE_INVALID');
+  }
+  if (courseId && lesson.course.toString() !== courseId.toString()) {
+    throw new ApiError(400, 'Related lesson must belong to the selected course', [
+      { field: 'relatedLesson', message: 'Lesson course does not match the question course' }
     ], 'CONTENT_REFERENCE_INVALID');
   }
   if (topicId && lesson.topic.toString() !== topicId.toString()) {
@@ -93,7 +116,7 @@ export const transitionStatus = async ({ model, id, label, status, confirmPublis
         { field: 'confirmPublish', message: 'Confirm that the content has been reviewed' }
       ], 'PUBLISH_CONFIRMATION_REQUIRED');
     }
-    await validatePublish(document);
+    await validatePublish?.(document);
   }
   document.status = status;
   await document.save();
