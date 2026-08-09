@@ -5,7 +5,9 @@ const objectId = objectIdSchema;
 const difficultyEnum = z.enum(['beginner', 'intermediate', 'advanced']);
 const lifecycleStatusEnum = z.enum(['published', 'archived']);
 const lessonLifecycleStatusEnum = z.enum(['published', 'archived', 'restored']);
+const questionLifecycleStatusEnum = z.enum(['published', 'archived', 'restored']);
 const topicLifecycleStatusEnum = z.enum(['active', 'archived']);
+const questionBankEnum = z.enum(['quiz', 'skill_check']);
 const cleanString = z.string().trim();
 
 export const topicSchema = z.object({
@@ -70,7 +72,9 @@ export const lessonStatusUpdateSchema = z.object({
 export const questionSchema = z.object({
   body: z.object({
     question: cleanString.min(5),
+    bank: questionBankEnum.optional().default('quiz'),
     type: z.enum(['mcq', 'code_output', 'short_answer']).default('mcq'),
+    codeSnippet: z.string().optional().default(''),
     options: z.array(cleanString.min(1)).optional().default([]),
     correctAnswer: cleanString.min(1),
     explanation: z.string().optional().default(''),
@@ -85,10 +89,26 @@ export const questionUpdateSchema = z.object({
   body: questionSchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
 });
 
+export const questionStatusUpdateSchema = z.object({
+  body: z.object({
+    status: questionLifecycleStatusEnum,
+    confirmPublish: z.boolean().optional().default(false)
+  }).superRefine((body, context) => {
+    if (body.status === 'published' && body.confirmPublish !== true) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['confirmPublish'],
+        message: 'Confirm that the question has been reviewed before publishing'
+      });
+    }
+  })
+});
+
 export const interviewQuestionSchema = z.object({
   body: z.object({
     question: cleanString.min(5),
-    topic: cleanString.min(2),
+    topic: cleanString.optional().default(''),
+    topicRef: objectId.optional().nullable(),
     type: z.enum(['definition', 'concept', 'output', 'scenario', 'debugging', 'system_design_lite']).default('concept'),
     difficulty: difficultyEnum.default('beginner'),
     expectedAnswer: cleanString.min(1),
