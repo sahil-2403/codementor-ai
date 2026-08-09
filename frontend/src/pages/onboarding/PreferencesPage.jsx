@@ -21,7 +21,7 @@ const defaults = {
   dailyStudyTime: 120,
   targetDurationDays: 90,
   learningStyle: 'project-based',
-  knownBasics: 'HTML,CSS,Basic JavaScript',
+  knownBasics: '',
   mainFocus: 'job-preparation'
 };
 
@@ -29,29 +29,32 @@ export default function PreferencesPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading, error: statusError, refetch } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status, retry: false });
+  const enrollment = data?.currentEnrollment;
+  const offering = enrollment?.type === 'learning_path' ? enrollment?.learningPath : enrollment?.course;
   const { register, handleSubmit, setError, watch, reset, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(preferencesFormSchema),
     defaultValues: defaults
   });
 
   useEffect(() => {
-    const goal = data?.currentGoal;
-    if (!goal) return;
+    if (!enrollment) return;
     reset({
-      dailyStudyTime: goal.dailyStudyTime ?? defaults.dailyStudyTime,
-      targetDurationDays: goal.targetDurationDays ?? defaults.targetDurationDays,
-      learningStyle: goal.learningStyle || defaults.learningStyle,
-      knownBasics: goal.knownBasics?.length ? goal.knownBasics.join(',') : defaults.knownBasics,
-      mainFocus: goal.mainFocus || defaults.mainFocus
+      dailyStudyTime: enrollment.dailyStudyTime ?? defaults.dailyStudyTime,
+      targetDurationDays: enrollment.targetDurationDays ?? defaults.targetDurationDays,
+      learningStyle: enrollment.learningStyle || defaults.learningStyle,
+      knownBasics: enrollment.knownBasics?.length ? enrollment.knownBasics.join(', ') : defaults.knownBasics,
+      mainFocus: enrollment.mainFocus || defaults.mainFocus
     });
-  }, [data?.currentGoal?._id, reset]);
+  }, [enrollment?._id, reset]);
 
   const dailyTime = Number(watch('dailyStudyTime') || 0);
   const targetDays = Number(watch('targetDurationDays') || 0);
 
   const submit = async (values) => {
+    if (!enrollment?._id) return;
     try {
       const result = await onboardingApi.savePreferences({
+        enrollmentId: enrollment._id,
         dailyStudyTime: Number(values.dailyStudyTime),
         targetDurationDays: Number(values.targetDurationDays),
         learningStyle: values.learningStyle,
@@ -59,7 +62,7 @@ export default function PreferencesPage() {
         mainFocus: values.mainFocus
       });
       await queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus });
-      navigate(result?.goal?.onboardingState === 'roadmap_pending' ? '/onboarding/generating' : '/onboarding/assessment-intro');
+      navigate(result?.enrollment?.onboardingState === 'roadmap_pending' ? '/onboarding/generating' : '/onboarding/assessment-intro');
     } catch (err) {
       setError('root', { message: err?.message || 'Could not save your preferences.' });
     }
@@ -67,19 +70,30 @@ export default function PreferencesPage() {
 
   if (isLoading) return <Loader label="Loading your learning preferences..." />;
   if (statusError) return <EmptyState title="Your preferences could not load" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
+  if (!enrollment || !offering) return <EmptyState title="Your course selection is missing" description="Choose a course or learning path before setting preferences." actionLabel="Open learning catalog" onAction={() => navigate('/onboarding/catalog')} />;
+
+  const assessmentOptional = enrollment.level !== 'beginner';
 
   return <OnboardingShell
     current="setup"
-    eyebrow="Step 3 · Beginner setup"
+    eyebrow="Step 3 · Learning preferences"
     title="Set a learning pace that works for you"
-    description="Tell us how much time you have, how quickly you want to progress, and how you prefer to learn."
+    description={`Tell us how you want to study ${offering.title}. These preferences adjust pacing and personalization without changing the course curriculum.`}
     backTo="/onboarding/level"
     aside={<>
-      <OnboardingInsightCard title="Your plan will adjust" badge="Beginner" items={[
-        { title: 'Pace', description: `${dailyTime || 0} minutes per day across ${targetDays || 0} days helps decide how much to study each week.` },
-        { title: 'Focus', description: 'Job preparation adds more interview practice, while project building adds more implementation work.' }
+      <OnboardingInsightCard title={`${offering.title} setup`} badge={enrollment.level || 'Course'} items={[
+        { title: 'Pace', description: `${dailyTime || 0} minutes per day across ${targetDays || 0} days helps shape the recommended study pace.` },
+        { title: 'Focus', description: 'Job preparation emphasizes interview readiness, while project building emphasizes implementation practice.' }
       ]} />
-      <Card className="bg-success-soft"><ListChecks className="text-success" /><p className="mt-3 font-bold text-foreground">No skill check required</p><p className="mt-2 text-sm leading-6 text-muted-foreground">You can take an optional skill check later after completing the foundations.</p></Card>
+      <Card className={assessmentOptional ? 'bg-primary-soft' : 'bg-success-soft'}>
+        <ListChecks className={assessmentOptional ? 'text-primary' : 'text-success'} />
+        <p className="mt-3 font-bold text-foreground">{assessmentOptional ? 'Skill check is optional' : 'No skill check required'}</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {assessmentOptional
+            ? `After saving these preferences, you can take a ${enrollment.level} diagnostic for ${enrollment.currentCourse?.title || offering.title} or continue without it.`
+            : 'Beginner learners start from the course foundations and can take diagnostics later.'}
+        </p>
+      </Card>
     </>}
   >
     <Card>
@@ -101,9 +115,11 @@ export default function PreferencesPage() {
             <option value="interview-revision">Revise for interviews</option>
           </Select>
         </div>
-        <FormInput label="Skills you already know" registration={register('knownBasics')} error={errors.knownBasics?.message} placeholder="HTML, CSS, Basic JavaScript" />
-        <p className="-mt-3 text-xs text-muted-foreground">Separate multiple skills with commas.</p>
-        <Button type="submit" className="w-full" isLoading={isSubmitting} loadingLabel="Saving setup...">Continue to roadmap</Button>
+        <FormInput label="Skills you already know" registration={register('knownBasics')} error={errors.knownBasics?.message} placeholder="Example: HTML, Git, Java basics" />
+        <p className="-mt-3 text-xs text-muted-foreground">Optional. Separate multiple skills with commas.</p>
+        <Button type="submit" className="w-full" isLoading={isSubmitting} loadingLabel="Saving setup...">
+          {assessmentOptional ? 'Continue to skill check choice' : 'Create my roadmap'}
+        </Button>
       </form>
     </Card>
   </OnboardingShell>;
