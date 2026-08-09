@@ -12,6 +12,7 @@
     "migrate:attempt-numbers": "node src/migrations/backfillAttemptNumbers.js",
     "migrate:attempt-indexes": "node src/migrations/enforceAttemptIndexes.js",
     "migrate:roadmap-indexes": "node src/migrations/enforceRoadmapIndexes.js",
+    "migrate:question-archive-indexes": "node src/migrations/fixQuestionArchiveIndexes.js",
     "test": "node --test --test-concurrency=1 ./test/unit/backend.test.js",
     "check:gemini": "node scripts/checkGemini.mjs"
   },
