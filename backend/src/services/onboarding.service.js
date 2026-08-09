@@ -65,6 +65,7 @@ const deriveState = ({ enrollment, activeCourse, assessment, roadmapJob }) => {
   if (assessment?.status === 'completed' && enrollment.assessmentPreference === 'take') return ONBOARDING_STATES.ASSESSMENT_COMPLETED;
   if (enrollment.onboardingState && isOnboardingState(enrollment.onboardingState)) return enrollment.onboardingState;
   if (!enrollment.level) return ONBOARDING_STATES.LEVEL_PENDING;
+  if (!enrollment.preferencesCompletedAt) return ONBOARDING_STATES.PREFERENCES_PENDING;
   if (enrollment.assessmentPreference === 'skip' || enrollment.level === 'beginner') return ONBOARDING_STATES.ROADMAP_PENDING;
   return ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
 };
@@ -210,11 +211,10 @@ export const saveLevelSelection = async ({ userId, enrollmentId = null, level })
   enrollment.level = level;
   enrollment.assessmentPreference = 'not_applicable';
   enrollment.assessmentChoiceAt = null;
+  enrollment.preferencesCompletedAt = null;
   enrollment.onboardingErrorCode = '';
   enrollment.onboardingErrorMessage = '';
-  enrollment.onboardingState = level === 'beginner'
-    ? ONBOARDING_STATES.PREFERENCES_PENDING
-    : ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
+  enrollment.onboardingState = ONBOARDING_STATES.PREFERENCES_PENDING;
   await enrollment.save();
   return enrollment;
 };
