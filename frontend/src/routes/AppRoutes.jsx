@@ -14,7 +14,7 @@ const RegisterPage = lazy(() => import('../pages/public/RegisterPage.jsx'));
 const VerifyEmailPage = lazy(() => import('../pages/public/VerifyEmailPage.jsx'));
 const ForgotPasswordPage = lazy(() => import('../pages/public/ForgotPasswordPage.jsx'));
 const ResetPasswordPage = lazy(() => import('../pages/public/ResetPasswordPage.jsx'));
-const GoalPage = lazy(() => import('../pages/onboarding/GoalPage.jsx'));
+const CatalogPage = lazy(() => import('../pages/onboarding/CatalogPage.jsx'));
 const LevelPage = lazy(() => import('../pages/onboarding/LevelPage.jsx'));
 const PreferencesPage = lazy(() => import('../pages/onboarding/PreferencesPage.jsx'));
 const AssessmentIntroPage = lazy(() => import('../pages/onboarding/AssessmentIntroPage.jsx'));
@@ -63,7 +63,7 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route element={<OnboardingGuard mode="needs-onboarding" />}>
-            <Route path="/onboarding/goal" element={<GoalPage />} />
+            <Route path="/onboarding/catalog" element={<CatalogPage />} />
             <Route path="/onboarding/level" element={<LevelPage />} />
             <Route path="/onboarding/preferences" element={<PreferencesPage />} />
             <Route path="/onboarding/assessment-intro" element={<AssessmentIntroPage />} />
