@@ -28,19 +28,37 @@ export const questionFormSchema = z.object({
   topic: z.string().trim().min(1, 'Topic is required'),
   relatedLesson: z.string().default(''),
   difficulty: difficultyEnum,
-  options: z.string().default(''),
-  correctAnswer: z.string().trim().min(1, 'Correct answer is required'),
+  codeSnippet: z.string().default(''),
+  options: z.array(z.object({
+    value: z.string().trim().min(1, 'Enter an option or remove this row')
+  })).default([]),
+  correctOptionIndex: z.string().default(''),
+  correctAnswer: z.string().default(''),
   explanation: z.string().default(''),
   tags: z.string().default('')
+}).superRefine((values, context) => {
+  if (values.type === 'mcq') {
+    if (values.options.length < 2) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['options'], message: 'Add at least two answer options' });
+    }
+    const correctIndex = Number(values.correctOptionIndex);
+    if (!Number.isInteger(correctIndex) || !values.options[correctIndex]?.value?.trim()) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['correctOptionIndex'], message: 'Choose the correct option' });
+    }
+  } else if (!values.correctAnswer.trim()) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['correctAnswer'], message: 'Correct answer is required' });
+  }
 });
 
 export const interviewQuestionFormSchema = z.object({
   question: z.string().trim().min(5, 'Question is required'),
-  topic: z.string().trim().min(2, 'Topic is required'),
+  topicRef: z.string().trim().min(1, 'Topic is required'),
   type: z.enum(['definition', 'concept', 'output', 'scenario', 'debugging', 'system_design_lite']),
   difficulty: difficultyEnum,
   expectedAnswer: z.string().trim().min(1, 'Expected answer is required'),
-  answerChecklist: z.string().default(''),
+  answerChecklist: z.array(z.object({
+    value: z.string().trim().min(1, 'Enter a review point or remove this row')
+  })).default([]),
   tags: z.string().default('')
 });
 
