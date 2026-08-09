@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpenCheck, Gauge, GraduationCap } from 'lucide-react';
@@ -21,22 +21,29 @@ export default function LevelPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data, isLoading, error: statusError, refetch } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status, retry: false });
+  const enrollment = data?.currentEnrollment;
+  const offering = enrollment?.type === 'learning_path' ? enrollment?.learningPath : enrollment?.course;
+  const availableLevels = offering?.availableLevels || [];
+  const visibleLevels = useMemo(() => levels.filter((level) => availableLevels.includes(level.key)), [availableLevels]);
   const [selected, setSelected] = useState('beginner');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const selectedCopy = onboardingCopyByLevel[selected];
+  const selectedCopy = onboardingCopyByLevel[selected] || onboardingCopyByLevel.beginner;
 
   useEffect(() => {
-    if (data?.currentGoal?.level) setSelected(data.currentGoal.level);
-  }, [data?.currentGoal?.level]);
+    if (!visibleLevels.length) return;
+    if (enrollment?.level && availableLevels.includes(enrollment.level)) setSelected(enrollment.level);
+    else if (!availableLevels.includes(selected)) setSelected(visibleLevels[0].key);
+  }, [availableLevels, enrollment?.level, selected, visibleLevels]);
 
   const continueNext = async () => {
+    if (!enrollment?._id) return;
     try {
       setSaving(true);
       setError('');
-      const result = await onboardingApi.saveLevel({ level: selected });
+      await onboardingApi.saveLevel({ enrollmentId: enrollment._id, level: selected });
       await queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus });
-      navigate(result?.goal?.onboardingState === 'preferences_pending' ? '/onboarding/preferences' : '/onboarding/assessment-intro');
+      navigate('/onboarding/preferences');
     } catch (err) {
       setError(err?.message || 'Could not save your level.');
     } finally {
@@ -46,24 +53,30 @@ export default function LevelPage() {
 
   if (isLoading) return <Loader label="Loading your setup..." />;
   if (statusError) return <EmptyState title="Your setup could not load" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
+  if (!enrollment || !offering) return <EmptyState title="Choose what you want to learn first" description="Select a course or complete learning path before choosing a level." actionLabel="Open learning catalog" onAction={() => navigate('/onboarding/catalog')} />;
+  if (!visibleLevels.length) return <EmptyState title="No learner levels are available" description="This learning option is not ready to start yet." actionLabel="Choose another course" onAction={() => navigate('/onboarding/catalog')} />;
 
   return <OnboardingShell
     current="level"
     eyebrow="Step 2 · Current level"
     title="Choose the starting point that fits you"
-    description="Beginners can start right away. Intermediate and advanced learners can also take an optional skill check for a more focused roadmap."
-    backTo="/onboarding/goal"
+    description={`Choose your starting level for ${offering.title}. You can start at the level that matches your current experience rather than repeating material you already know.`}
+    backTo="/onboarding/catalog"
     aside={<>
       <OnboardingInsightCard title={selectedCopy.title} badge={selectedCopy.badge} items={[
         { title: 'What happens next?', description: selectedCopy.description },
-        { title: 'Can I change this later?', description: 'Yes. You can take a skill check later and update your roadmap without losing your progress.' }
+        { title: 'Course context', description: enrollment.type === 'learning_path' ? `This level starts your ${offering.title} path. Individual courses in the path can still use their own recommended level when configured.` : `Your ${offering.title} roadmap and diagnostic content will use this level.` }
       ]} />
-      <Card><p className="font-bold text-foreground">How your level helps</p><p className="mt-2 text-sm leading-6 text-muted-foreground">Your level decides how deeply each topic is covered and where your roadmap begins.</p></Card>
+      <Card>
+        <p className="font-bold text-foreground">Selected learning option</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">{offering.title}</p>
+        <p className="mt-1 text-xs font-semibold capitalize text-primary-strong">{enrollment.type === 'learning_path' ? 'Complete learning path' : 'Individual course'}</p>
+      </Card>
     </>}
   >
     <ErrorMessage message={error} />
     <div className="grid gap-4 md:grid-cols-3">
-      {levels.map((level) => {
+      {visibleLevels.map((level) => {
         const Icon = icons[level.key] || BookOpenCheck;
         const active = selected === level.key;
         return <button
@@ -85,8 +98,12 @@ export default function LevelPage() {
       })}
     </div>
     <Card className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div><p className="text-sm font-semibold text-muted-foreground">Selected level</p><p className="text-xl font-bold capitalize text-foreground">{selected}</p></div>
-      <Button onClick={continueNext} isLoading={saving} loadingLabel="Saving level..." className="px-6">Continue</Button>
+      <div>
+        <p className="text-sm font-semibold text-muted-foreground">Selected level</p>
+        <p className="text-xl font-bold capitalize text-foreground">{selected}</p>
+        <p className="mt-1 text-sm text-muted-foreground">for {offering.title}</p>
+      </div>
+      <Button onClick={continueNext} isLoading={saving} loadingLabel="Saving level..." className="px-6">Continue to preferences</Button>
     </Card>
   </OnboardingShell>;
 }
