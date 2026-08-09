@@ -88,6 +88,11 @@ export const getQuestion = asyncHandler(async (req, res) => {
   sendResponse(res, 200, 'Question details', { question });
 });
 
+export const questionImpact = asyncHandler(async (req, res) => {
+  const { question, counts } = await adminContent.getQuestionImpact(req.params.id);
+  sendResponse(res, 200, 'Question impact', { question, impact: counts });
+});
+
 export const createQuestion = asyncHandler(async (req, res) => {
   const question = await adminContent.createQuestion(req.body);
   sendResponse(res, 201, 'Question draft created', { question });
@@ -99,13 +104,16 @@ export const updateQuestion = asyncHandler(async (req, res) => {
 });
 
 export const updateQuestionStatus = asyncHandler(async (req, res) => {
-  const question = await adminContent.changeQuestionStatus({ id: req.params.id, ...req.body });
-  sendResponse(res, 200, `Question ${question.status}`, { question });
+  const result = await adminContent.changeQuestionStatus({ id: req.params.id, ...req.body });
+  const question = result?.question || result;
+  const counts = result?.counts || null;
+  const message = req.body.status === 'restored' ? 'Question restored' : `Question ${question.status}`;
+  sendResponse(res, 200, message, { question, ...(counts ? { impact: counts } : {}) });
 });
 
-export const archiveQuestion = asyncHandler(async (req, res) => {
-  const question = await adminContent.changeQuestionStatus({ id: req.params.id, status: 'archived' });
-  sendResponse(res, 200, 'Question archived', { question });
+export const deleteQuestion = asyncHandler(async (req, res) => {
+  const { question, counts } = await adminContent.deleteQuestion(req.params.id);
+  sendResponse(res, 200, 'Question permanently deleted', { question, impact: counts });
 });
 
 export const listInterviewQuestions = asyncHandler(async (req, res) => {
@@ -116,6 +124,11 @@ export const listInterviewQuestions = asyncHandler(async (req, res) => {
 export const getInterviewQuestion = asyncHandler(async (req, res) => {
   const question = await adminContent.getInterviewQuestion(req.params.id);
   sendResponse(res, 200, 'Interview question details', { interviewQuestion: question });
+});
+
+export const interviewQuestionImpact = asyncHandler(async (req, res) => {
+  const { interviewQuestion, counts } = await adminContent.getInterviewQuestionImpact(req.params.id);
+  sendResponse(res, 200, 'Interview question impact', { interviewQuestion, impact: counts });
 });
 
 export const createInterviewQuestion = asyncHandler(async (req, res) => {
@@ -129,13 +142,18 @@ export const updateInterviewQuestion = asyncHandler(async (req, res) => {
 });
 
 export const updateInterviewQuestionStatus = asyncHandler(async (req, res) => {
-  const question = await adminContent.changeInterviewQuestionStatus({ id: req.params.id, ...req.body });
-  sendResponse(res, 200, `Interview question ${question.status}`, { interviewQuestion: question });
+  const result = await adminContent.changeInterviewQuestionStatus({ id: req.params.id, ...req.body });
+  const question = result?.question || result;
+  const counts = result?.counts || null;
+  const message = req.body.status === 'restored'
+    ? 'Interview question restored'
+    : `Interview question ${question.status}`;
+  sendResponse(res, 200, message, { interviewQuestion: question, ...(counts ? { impact: counts } : {}) });
 });
 
-export const archiveInterviewQuestion = asyncHandler(async (req, res) => {
-  const question = await adminContent.changeInterviewQuestionStatus({ id: req.params.id, status: 'archived' });
-  sendResponse(res, 200, 'Interview question archived', { interviewQuestion: question });
+export const deleteInterviewQuestion = asyncHandler(async (req, res) => {
+  const { question, counts } = await adminContent.deleteInterviewQuestion(req.params.id);
+  sendResponse(res, 200, 'Interview question permanently deleted', { interviewQuestion: question, impact: counts });
 });
 
 export const listTemplates = asyncHandler(async (req, res) => {
