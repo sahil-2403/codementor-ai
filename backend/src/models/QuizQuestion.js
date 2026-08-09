@@ -15,6 +15,7 @@ const quizQuestionSchema = new mongoose.Schema(
     tags: [{ type: String }],
     status: { type: String, enum: ['draft', 'published', 'archived'], default: 'published' },
     manualArchive: { type: Boolean, default: false },
+    statusBeforeManualArchive: { type: String, enum: ['draft', 'published'], default: null },
     archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
     archivedByLessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }],
     statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
