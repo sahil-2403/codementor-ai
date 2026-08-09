@@ -3,7 +3,10 @@ import { adminApi } from '../api/adminApi.js';
 import { queryKeys } from '../constants/queryKeys.js';
 import { useInvalidatingMutation } from './queryUtils.js';
 
+const adminOverviewQueryKey = ['admin-content-overview'];
+
 const topicCascadeQueryKeys = [
+  adminOverviewQueryKey,
   ['admin-topics'],
   ['admin-topic'],
   ['admin-topic-impact'],
@@ -23,6 +26,7 @@ const topicCascadeQueryKeys = [
 ];
 
 const lessonCascadeQueryKeys = [
+  adminOverviewQueryKey,
   ['admin-lessons'],
   ['admin-lesson'],
   ['admin-lesson-impact'],
@@ -40,6 +44,7 @@ const lessonCascadeQueryKeys = [
 ];
 
 const questionLifecycleQueryKeys = [
+  adminOverviewQueryKey,
   ['admin-questions'],
   ['admin-question'],
   ['admin-question-impact'],
@@ -54,6 +59,7 @@ const questionLifecycleQueryKeys = [
 ];
 
 const interviewQuestionLifecycleQueryKeys = [
+  adminOverviewQueryKey,
   ['admin-interview-questions'],
   ['admin-interview-question'],
   ['admin-interview-question-impact'],
@@ -64,11 +70,13 @@ const interviewQuestionLifecycleQueryKeys = [
 ];
 
 const templateLifecycleQueryKeys = [
+  adminOverviewQueryKey,
   ['admin-templates'],
   ['admin-template'],
   ['onboarding-status']
 ];
 
+export const useAdminContentOverview = () => useQuery({ queryKey: queryKeys.adminContentOverview, queryFn: adminApi.contentOverview });
 export const useAdminTopics = (params = {}) => useQuery({ queryKey: queryKeys.adminTopics(params), queryFn: () => adminApi.topics(params), placeholderData: keepPreviousData });
 export const useAdminTopic = (topicId) => useQuery({ queryKey: queryKeys.adminTopic(topicId), queryFn: () => adminApi.topic(topicId), enabled: Boolean(topicId) });
 export const useAdminTopicImpact = (topicId, enabled = true) => useQuery({ queryKey: queryKeys.adminTopicImpact(topicId), queryFn: () => adminApi.topicImpact(topicId), enabled: Boolean(topicId) && enabled });
@@ -84,23 +92,23 @@ export const useAdminInterviewQuestionImpact = (questionId, enabled = true) => u
 export const useAdminTemplates = (params = {}) => useQuery({ queryKey: queryKeys.adminTemplates(params), queryFn: () => adminApi.templates(params), placeholderData: keepPreviousData });
 export const useAdminTemplate = (templateId) => useQuery({ queryKey: queryKeys.adminTemplate(templateId), queryFn: () => adminApi.template(templateId), enabled: Boolean(templateId) });
 
-export const useCreateTopic = () => useInvalidatingMutation(adminApi.createTopic, [['admin-topics']]);
-export const useUpdateTopic = () => useInvalidatingMutation(adminApi.updateTopic, [['admin-topics'], ['admin-topic'], ['admin-interview-questions']]);
+export const useCreateTopic = () => useInvalidatingMutation(adminApi.createTopic, [adminOverviewQueryKey, ['admin-topics']]);
+export const useUpdateTopic = () => useInvalidatingMutation(adminApi.updateTopic, [adminOverviewQueryKey, ['admin-topics'], ['admin-topic'], ['admin-interview-questions']]);
 export const useUpdateTopicStatus = () => useInvalidatingMutation(adminApi.updateTopicStatus, topicCascadeQueryKeys);
 export const useDeleteTopic = () => useInvalidatingMutation(adminApi.deleteTopic, topicCascadeQueryKeys);
 
-export const useCreateLesson = () => useInvalidatingMutation(adminApi.createLesson, [['admin-lessons']]);
-export const useUpdateLesson = () => useInvalidatingMutation(adminApi.updateLesson, [['admin-lessons'], ['admin-lesson']]);
+export const useCreateLesson = () => useInvalidatingMutation(adminApi.createLesson, [adminOverviewQueryKey, ['admin-lessons']]);
+export const useUpdateLesson = () => useInvalidatingMutation(adminApi.updateLesson, [adminOverviewQueryKey, ['admin-lessons'], ['admin-lesson']]);
 export const useUpdateLessonStatus = () => useInvalidatingMutation(adminApi.updateLessonStatus, lessonCascadeQueryKeys);
 export const useDeleteLesson = () => useInvalidatingMutation(adminApi.deleteLesson, lessonCascadeQueryKeys);
 
-export const useCreateQuestion = () => useInvalidatingMutation(adminApi.createQuestion, [['admin-questions']]);
-export const useUpdateQuestion = () => useInvalidatingMutation(adminApi.updateQuestion, [['admin-questions'], ['admin-question']]);
+export const useCreateQuestion = () => useInvalidatingMutation(adminApi.createQuestion, [adminOverviewQueryKey, ['admin-questions']]);
+export const useUpdateQuestion = () => useInvalidatingMutation(adminApi.updateQuestion, [adminOverviewQueryKey, ['admin-questions'], ['admin-question']]);
 export const useUpdateQuestionStatus = () => useInvalidatingMutation(adminApi.updateQuestionStatus, questionLifecycleQueryKeys);
 export const useDeleteQuestion = () => useInvalidatingMutation(adminApi.deleteQuestion, questionLifecycleQueryKeys);
 
-export const useCreateInterviewQuestion = () => useInvalidatingMutation(adminApi.createInterviewQuestion, [['admin-interview-questions']]);
-export const useUpdateInterviewQuestion = () => useInvalidatingMutation(adminApi.updateInterviewQuestion, [['admin-interview-questions'], ['admin-interview-question']]);
+export const useCreateInterviewQuestion = () => useInvalidatingMutation(adminApi.createInterviewQuestion, [adminOverviewQueryKey, ['admin-interview-questions']]);
+export const useUpdateInterviewQuestion = () => useInvalidatingMutation(adminApi.updateInterviewQuestion, [adminOverviewQueryKey, ['admin-interview-questions'], ['admin-interview-question']]);
 export const useUpdateInterviewQuestionStatus = () => useInvalidatingMutation(adminApi.updateInterviewQuestionStatus, interviewQuestionLifecycleQueryKeys);
 export const useDeleteInterviewQuestion = () => useInvalidatingMutation(adminApi.deleteInterviewQuestion, interviewQuestionLifecycleQueryKeys);
 
