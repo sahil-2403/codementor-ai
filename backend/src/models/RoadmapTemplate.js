@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { COURSE_LEVELS } from './Course.js';
+import { COURSE_LEVELS, Course } from './Course.js';
+import { Lesson } from './Lesson.js';
 
 const templateModuleSchema = new mongoose.Schema(
   {
@@ -25,6 +26,28 @@ const roadmapTemplateSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+roadmapTemplateSchema.pre('validate', async function validateOwnership() {
+  if (!this.course) return;
+  const course = await Course.findById(this.course).select('_id status availableLevels').lean();
+  if (!course || course.status === 'archived') {
+    this.invalidate('course', 'Roadmap template must belong to an available course');
+    return;
+  }
+  if (this.level && !(course.availableLevels || []).includes(this.level)) {
+    this.invalidate('level', 'Template level must be supported by the selected course');
+  }
+
+  const lessonIds = (this.modules || []).flatMap((module) => module.lessons || []);
+  if (!lessonIds.length) return;
+  const lessons = await Lesson.find({ _id: { $in: lessonIds } }).select('_id course').lean();
+  const uniqueLessonIds = new Set(lessonIds.map(String));
+  if (lessons.length !== uniqueLessonIds.size) {
+    this.invalidate('modules', 'One or more template lessons do not exist');
+  } else if (lessons.some((lesson) => lesson.course.toString() !== this.course.toString())) {
+    this.invalidate('modules', 'All template lessons must belong to the selected course');
+  }
+});
 
 roadmapTemplateSchema.index({ course: 1, level: 1 }, { unique: true });
 roadmapTemplateSchema.index({ course: 1, level: 1, status: 1 });
