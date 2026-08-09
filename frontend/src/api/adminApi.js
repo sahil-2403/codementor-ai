@@ -36,9 +36,9 @@ export const adminApi = {
   deleteInterviewQuestion: (id) => api.delete(`/admin/interview-questions/${id}`).then((res) => res.data.data),
 
   templates: (params) => api.get('/admin/templates', withParams(params)).then((res) => res.data.data),
+  template: (id) => api.get(`/admin/templates/${id}`).then((res) => res.data.data),
   createTemplate: (payload) => api.post('/admin/templates', payload).then((res) => res.data.data),
   updateTemplate: ({ id, payload }) => api.patch(`/admin/templates/${id}`, payload).then((res) => res.data.data),
   updateTemplateStatus: ({ id, status, confirmPublish = false }) => api.patch(`/admin/templates/${id}/status`, { status, confirmPublish }).then((res) => res.data.data),
-  duplicateTemplate: (id) => api.post(`/admin/templates/${id}/duplicate`).then((res) => res.data.data),
-  archiveTemplate: (id) => api.delete(`/admin/templates/${id}`).then((res) => res.data.data)
+  deleteTemplate: (id) => api.delete(`/admin/templates/${id}`).then((res) => res.data.data)
 };
