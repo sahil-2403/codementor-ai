@@ -4,6 +4,7 @@ import { objectIdSchema } from '../utils/zod.js';
 const objectId = objectIdSchema;
 const difficultyEnum = z.enum(['beginner', 'intermediate', 'advanced']);
 const lifecycleStatusEnum = z.enum(['published', 'archived']);
+const lessonLifecycleStatusEnum = z.enum(['published', 'archived', 'restored']);
 const topicLifecycleStatusEnum = z.enum(['active', 'archived']);
 const cleanString = z.string().trim();
 
@@ -49,6 +50,21 @@ export const lessonSchema = z.object({
 
 export const lessonUpdateSchema = z.object({
   body: lessonSchema.shape.body.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
+});
+
+export const lessonStatusUpdateSchema = z.object({
+  body: z.object({
+    status: lessonLifecycleStatusEnum,
+    confirmPublish: z.boolean().optional().default(false)
+  }).superRefine((body, context) => {
+    if (body.status === 'published' && body.confirmPublish !== true) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['confirmPublish'],
+        message: 'Confirm that the lesson has been reviewed before publishing'
+      });
+    }
+  })
 });
 
 export const questionSchema = z.object({
