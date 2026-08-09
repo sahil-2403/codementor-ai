@@ -22,6 +22,7 @@ const lessonCascadeQueryKeys = [
   ['admin-lessons'],
   ['admin-lesson'],
   ['admin-lesson-impact'],
+  ['admin-topic-impact'],
   ['admin-questions'],
   ['project-tasks'],
   ['project-task'],
