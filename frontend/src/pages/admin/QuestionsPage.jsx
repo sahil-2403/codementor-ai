@@ -61,6 +61,7 @@ export default function QuestionsPage() {
 
   const quizQuestions = quizQuery.data?.questions || [];
   const interviewQuestions = interviewQuery.data?.interviewQuestions || [];
+  const availableLessons = (lessonsQuery.data?.lessons || []).filter((lesson) => lesson.status !== 'archived');
   const errorMessage = quizQuery.error?.message || interviewQuery.error?.message || topicsQuery.error?.message || lessonsQuery.error?.message || createQuiz.error?.message || updateQuiz.error?.message || updateQuizStatus.error?.message || archiveQuiz.error?.message || createInterview.error?.message || updateInterview.error?.message || updateInterviewStatus.error?.message || archiveInterview.error?.message;
   const switchBank = (nextBank) => {
     setBank(nextBank);
@@ -150,7 +151,7 @@ export default function QuestionsPage() {
     {bank === 'quiz' ? <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
       <Card>
         <SectionHeader title={editingQuiz ? 'Edit quiz question' : 'Create quiz-question draft'} description="For multiple-choice questions, the correct answer must exactly match one option. Short-answer questions cannot be published yet." />
-        <div className="mt-4"><QuestionForm topics={topicsQuery.data?.topics || []} lessons={lessonsQuery.data?.lessons || []} initialData={editingQuiz} onSubmit={submitQuiz} onCancel={editingQuiz ? () => setEditingQuiz(null) : null} isLoading={createQuiz.isPending || updateQuiz.isPending} /></div>
+        <div className="mt-4"><QuestionForm topics={topicsQuery.data?.topics || []} lessons={availableLessons} initialData={editingQuiz} onSubmit={submitQuiz} onCancel={editingQuiz ? () => setEditingQuiz(null) : null} isLoading={createQuiz.isPending || updateQuiz.isPending} /></div>
       </Card>
       <Card>
         <SectionHeader title="Quiz and skill-check questions" description={`${quizQuery.data?.pagination?.total || 0} questions in this bank.`} />
