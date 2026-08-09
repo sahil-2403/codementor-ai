@@ -4,7 +4,7 @@ export const cacheKeys = {
   dashboard: (userId) => buildCacheKey('dashboard', userId),
   roadmapVersions: (userId) => buildCacheKey('roadmap-versions', userId),
   lesson: (lessonId) => buildCacheKey('lesson', lessonId),
-  template: ({ goalKey, level }) => buildCacheKey('roadmap-template', goalKey, level),
+  template: ({ courseId, level }) => buildCacheKey('roadmap-template', courseId, level),
   resolvedTemplate: (templateId) => buildCacheKey('resolved-template', templateId),
   projectTasks: (filter = {}) => buildCacheKey('project-tasks', filter),
   interviewQuestions: (filter = {}) => buildCacheKey('interview-questions', filter)
