@@ -9,9 +9,14 @@ export const lessonFormSchema = z.object({
   theory: z.string().trim().min(10, 'Theory should explain the concept'),
   codeExample: z.string().default(''),
   codeExplanation: z.string().default(''),
-  commonMistakes: z.string().default(''),
+  commonMistakes: z.array(z.object({
+    value: z.string().trim().min(1, 'Enter the mistake or remove this row')
+  })).default([]),
   interviewDefinition: z.string().default(''),
-  interviewQuestions: z.string().default(''),
+  interviewQuestions: z.array(z.object({
+    question: z.string().trim().min(1, 'Question is required'),
+    answer: z.string().trim().min(1, 'Expected answer is required')
+  })).default([]),
   practiceTask: z.string().default(''),
   tags: z.string().default(''),
   estimatedMinutes: z.coerce.number().min(5).max(300)
