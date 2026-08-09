@@ -35,10 +35,10 @@ const metadata = (result) => ({
 });
 
 export const aiProvider = {
-  async generateRoadmap({ template, goal, assessment }) {
+  async generateRoadmap({ template, enrollment, course, assessment }) {
     ensureGeminiAvailable();
     const result = await geminiClient.generate({
-      ...buildRoadmapPrompt({ template, goal, assessment }),
+      ...buildRoadmapPrompt({ template, enrollment, course, assessment }),
       schema: roadmapResponseSchema,
       validationMessage: 'Gemini roadmap response did not match the roadmap schema'
     });
@@ -98,7 +98,7 @@ export const aiProvider = {
     const result = await geminiClient.generate({
       ...buildWeeklyReportPrompt({ progress }),
       schema: weeklyReportResponseSchema,
-      validationMessage: 'Gemini weekly report did not match the expected schema'
+      validationMessage: 'Gemini weekly report response did not match the expected schema'
     });
     return { ...result.data, ...metadata(result) };
   }
