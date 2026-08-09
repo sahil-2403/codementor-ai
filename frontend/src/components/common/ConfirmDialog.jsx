@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Button from './Button.jsx';
 
 const focusableSelector = [
@@ -79,38 +80,47 @@ export default function ConfirmDialog({
     };
   }, [open]);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
   const closeFromBackdrop = (event) => {
     if (event.target === event.currentTarget && !isLoading) onCancel?.();
   };
 
-  return <div className="ui-dialog-backdrop" onMouseDown={closeFromBackdrop}>
+  return createPortal(
     <div
-      ref={dialogRef}
-      className="ui-dialog-panel"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      aria-describedby={description ? descriptionId : undefined}
-      tabIndex={-1}
+      className="fixed inset-0 z-[100] flex h-[100dvh] w-screen items-center justify-center overflow-y-auto bg-slate-950/45 p-4 backdrop-blur-sm sm:p-6"
+      onMouseDown={closeFromBackdrop}
     >
-      <h2 id={titleId} className="text-2xl font-bold text-foreground">{title}</h2>
-      {description && <p id={descriptionId} className="mt-2 leading-7 text-muted-foreground">{description}</p>}
-      {children ? <div className="mt-5">{children}</div> : null}
-      <div className="mt-6 flex flex-wrap justify-end gap-3">
-        <Button ref={cancelButtonRef} type="button" variant="secondary" onClick={onCancel} disabled={isLoading}>{cancelLabel}</Button>
-        <Button
-          type="button"
-          variant={tone === 'danger' ? 'danger' : 'primary'}
-          onClick={onConfirm}
-          isLoading={isLoading}
-          loadingLabel={loadingLabel}
-          disabled={confirmDisabled}
-        >
-          {confirmLabel}
-        </Button>
+      <div
+        ref={dialogRef}
+        className="flex max-h-[calc(100dvh-2rem)] w-full max-w-md flex-col overflow-hidden rounded-panel border border-border bg-surface shadow-panel outline-none sm:max-h-[calc(100dvh-3rem)]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={description ? descriptionId : undefined}
+        tabIndex={-1}
+      >
+        <div className="min-h-0 overflow-y-auto px-5 pb-5 pt-5 overscroll-contain sm:px-6 sm:pb-6 sm:pt-6">
+          <h2 id={titleId} className="text-2xl font-bold text-foreground">{title}</h2>
+          {description && <p id={descriptionId} className="mt-2 leading-7 text-muted-foreground">{description}</p>}
+          {children ? <div className="mt-5">{children}</div> : null}
+        </div>
+
+        <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-border bg-surface px-5 py-4 sm:px-6">
+          <Button ref={cancelButtonRef} type="button" variant="secondary" onClick={onCancel} disabled={isLoading}>{cancelLabel}</Button>
+          <Button
+            type="button"
+            variant={tone === 'danger' ? 'danger' : 'primary'}
+            onClick={onConfirm}
+            isLoading={isLoading}
+            loadingLabel={loadingLabel}
+            disabled={confirmDisabled}
+          >
+            {confirmLabel}
+          </Button>
+        </div>
       </div>
-    </div>
-  </div>;
+    </div>,
+    document.body
+  );
 }
