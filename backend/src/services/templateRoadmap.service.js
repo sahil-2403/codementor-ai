@@ -22,7 +22,13 @@ const resolveModulesWithoutCache = async (template) => {
       .sort((a, b) => (lessonOrder.get(a.slug) ?? 999) - (lessonOrder.get(b.slug) ?? 999))
       .map((lesson, index) => ({ lesson: lesson._id, status: module.order === 1 ? 'available' : 'locked', order: index + 1 }));
 
-    const questions = await QuizQuestion.find({ tags: { $in: module.quizTags }, status: 'published' }).limit(8).select('_id').lean();
+    const questions = await QuizQuestion.find({
+      $and: [
+        { tags: { $in: module.quizTags } },
+        { status: 'published' },
+        { $or: [{ bank: 'quiz' }, { bank: { $exists: false } }] }
+      ]
+    }).limit(8).select('_id').lean();
 
     modules.push({
       title: module.title,
