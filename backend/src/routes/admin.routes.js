@@ -10,6 +10,7 @@ import {
   topicStatusUpdateSchema,
   lessonSchema,
   lessonUpdateSchema,
+  lessonStatusUpdateSchema,
   questionSchema,
   questionUpdateSchema,
   interviewQuestionSchema,
@@ -29,10 +30,11 @@ import {
   deleteTopic,
   listLessons,
   getLesson,
+  lessonImpact,
   createLesson,
   updateLesson,
   updateLessonStatus,
-  archiveLesson,
+  deleteLesson,
   listQuestions,
   getQuestion,
   createQuestion,
@@ -67,10 +69,11 @@ router.delete('/topics/:id', adminWriteLimiter, validate(idParamSchema), deleteT
 
 router.get('/lessons', listLessons);
 router.post('/lessons', adminWriteLimiter, validate(lessonSchema), createLesson);
+router.get('/lessons/:id/impact', validate(idParamSchema), lessonImpact);
 router.get('/lessons/:id', validate(idParamSchema), getLesson);
 router.patch('/lessons/:id', adminWriteLimiter, validate(idParamSchema), validate(lessonUpdateSchema), updateLesson);
-router.patch('/lessons/:id/status', adminWriteLimiter, validate(idParamSchema), validate(statusUpdateSchema), updateLessonStatus);
-router.delete('/lessons/:id', adminWriteLimiter, validate(idParamSchema), archiveLesson);
+router.patch('/lessons/:id/status', adminWriteLimiter, validate(idParamSchema), validate(lessonStatusUpdateSchema), updateLessonStatus);
+router.delete('/lessons/:id', adminWriteLimiter, validate(idParamSchema), deleteLesson);
 
 router.get('/questions', listQuestions);
 router.post('/questions', adminWriteLimiter, validate(questionSchema), createQuestion);
