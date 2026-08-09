@@ -76,4 +76,13 @@ export const templateFormSchema = z.object({
   title: z.string().trim().min(2, 'Title is required'),
   description: z.string().default(''),
   modules: z.array(roadmapModuleFormSchema).min(1, 'Add at least one roadmap module')
+}).superRefine((values, context) => {
+  const totalDays = values.modules.reduce((sum, module) => sum + Number(module.durationDays || 0), 0);
+  if (totalDays > 365) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['modules'],
+      message: 'The full roadmap must be 365 days or less'
+    });
+  }
 });
