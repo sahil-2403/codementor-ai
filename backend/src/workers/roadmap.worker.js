@@ -18,10 +18,7 @@ export const startRoadmapWorker = () => {
     let aiJob = aiJobId ? await AIJob.findById(aiJobId) : null;
 
     if (aiJob?.status === 'completed') {
-      return {
-        coursePlanId: aiJob.output?.coursePlanId?.toString?.() || null,
-        reused: true
-      };
+      return { coursePlanId: aiJob.output?.coursePlanId?.toString?.() || null, reused: true };
     }
 
     if (aiJob?.output?.bullJobId && !sameJobId(aiJob.output.bullJobId, job.id)) {
@@ -29,24 +26,13 @@ export const startRoadmapWorker = () => {
     }
 
     if (aiJob) {
-      const executionFilter = {
-        _id: aiJob._id,
-        status: { $in: ['queued', 'processing'] }
-      };
+      const executionFilter = { _id: aiJob._id, status: { $in: ['queued', 'processing'] } };
       if (aiJob.output?.bullJobId) executionFilter['output.bullJobId'] = aiJob.output.bullJobId;
-
       aiJob = await AIJob.findOneAndUpdate(
         executionFilter,
-        {
-          $set: {
-            status: 'processing',
-            'output.bullJobId': job.id
-          },
-          $max: { attempts: totalAttempt }
-        },
+        { $set: { status: 'processing', 'output.bullJobId': job.id }, $max: { attempts: totalAttempt } },
         { new: true }
       );
-
       if (!aiJob) return { ignored: true, reason: 'roadmap_job_no_longer_active' };
     }
 
@@ -60,11 +46,7 @@ export const startRoadmapWorker = () => {
       let completedJob = null;
       if (aiJob) {
         completedJob = await AIJob.findOneAndUpdate(
-          {
-            _id: aiJob._id,
-            status: { $in: ['queued', 'processing'] },
-            'output.bullJobId': job.id
-          },
+          { _id: aiJob._id, status: { $in: ['queued', 'processing'] }, 'output.bullJobId': job.id },
           {
             $set: {
               status: 'completed',
@@ -84,7 +66,7 @@ export const startRoadmapWorker = () => {
       if (!aiJob || completedJob) {
         await setRoadmapOnboardingState({
           userId: payload.userId,
-          learningGoalId: payload.learningGoalId,
+          enrollmentId: payload.enrollmentId,
           state: ONBOARDING_STATES.COMPLETED,
           roadmapJobId: aiJob?._id || null
         });
@@ -99,6 +81,7 @@ export const startRoadmapWorker = () => {
           ? 'Roadmap generation worker completed successfully'
           : 'A superseded roadmap worker finished without overwriting the active job',
         metadata: {
+          enrollmentId: payload.enrollmentId,
           jobId: aiJobId,
           bullJobId: job.id,
           version: course.version,
@@ -107,22 +90,14 @@ export const startRoadmapWorker = () => {
         }
       });
 
-      return {
-        coursePlanId: course._id.toString(),
-        version: course.version,
-        superseded: Boolean(aiJob && !completedJob)
-      };
+      return { coursePlanId: course._id.toString(), version: course.version, superseded: Boolean(aiJob && !completedJob) };
     } catch (error) {
       const hasMoreBullAttempts = job.attemptsMade + 1 < (job.opts.attempts || 1);
       let updatedJob = null;
 
       if (aiJob) {
         updatedJob = await AIJob.findOneAndUpdate(
-          {
-            _id: aiJob._id,
-            status: { $in: ['queued', 'processing'] },
-            'output.bullJobId': job.id
-          },
+          { _id: aiJob._id, status: { $in: ['queued', 'processing'] }, 'output.bullJobId': job.id },
           {
             $set: {
               status: hasMoreBullAttempts ? 'processing' : 'failed',
@@ -140,7 +115,7 @@ export const startRoadmapWorker = () => {
       if (updatedJob && !hasMoreBullAttempts) {
         await setRoadmapOnboardingState({
           userId: payload.userId,
-          learningGoalId: payload.learningGoalId,
+          enrollmentId: payload.enrollmentId,
           state: ONBOARDING_STATES.ROADMAP_FAILED,
           roadmapJobId: updatedJob._id,
           errorCode: error.code || 'ROADMAP_GENERATION_FAILED',
@@ -150,14 +125,13 @@ export const startRoadmapWorker = () => {
 
       await logActivity({
         user: payload.userId,
-        action: !updatedJob
-          ? 'roadmap_job_superseded_after_failure'
-          : (hasMoreBullAttempts ? 'roadmap_job_retrying' : 'roadmap_job_failed'),
+        action: !updatedJob ? 'roadmap_job_superseded_after_failure' : (hasMoreBullAttempts ? 'roadmap_job_retrying' : 'roadmap_job_failed'),
         entityType: 'AIJob',
         entityId: aiJob?._id || null,
         severity: !updatedJob || hasMoreBullAttempts ? 'warning' : 'critical',
         message: error.message,
         metadata: {
+          enrollmentId: payload.enrollmentId,
           bullJobId: job.id,
           roadmapType: payload.roadmapType,
           attemptsMade: totalAttempt,
@@ -166,10 +140,7 @@ export const startRoadmapWorker = () => {
         }
       });
 
-      if (!updatedJob && aiJob) {
-        return { ignored: true, reason: 'superseded_queue_failure' };
-      }
-
+      if (!updatedJob && aiJob) return { ignored: true, reason: 'superseded_queue_failure' };
       throw error;
     }
   }, { connection });
