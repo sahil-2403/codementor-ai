@@ -7,3 +7,4 @@ import './roadmapIdempotency.test.js';
 import './reliabilityPolicies.test.js';
 import './sourceContracts.test.js';
 import './templateAdmin.test.js';
+import './adminOverview.test.js';
