@@ -28,7 +28,8 @@ const lessonSchema = new mongoose.Schema(
     status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft' },
     manualArchive: { type: Boolean, default: false },
     archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
-    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null }
+    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
+    statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null }
   },
   { timestamps: true }
 );
