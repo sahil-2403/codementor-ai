@@ -17,7 +17,11 @@ import { queryKeys } from '../../constants/queryKeys.js';
 const roadmapRecommendationLabel = (value) => ({
   assessment_ai_personalized: 'Personalized roadmap',
   template_ai_adjusted: 'Adjusted roadmap',
-  template: 'Recommended roadmap'
+  template: 'Recommended roadmap',
+  foundation_repair: 'Foundation-focused roadmap',
+  gap_focused: 'Gap-focused roadmap',
+  accelerated: 'Accelerated roadmap',
+  balanced_personalized: 'Balanced personalized roadmap'
 }[value] || 'Personalized roadmap');
 
 export default function AssessmentReportPage() {
@@ -62,15 +66,15 @@ export default function AssessmentReportPage() {
     try {
       setCreating(true);
       setError('');
-      const learningGoalId = report?.learningGoalId;
+      const enrollmentId = report?.enrollmentId;
 
-      if (!learningGoalId) {
-        setError('Learning goal was not found. Please restart setup.');
+      if (!enrollmentId) {
+        setError('Course enrollment was not found. Please choose the course again.');
         return;
       }
 
       const result = await roadmapApi.fromAssessment({
-        learningGoalId,
+        enrollmentId,
         assessmentId,
         forceNewVersion: isPersonalizeFlow
       });
@@ -110,25 +114,25 @@ export default function AssessmentReportPage() {
     current="roadmap"
     eyebrow="Step 4 · Your results"
     title={`You scored ${report.score || 0}%`}
-    description={report.summary || 'Review your stronger areas and the topics that need more practice before creating your roadmap.'}
+    description={report.summary || 'Review your stronger areas and the topics that need more practice before creating your course roadmap.'}
     backTo={`/onboarding/assessment${personalizeQuery}`}
     aside={<>
       <OnboardingInsightCard title="Recommended next step" badge={report.recommendedLevel || 'Review'} items={[
         {
           title: roadmapRecommendationLabel(report.suggestedRoadmapType),
-          description: 'This recommendation is based on your topic scores and the areas that need more practice.'
+          description: 'This recommendation uses only your selected course diagnostic results and the areas that need more practice.'
         },
         {
-          title: isPersonalizeFlow ? 'Update your roadmap' : 'Create your roadmap',
+          title: isPersonalizeFlow ? 'Update this course roadmap' : 'Create this course roadmap',
           description: isPersonalizeFlow
-            ? 'Your updated roadmap will become active while your earlier progress stays available.'
+            ? 'The updated version replaces the active roadmap for this enrollment while preserving its earlier version.'
             : 'Your roadmap will open as soon as it is ready.'
         }
       ]} />
       <Card className="bg-primary-soft">
         <BarChart3 className="text-primary" aria-hidden="true" />
-        <p className="mt-3 font-bold text-foreground">Why these topics come first</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">Your category scores help place the topics that need more practice earlier in your roadmap.</p>
+        <p className="mt-3 font-bold text-foreground">Diagnostic emphasis, not a different course</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">Your scores can change emphasis and pacing, while the selected course remains the source of lessons and questions.</p>
       </Card>
     </>}
   >
@@ -169,8 +173,8 @@ export default function AssessmentReportPage() {
 
     <Card className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
       <div>
-        <h2 className="text-2xl font-bold text-foreground">{isPersonalizeFlow ? 'Create your updated roadmap' : 'Create your roadmap'}</h2>
-        <p className="mt-2 max-w-2xl text-muted-foreground">Your results will help move the topics that need more practice earlier in your learning plan.</p>
+        <h2 className="text-2xl font-bold text-foreground">{isPersonalizeFlow ? 'Create the updated course roadmap' : 'Create your course roadmap'}</h2>
+        <p className="mt-2 max-w-2xl text-muted-foreground">Your results will help prioritize course topics that need more practice without mixing content from another course.</p>
       </div>
       <Button onClick={generateRoadmap} isLoading={creating} loadingLabel="Creating roadmap..." className="shrink-0 px-6">
         Create roadmap <ArrowRight size={18} aria-hidden="true" />
