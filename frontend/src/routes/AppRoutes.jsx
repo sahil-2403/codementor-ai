@@ -39,6 +39,11 @@ const TopicEditorPage = lazy(() => import('../pages/admin/TopicEditorPage.jsx'))
 const LessonsPage = lazy(() => import('../pages/admin/LessonsPage.jsx'));
 const LessonEditorPage = lazy(() => import('../pages/admin/LessonEditorPage.jsx'));
 const QuestionsPage = lazy(() => import('../pages/admin/QuestionsPage.jsx'));
+const QuizQuestionsPage = lazy(() => import('../pages/admin/QuizQuestionsPage.jsx'));
+const SkillChecksPage = lazy(() => import('../pages/admin/SkillChecksPage.jsx'));
+const QuestionEditorPage = lazy(() => import('../pages/admin/QuestionEditorPage.jsx'));
+const InterviewQuestionsPage = lazy(() => import('../pages/admin/InterviewQuestionsPage.jsx'));
+const InterviewQuestionEditorPage = lazy(() => import('../pages/admin/InterviewQuestionEditorPage.jsx'));
 const TemplatesPage = lazy(() => import('../pages/admin/TemplatesPage.jsx'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage.jsx'));
 
@@ -91,6 +96,15 @@ export default function AppRoutes() {
             <Route path="/admin/lessons/new" element={<LessonEditorPage />} />
             <Route path="/admin/lessons/:lessonId/edit" element={<LessonEditorPage />} />
             <Route path="/admin/questions" element={<QuestionsPage />} />
+            <Route path="/admin/questions/quiz" element={<QuizQuestionsPage />} />
+            <Route path="/admin/questions/quiz/new" element={<QuestionEditorPage bank="quiz" />} />
+            <Route path="/admin/questions/quiz/:questionId/edit" element={<QuestionEditorPage bank="quiz" />} />
+            <Route path="/admin/questions/skill-checks" element={<SkillChecksPage />} />
+            <Route path="/admin/questions/skill-checks/new" element={<QuestionEditorPage bank="skill_check" />} />
+            <Route path="/admin/questions/skill-checks/:questionId/edit" element={<QuestionEditorPage bank="skill_check" />} />
+            <Route path="/admin/questions/interview" element={<InterviewQuestionsPage />} />
+            <Route path="/admin/questions/interview/new" element={<InterviewQuestionEditorPage />} />
+            <Route path="/admin/questions/interview/:questionId/edit" element={<InterviewQuestionEditorPage />} />
             <Route path="/admin/templates" element={<TemplatesPage />} />
           </Route>
         </Route>
