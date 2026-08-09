@@ -26,7 +26,9 @@ const courseModuleSchema = new mongoose.Schema(
 const coursePlanSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    learningGoal: { type: mongoose.Schema.Types.ObjectId, ref: 'LearningGoal', required: true },
+    enrollment: { type: mongoose.Schema.Types.ObjectId, ref: 'Enrollment', required: true, index: true },
+    course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true, index: true },
+    learningPath: { type: mongoose.Schema.Types.ObjectId, ref: 'LearningPath', default: null, index: true },
     title: { type: String, required: true },
     description: { type: String, default: '' },
     level: { type: String, enum: ['beginner', 'intermediate', 'advanced'], required: true },
@@ -49,8 +51,16 @@ const coursePlanSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-coursePlanSchema.index({ user: 1, status: 1, isActive: 1, createdAt: -1 });
-coursePlanSchema.index({ user: 1, isActive: 1 }, { unique: true, partialFilterExpression: { isActive: true } });
+coursePlanSchema.index({ user: 1, status: 1, createdAt: -1 });
+coursePlanSchema.index({ enrollment: 1, status: 1, isActive: 1, createdAt: -1 });
+coursePlanSchema.index(
+  { enrollment: 1, isActive: 1 },
+  {
+    unique: true,
+    name: 'enrollment_active_course_unique',
+    partialFilterExpression: { isActive: true }
+  }
+);
 coursePlanSchema.index(
   { generationJob: 1 },
   {
