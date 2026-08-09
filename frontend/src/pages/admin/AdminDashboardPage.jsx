@@ -321,48 +321,56 @@ export default function AdminDashboardPage() {
         </div>
       </Card>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-        <Card className="shadow-sm">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+        <Card className="min-w-0 overflow-hidden shadow-sm">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">Question banks</p>
             <h2 className="mt-1 text-lg font-bold text-foreground">Assessment content</h2>
           </div>
-          <div className="mt-5 space-y-3">
+          <div className="mt-5 min-w-0 space-y-3">
             {[
               ['Quiz questions', overview.questions.quiz, '/admin/questions/quiz'],
               ['Skill checks', overview.questions.skillCheck, '/admin/questions/skill-checks'],
               ['Interview practice', overview.questions.interview, '/admin/questions/interview']
             ].map(([label, bank, href]) => (
-              <Link key={label} to={href} className="group flex items-center justify-between gap-4 rounded-surface border border-border p-3.5 transition hover:border-primary/25 hover:bg-primary-soft/35">
-                <div>
-                  <p className="text-sm font-bold text-foreground">{label}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{bank.published} published · {bank.draft} draft · {bank.archived} archived</p>
+              <Link
+                key={label}
+                to={href}
+                className="group flex min-w-0 flex-col items-start gap-2 rounded-surface border border-border p-3.5 transition hover:border-primary/25 hover:bg-primary-soft/35 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+              >
+                <div className="min-w-0 w-full flex-1">
+                  <p className="break-words text-sm font-bold text-foreground">{label}</p>
+                  <p className="mt-1 break-words text-xs leading-5 text-muted-foreground">{bank.published} published · {bank.draft} draft · {bank.archived} archived</p>
                 </div>
-                <span className="text-xl font-extrabold text-foreground">{bank.total}</span>
+                <span className="shrink-0 text-xl font-extrabold text-foreground">{bank.total}</span>
               </Link>
             ))}
           </div>
         </Card>
 
-        <Card className="shadow-sm">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-            <div>
+        <Card className="min-w-0 overflow-hidden shadow-sm">
+          <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">Recently updated</p>
-              <h2 className="mt-1 text-lg font-bold text-foreground">Latest content changes</h2>
+              <h2 className="mt-1 break-words text-lg font-bold text-foreground">Latest content changes</h2>
             </div>
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Clock3 size={14} aria-hidden="true" /> Most recent first</span>
+            <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold text-muted-foreground"><Clock3 size={14} aria-hidden="true" /> Most recent first</span>
           </div>
 
           {overview.recentContent?.length ? (
-            <div className="mt-4 divide-y divide-border rounded-panel border border-border">
+            <div className="mt-4 min-w-0 overflow-hidden divide-y divide-border rounded-panel border border-border">
               {overview.recentContent.map((item) => (
-                <Link key={`${item.type}-${item.id}`} to={recentHref(item)} className="group flex items-start gap-3 px-4 py-3.5 transition first:rounded-t-panel last:rounded-b-panel hover:bg-surface-secondary/55">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-sm font-bold text-foreground">{item.title}</p>
-                      <StatusPill status={item.status} />
+                <Link
+                  key={`${item.type}-${item.id}`}
+                  to={recentHref(item)}
+                  className="group flex min-w-0 items-start gap-3 overflow-hidden px-4 py-3.5 transition first:rounded-t-panel last:rounded-b-panel hover:bg-surface-secondary/55"
+                >
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex min-w-0 flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
+                      <p className="w-full min-w-0 break-words text-sm font-bold leading-5 text-foreground sm:flex-1">{item.title}</p>
+                      <StatusPill status={item.status} className="shrink-0" />
                     </div>
-                    <p className="mt-1 text-xs font-medium text-muted-foreground">{recentTypeLabels[item.type] || 'Content'} · {formatDate(item.updatedAt)}</p>
+                    <p className="mt-1 break-words text-xs font-medium leading-5 text-muted-foreground">{recentTypeLabels[item.type] || 'Content'} · {formatDate(item.updatedAt)}</p>
                   </div>
                   <ArrowRight size={15} className="mt-2 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
                 </Link>
