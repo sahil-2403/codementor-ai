@@ -16,6 +16,7 @@ const learnerLinks = [
 
 const adminLinks = [
   ['Content', '/admin'],
+  ['Catalog', '/admin/catalog'],
   ['Topics', '/admin/topics'],
   ['Lessons', '/admin/lessons'],
   ['Questions', '/admin/questions'],
