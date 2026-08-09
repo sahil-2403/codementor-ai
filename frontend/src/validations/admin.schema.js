@@ -62,22 +62,18 @@ export const interviewQuestionFormSchema = z.object({
   tags: z.string().default('')
 });
 
-const roadmapModuleSchema = z.object({
-  title: z.string().min(2),
+const roadmapModuleFormSchema = z.object({
+  title: z.string().trim().min(2, 'Module title is required'),
   description: z.string().default(''),
-  order: z.coerce.number().default(0),
-  durationDays: z.coerce.number().default(7),
+  durationDays: z.coerce.number().int().min(1, 'Use at least 1 day').max(90, 'Keep a module within 90 days'),
   lessonSlugs: z.array(z.string()).default([]),
   quizTags: z.array(z.string()).default([])
 });
 
 export const templateFormSchema = z.object({
-  goalKey: z.string().trim().min(2, 'Goal key is required'),
+  goalKey: z.string().trim().min(2, 'Learning path is required'),
   level: difficultyEnum,
   title: z.string().trim().min(2, 'Title is required'),
   description: z.string().default(''),
-  estimatedDurationDays: z.coerce.number().min(1).max(365),
-  modulesText: z.string().refine((value) => {
-    try { return z.array(roadmapModuleSchema).safeParse(JSON.parse(value)).success; } catch { return false; }
-  }, 'Modules must be valid JSON matching the roadmap module schema')
+  modules: z.array(roadmapModuleFormSchema).min(1, 'Add at least one roadmap module')
 });
