@@ -4,79 +4,65 @@ import { queryKeys } from '../constants/queryKeys.js';
 import { useInvalidatingMutation } from './queryUtils.js';
 
 const adminOverviewQueryKey = ['admin-content-overview'];
+const catalogQueryKeys = [
+  adminOverviewQueryKey,
+  ['catalog'],
+  ['admin-technologies'],
+  ['admin-technology'],
+  ['admin-courses'],
+  ['admin-course'],
+  ['admin-learning-paths'],
+  ['admin-learning-path'],
+  ['admin-topics'],
+  ['admin-lessons'],
+  ['admin-questions'],
+  ['admin-interview-questions'],
+  ['admin-templates'],
+  ['onboarding-status']
+];
 
 const topicCascadeQueryKeys = [
   adminOverviewQueryKey,
-  ['admin-topics'],
-  ['admin-topic'],
-  ['admin-topic-impact'],
-  ['admin-lessons'],
-  ['admin-lesson'],
-  ['admin-lesson-impact'],
-  ['admin-questions'],
-  ['admin-question'],
-  ['admin-question-impact'],
-  ['admin-interview-questions'],
-  ['admin-interview-question'],
-  ['admin-interview-question-impact'],
-  ['project-tasks'],
-  ['interview-questions'],
-  ['roadmap'],
-  ['dashboard']
+  ['admin-topics'], ['admin-topic'], ['admin-topic-impact'],
+  ['admin-lessons'], ['admin-lesson'], ['admin-lesson-impact'],
+  ['admin-questions'], ['admin-question'], ['admin-question-impact'],
+  ['admin-interview-questions'], ['admin-interview-question'], ['admin-interview-question-impact'],
+  ['project-tasks'], ['interview-questions'], ['roadmap'], ['dashboard']
 ];
 
 const lessonCascadeQueryKeys = [
   adminOverviewQueryKey,
-  ['admin-lessons'],
-  ['admin-lesson'],
-  ['admin-lesson-impact'],
-  ['admin-topic-impact'],
-  ['admin-questions'],
-  ['admin-question'],
-  ['admin-question-impact'],
-  ['project-tasks'],
-  ['project-task'],
-  ['lesson'],
-  ['quiz'],
-  ['roadmap'],
-  ['dashboard'],
-  ['reports']
+  ['admin-lessons'], ['admin-lesson'], ['admin-lesson-impact'], ['admin-topic-impact'],
+  ['admin-questions'], ['admin-question'], ['admin-question-impact'],
+  ['project-tasks'], ['project-task'], ['lesson'], ['quiz'], ['roadmap'], ['dashboard'], ['reports']
 ];
 
 const questionLifecycleQueryKeys = [
   adminOverviewQueryKey,
-  ['admin-questions'],
-  ['admin-question'],
-  ['admin-question-impact'],
-  ['admin-topic-impact'],
-  ['admin-lesson-impact'],
-  ['quiz'],
-  ['quiz-attempt'],
-  ['assessment'],
-  ['roadmap'],
-  ['dashboard'],
-  ['onboarding-status']
+  ['admin-questions'], ['admin-question'], ['admin-question-impact'], ['admin-topic-impact'], ['admin-lesson-impact'],
+  ['quiz'], ['quiz-attempt'], ['assessment'], ['roadmap'], ['dashboard'], ['onboarding-status']
 ];
 
 const interviewQuestionLifecycleQueryKeys = [
   adminOverviewQueryKey,
-  ['admin-interview-questions'],
-  ['admin-interview-question'],
-  ['admin-interview-question-impact'],
-  ['admin-topic-impact'],
-  ['interview-questions'],
-  ['interview-attempts'],
-  ['dashboard']
+  ['admin-interview-questions'], ['admin-interview-question'], ['admin-interview-question-impact'], ['admin-topic-impact'],
+  ['interview-questions'], ['interview-attempts'], ['dashboard']
 ];
 
 const templateLifecycleQueryKeys = [
   adminOverviewQueryKey,
-  ['admin-templates'],
-  ['admin-template'],
-  ['onboarding-status']
+  ['admin-templates'], ['admin-template'], ['admin-courses'], ['catalog'], ['onboarding-status']
 ];
 
 export const useAdminContentOverview = () => useQuery({ queryKey: queryKeys.adminContentOverview, queryFn: adminApi.contentOverview });
+
+export const useAdminTechnologies = (params = {}) => useQuery({ queryKey: queryKeys.adminTechnologies(params), queryFn: () => adminApi.technologies(params), placeholderData: keepPreviousData });
+export const useAdminTechnology = (id) => useQuery({ queryKey: queryKeys.adminTechnology(id), queryFn: () => adminApi.technology(id), enabled: Boolean(id) });
+export const useAdminCourses = (params = {}) => useQuery({ queryKey: queryKeys.adminCourses(params), queryFn: () => adminApi.courses(params), placeholderData: keepPreviousData });
+export const useAdminCourse = (id) => useQuery({ queryKey: queryKeys.adminCourse(id), queryFn: () => adminApi.course(id), enabled: Boolean(id) });
+export const useAdminLearningPaths = (params = {}) => useQuery({ queryKey: queryKeys.adminLearningPaths(params), queryFn: () => adminApi.learningPaths(params), placeholderData: keepPreviousData });
+export const useAdminLearningPath = (id) => useQuery({ queryKey: queryKeys.adminLearningPath(id), queryFn: () => adminApi.learningPath(id), enabled: Boolean(id) });
+
 export const useAdminTopics = (params = {}) => useQuery({ queryKey: queryKeys.adminTopics(params), queryFn: () => adminApi.topics(params), placeholderData: keepPreviousData });
 export const useAdminTopic = (topicId) => useQuery({ queryKey: queryKeys.adminTopic(topicId), queryFn: () => adminApi.topic(topicId), enabled: Boolean(topicId) });
 export const useAdminTopicImpact = (topicId, enabled = true) => useQuery({ queryKey: queryKeys.adminTopicImpact(topicId), queryFn: () => adminApi.topicImpact(topicId), enabled: Boolean(topicId) && enabled });
@@ -92,18 +78,33 @@ export const useAdminInterviewQuestionImpact = (questionId, enabled = true) => u
 export const useAdminTemplates = (params = {}) => useQuery({ queryKey: queryKeys.adminTemplates(params), queryFn: () => adminApi.templates(params), placeholderData: keepPreviousData });
 export const useAdminTemplate = (templateId) => useQuery({ queryKey: queryKeys.adminTemplate(templateId), queryFn: () => adminApi.template(templateId), enabled: Boolean(templateId) });
 
+export const useCreateTechnology = () => useInvalidatingMutation(adminApi.createTechnology, catalogQueryKeys);
+export const useUpdateTechnology = () => useInvalidatingMutation(adminApi.updateTechnology, catalogQueryKeys);
+export const useUpdateTechnologyStatus = () => useInvalidatingMutation(adminApi.updateTechnologyStatus, catalogQueryKeys);
+export const useDeleteTechnology = () => useInvalidatingMutation(adminApi.deleteTechnology, catalogQueryKeys);
+
+export const useCreateCourse = () => useInvalidatingMutation(adminApi.createCourse, catalogQueryKeys);
+export const useUpdateCourse = () => useInvalidatingMutation(adminApi.updateCourse, catalogQueryKeys);
+export const useUpdateCourseStatus = () => useInvalidatingMutation(adminApi.updateCourseStatus, catalogQueryKeys);
+export const useDeleteCourse = () => useInvalidatingMutation(adminApi.deleteCourse, catalogQueryKeys);
+
+export const useCreateLearningPath = () => useInvalidatingMutation(adminApi.createLearningPath, catalogQueryKeys);
+export const useUpdateLearningPath = () => useInvalidatingMutation(adminApi.updateLearningPath, catalogQueryKeys);
+export const useUpdateLearningPathStatus = () => useInvalidatingMutation(adminApi.updateLearningPathStatus, catalogQueryKeys);
+export const useDeleteLearningPath = () => useInvalidatingMutation(adminApi.deleteLearningPath, catalogQueryKeys);
+
 export const useCreateTopic = () => useInvalidatingMutation(adminApi.createTopic, [adminOverviewQueryKey, ['admin-topics']]);
 export const useUpdateTopic = () => useInvalidatingMutation(adminApi.updateTopic, [adminOverviewQueryKey, ['admin-topics'], ['admin-topic'], ['admin-interview-questions']]);
 export const useUpdateTopicStatus = () => useInvalidatingMutation(adminApi.updateTopicStatus, topicCascadeQueryKeys);
 export const useDeleteTopic = () => useInvalidatingMutation(adminApi.deleteTopic, topicCascadeQueryKeys);
 
-export const useCreateLesson = () => useInvalidatingMutation(adminApi.createLesson, [adminOverviewQueryKey, ['admin-lessons']]);
-export const useUpdateLesson = () => useInvalidatingMutation(adminApi.updateLesson, [adminOverviewQueryKey, ['admin-lessons'], ['admin-lesson']]);
+export const useCreateLesson = () => useInvalidatingMutation(adminApi.createLesson, [adminOverviewQueryKey, ['admin-lessons'], ['admin-templates']]);
+export const useUpdateLesson = () => useInvalidatingMutation(adminApi.updateLesson, [adminOverviewQueryKey, ['admin-lessons'], ['admin-lesson'], ['admin-templates']]);
 export const useUpdateLessonStatus = () => useInvalidatingMutation(adminApi.updateLessonStatus, lessonCascadeQueryKeys);
 export const useDeleteLesson = () => useInvalidatingMutation(adminApi.deleteLesson, lessonCascadeQueryKeys);
 
-export const useCreateQuestion = () => useInvalidatingMutation(adminApi.createQuestion, [adminOverviewQueryKey, ['admin-questions']]);
-export const useUpdateQuestion = () => useInvalidatingMutation(adminApi.updateQuestion, [adminOverviewQueryKey, ['admin-questions'], ['admin-question']]);
+export const useCreateQuestion = () => useInvalidatingMutation(adminApi.createQuestion, [adminOverviewQueryKey, ['admin-questions'], ['admin-templates']]);
+export const useUpdateQuestion = () => useInvalidatingMutation(adminApi.updateQuestion, [adminOverviewQueryKey, ['admin-questions'], ['admin-question'], ['admin-templates']]);
 export const useUpdateQuestionStatus = () => useInvalidatingMutation(adminApi.updateQuestionStatus, questionLifecycleQueryKeys);
 export const useDeleteQuestion = () => useInvalidatingMutation(adminApi.deleteQuestion, questionLifecycleQueryKeys);
 
