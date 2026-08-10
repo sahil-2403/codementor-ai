@@ -27,6 +27,19 @@ export const ensureEditable = (document, label) => {
   }
 };
 
+export const requireArchivedForDelete = (document, label) => {
+  if (document.status === PUBLISHABLE_STATUS.ARCHIVED) return;
+  throw new ApiError(
+    409,
+    `Archive this ${label.toLowerCase()} before deleting it permanently.`,
+    [{
+      field: 'status',
+      message: `Choose Archive first. After the ${label.toLowerCase()} shows Archived, open Delete again.`
+    }],
+    'DELETE_REQUIRES_ARCHIVE'
+  );
+};
+
 export const cleanStringArray = (values = []) => Array.from(new Set(
   values.map((value) => String(value).trim()).filter(Boolean)
 ));
