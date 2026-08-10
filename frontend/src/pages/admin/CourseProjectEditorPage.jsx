@@ -53,20 +53,11 @@ export default function CourseProjectEditorPage() {
     const project = projectQuery.data?.projectTask;
     if (!project) return;
     reset({
-      course: project.course?._id || project.course || '',
-      title: project.title || '',
-      description: project.description || '',
-      moduleTitle: project.moduleTitle || '',
-      topicOrder: project.topicOrder || 0,
-      solution: project.solution || '',
-      difficulty: project.difficulty || 'beginner',
-      relatedLessons: (project.relatedLessons || []).map((lesson) => lesson._id || lesson),
-      requirementsText: (project.requirements || []).join(', '),
-      starterHintsText: (project.starterHints || []).join(', '),
-      expectedOutput: project.expectedOutput || '',
-      evaluationChecklistText: (project.evaluationChecklist || []).join(', '),
-      tagsText: (project.tags || []).join(', '),
-      estimatedMinutes: project.estimatedMinutes || 90
+      course: project.course?._id || project.course || '', title: project.title || '', description: project.description || '',
+      moduleTitle: project.moduleTitle || '', topicOrder: project.topicOrder || 0, solution: project.solution || '', difficulty: project.difficulty || 'beginner',
+      relatedLessons: (project.relatedLessons || []).map((lesson) => lesson._id || lesson), requirementsText: (project.requirements || []).join(', '),
+      starterHintsText: (project.starterHints || []).join(', '), expectedOutput: project.expectedOutput || '',
+      evaluationChecklistText: (project.evaluationChecklist || []).join(', '), tagsText: (project.tags || []).join(', '), estimatedMinutes: project.estimatedMinutes || 90
     });
   }, [projectQuery.data?.projectTask?._id, reset]);
 
@@ -75,6 +66,7 @@ export default function CourseProjectEditorPage() {
 
   const courses = (coursesQuery.data?.courses || []).filter((course) => course.status !== 'archived');
   const lessons = (lessonsQuery.data?.lessons || []).filter((lesson) => lesson.status !== 'archived');
+  const selectedCourse = courses.find((course) => course._id === courseId) || projectQuery.data?.projectTask?.course;
 
   const submit = async (values) => {
     const payload = parseProjectTaskForm(values);
@@ -89,7 +81,7 @@ export default function CourseProjectEditorPage() {
 
     <form onSubmit={handleSubmit(submit)} className="space-y-5">
       <Card className="mx-auto w-full max-w-4xl space-y-4 shadow-sm">
-        <Select label="Course" disabled={editing} {...register('course')} error={errors.course?.message}><option value="">Select course</option>{courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}</Select>
+        {editing ? <><input type="hidden" {...register('course')} /><Select label="Course" value={courseId} disabled><option value={courseId}>{selectedCourse?.title || 'Selected course'}</option></Select></> : <Select label="Course" {...register('course')} error={errors.course?.message}><option value="">Select course</option>{courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}</Select>}
         {editing ? <p className="text-xs text-muted-foreground">Course ownership is fixed after creation.</p> : null}
         <div className="grid gap-4 md:grid-cols-[1.4fr_0.6fr]"><FormInput label="Project title" registration={register('title')} error={errors.title?.message} /><Select label="Difficulty" {...register('difficulty')} error={errors.difficulty?.message}><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></Select></div>
         <FormTextarea label="Description" rows={5} registration={register('description')} error={errors.description?.message} placeholder="Explain the project outcome and learner scenario..." />
