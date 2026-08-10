@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Archive, Pencil, Plus, RotateCcw, Route, Trash2 } from 'lucide-react';
+import LifecycleError from '../../components/admin/LifecycleError.jsx';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
@@ -44,8 +45,8 @@ export default function LearningPathsPage() {
             <div className="flex flex-wrap gap-2">
               {!archived ? <Link to={`/admin/learning-paths/${path._id}/edit`} className="ui-button ui-button--ghost min-h-9 gap-1.5 px-3 text-xs"><Pencil size={14} /> Edit</Link> : null}
               {path.status === 'draft' ? <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => setStatusTarget({ item: path, status: 'published' })}>Publish</Button> : null}
-              {!archived ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: path, status: 'archived' })}><Archive size={14} /> Archive</Button> : <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: path, status: 'draft' })}><RotateCcw size={14} /> Restore</Button>}
-              {path.status !== 'published' ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { setDeleteTarget(path); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
+              {!archived ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { updateStatus.reset(); setStatusTarget({ item: path, status: 'archived' }); }}><Archive size={14} /> Archive</Button> : <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { updateStatus.reset(); setStatusTarget({ item: path, status: 'draft' }); }}><RotateCcw size={14} /> Restore</Button>}
+              {archived ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { deletePath.reset(); setDeleteTarget(path); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
             </div>
           </div>
           <div className="mt-5 rounded-panel border border-border bg-surface-secondary/35 p-4"><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Course sequence</p><div className="mt-2 flex flex-wrap gap-2">{(path.courses || []).sort((a, b) => a.order - b.order).map((entry) => <span key={entry.course?._id || entry.order} className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground">{entry.order}. {entry.course?.title || 'Course'}{entry.defaultLevel ? ` · ${entry.defaultLevel}` : ''}</span>)}</div></div>
@@ -58,16 +59,26 @@ export default function LearningPathsPage() {
       open={Boolean(statusTarget)}
       title={`${actionLabel} learning path?`}
       description={statusTarget?.status === 'published'
-        ? 'Every course in the path must already be published and support its configured default level.'
+        ? 'Every Course in the path must already be published and support its configured default level.'
         : statusTarget?.status === 'draft'
-          ? 'Restoring returns this Learning Path to Draft. Its course sequence is preserved, but learners cannot discover it until you publish it again.'
-          : 'Archiving hides the path from new learner discovery. Individual courses remain available.'}
+          ? 'Restore this Learning Path to Draft. Its Course sequence is preserved and the Courses themselves are not changed.'
+          : 'Archive this Learning Path before permanent deletion. Courses inside the path are references and are never archived with it.'}
       confirmLabel={actionLabel}
       tone="primary"
       isLoading={updateStatus.isPending}
       onCancel={() => setStatusTarget(null)}
       onConfirm={() => updateStatus.mutate({ id: statusTarget.item._id, status: statusTarget.status, confirmPublish: statusTarget.status === 'published' }, { onSuccess: () => setStatusTarget(null) })}
-    ><ErrorMessage message={updateStatus.error?.message} /></ConfirmDialog>
-    <ConfirmDialog open={Boolean(deleteTarget)} title="Delete learning path permanently?" description={`Delete “${deleteTarget?.title || ''}”. Courses inside the path are not deleted.`} confirmLabel="Delete permanently" tone="danger" isLoading={deletePath.isPending} confirmDisabled={deleteConfirmation !== 'DELETE'} onCancel={() => setDeleteTarget(null)} onConfirm={() => deletePath.mutate(deleteTarget._id, { onSuccess: () => setDeleteTarget(null) })}><Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)} /><ErrorMessage message={deletePath.error?.message} /></ConfirmDialog>
+    ><LifecycleError error={updateStatus.error} /></ConfirmDialog>
+    <ConfirmDialog
+      open={Boolean(deleteTarget)}
+      title="Delete archived learning path permanently?"
+      description={`Permanently delete “${deleteTarget?.title || ''}”. Courses inside it are not deleted. Learner history may block permanent deletion.`}
+      confirmLabel="Delete permanently"
+      tone="danger"
+      isLoading={deletePath.isPending}
+      confirmDisabled={deleteConfirmation !== 'DELETE'}
+      onCancel={() => { setDeleteTarget(null); setDeleteConfirmation(''); }}
+      onConfirm={() => deletePath.mutate(deleteTarget._id, { onSuccess: () => { setDeleteTarget(null); setDeleteConfirmation(''); } })}
+    ><Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)} /><LifecycleError error={deletePath.error} /></ConfirmDialog>
   </PageShell>;
 }
