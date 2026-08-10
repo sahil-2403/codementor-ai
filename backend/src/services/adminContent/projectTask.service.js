@@ -7,7 +7,7 @@ import { generateSlug } from '../../utils/generateSlug.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
 import { invalidateContentCache } from '../cacheInvalidation.service.js';
-import { ensureFound, transitionStatus } from './common.js';
+import { ensureFound, requireArchivedForDelete, transitionStatus } from './common.js';
 
 const referenceId = (value) => value?._id || value;
 
@@ -105,12 +105,15 @@ export const changeProjectTaskStatus = (args) => transitionStatus({
 
 export const deleteProjectTask = async (id) => {
   const project = ensureFound(await ProjectTask.findById(id), 'Project task');
-  if (project.status === 'published') {
-    throw new ApiError(409, 'Archive the project task before permanently deleting it', [], 'PROJECT_DELETE_REQUIRES_ARCHIVE');
-  }
+  requireArchivedForDelete(project, 'Project task');
   const submissions = await ProjectSubmission.countDocuments({ projectTask: project._id });
   if (submissions) {
-    throw new ApiError(409, 'This project task has learner submissions and cannot be permanently deleted', [{ field: 'submissions', message: `${submissions} submission(s) depend on this project` }], 'CONTENT_HAS_HISTORY');
+    throw new ApiError(
+      409,
+      'This project task has learner submissions, so it cannot be permanently deleted.',
+      [{ field: 'submissions', message: `Keep the project archived. ${submissions} learner submission(s) must remain connected to it.` }],
+      'CONTENT_HAS_HISTORY'
+    );
   }
   await project.deleteOne();
   await invalidateContentCache();
