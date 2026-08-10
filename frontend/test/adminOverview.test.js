@@ -33,5 +33,5 @@ test('admin dashboard exposes catalog inventory, curriculum, attention, coverage
   assert.match(page, /Question banks/);
   assert.match(page, /Recently updated/);
   assert.match(page, /publishedLessonsWithoutQuizCoverage/);
-  assert.doesNotMatch(page, /quality score|health score|XP|streak/i);
+  assert.doesNotMatch(page, /quality score|health score|\bXP\b|\bstreak\b/i);
 });
