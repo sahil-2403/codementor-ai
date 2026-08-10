@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Archive, BookOpenCheck, GraduationCap, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import LifecycleError from '../../components/admin/LifecycleError.jsx';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
@@ -60,8 +61,8 @@ export default function CoursesPage() {
             {!archived ? <Link to={`/admin/courses/${course._id}/edit`} className="ui-button ui-button--ghost min-h-9 gap-1.5 px-3 text-xs"><Pencil size={14} /> Edit</Link> : null}
             {!archived ? <Link to={`/admin/courses/${course._id}/workspace`} className="ui-button ui-button--secondary min-h-9 gap-1.5 px-3 text-xs"><BookOpenCheck size={14} /> Workspace</Link> : null}
             {course.status === 'draft' ? <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => setStatusTarget({ item: course, status: 'published' })}>Publish</Button> : null}
-            {!archived ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: course, status: 'archived' })}><Archive size={14} /> Archive</Button> : <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: course, status: 'draft' })}><RotateCcw size={14} /> Restore</Button>}
-            {course.status !== 'published' ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { setDeleteTarget(course); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
+            {!archived ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { updateStatus.reset(); setStatusTarget({ item: course, status: 'archived' }); }}><Archive size={14} /> Archive</Button> : <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { updateStatus.reset(); setStatusTarget({ item: course, status: 'draft' }); }}><RotateCcw size={14} /> Restore</Button>}
+            {archived ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { deleteCourse.reset(); setDeleteTarget(course); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
           </div>
         </Card>;
       }) : <div className="lg:col-span-2"><EmptyState title="No courses found" description="Create the first course or change the filters." /></div>}
@@ -71,17 +72,27 @@ export default function CoursesPage() {
       open={Boolean(statusTarget)}
       title={`${actionLabel} course?`}
       description={statusTarget?.status === 'published'
-        ? 'Publishing is the final catalog gate. The backend checks published technologies and a published roadmap template for every enabled learner level before learners can discover the Course.'
+        ? 'Publishing is the final learner-catalog gate. Published technologies and a published roadmap template for every enabled level are required.'
         : statusTarget?.status === 'draft'
-          ? 'Restoring returns this Course to Draft. Its curriculum stays intact, but learners cannot discover it until you explicitly publish it again.'
-          : 'Archiving removes the Course from new learner discovery. Dependent learning paths and content remain protected by backend rules.'}
+          ? 'Restore this Course to Draft and unarchive all of its Topics, Lessons, Questions, Interview Questions, Projects, and Roadmap Templates. Review the Course before publishing it again.'
+          : 'Archive this Course and all of its owned curriculum together: Topics, Lessons, Quiz/Skill Check questions, Interview Questions, Projects, and Roadmap Templates. Learning Paths and prerequisite references are not changed and may block the archive.'}
       confirmLabel={actionLabel}
       tone="primary"
       isLoading={updateStatus.isPending}
       onCancel={() => setStatusTarget(null)}
       onConfirm={() => updateStatus.mutate({ id: statusTarget.item._id, status: statusTarget.status, confirmPublish: statusTarget.status === 'published' }, { onSuccess: () => setStatusTarget(null) })}
-    ><ErrorMessage message={updateStatus.error?.message} /></ConfirmDialog>
+    ><LifecycleError error={updateStatus.error} /></ConfirmDialog>
 
-    <ConfirmDialog open={Boolean(deleteTarget)} title="Delete course permanently?" description={`Delete “${deleteTarget?.title || ''}”. This is allowed only after its curriculum, templates, learning paths, and enrollments no longer depend on it.`} confirmLabel="Delete permanently" tone="danger" isLoading={deleteCourse.isPending} confirmDisabled={deleteConfirmation !== 'DELETE'} onCancel={() => setDeleteTarget(null)} onConfirm={() => deleteCourse.mutate(deleteTarget._id, { onSuccess: () => setDeleteTarget(null) })}><Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)} /><ErrorMessage message={deleteCourse.error?.message} /></ConfirmDialog>
+    <ConfirmDialog
+      open={Boolean(deleteTarget)}
+      title="Delete archived course permanently?"
+      description={`Permanently delete “${deleteTarget?.title || ''}” and all of its owned curriculum. Learning Path/prerequisite references or learner history will block deletion. This cannot be undone.`}
+      confirmLabel="Delete permanently"
+      tone="danger"
+      isLoading={deleteCourse.isPending}
+      confirmDisabled={deleteConfirmation !== 'DELETE'}
+      onCancel={() => { setDeleteTarget(null); setDeleteConfirmation(''); }}
+      onConfirm={() => deleteCourse.mutate(deleteTarget._id, { onSuccess: () => { setDeleteTarget(null); setDeleteConfirmation(''); } })}
+    ><Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(e) => setDeleteConfirmation(e.target.value)} /><LifecycleError error={deleteCourse.error} /></ConfirmDialog>
   </PageShell>;
 }
