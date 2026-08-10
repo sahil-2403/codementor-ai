@@ -10,7 +10,7 @@ const listResponse = (label, key, service) => asyncHandler(async (req, res) => {
 export const listTechnologies = listResponse('Technologies', 'technologies', adminContent.listTechnologies);
 export const getTechnology = asyncHandler(async (req, res) => sendResponse(res, 200, 'Technology details', { technology: await adminContent.getTechnology(req.params.id) }));
 export const createTechnology = asyncHandler(async (req, res) => sendResponse(res, 201, 'Technology draft created', { technology: await adminContent.createTechnology(req.body) }));
-export const updateTechnology = asyncHandler(async (req, res) => sendResponse(res, 200, 'Technology updated', { technology: await adminContent.updateTechnology({ id: req.params.id, payload: req.body }) }));
+export const updateTechnology = asyncHandler(async (req, res) => sendResponse(res, 200, 'Technology updated', { technology: await adminContent.updateTechnologySafely({ id: req.params.id, payload: req.body }) }));
 export const updateTechnologyStatus = asyncHandler(async (req, res) => sendResponse(res, 200, 'Technology status updated', { technology: await adminContent.changeTechnologyStatusSafely({ id: req.params.id, ...req.body }) }));
 export const deleteTechnology = asyncHandler(async (req, res) => sendResponse(res, 200, 'Technology permanently deleted', { technology: await adminContent.deleteTechnologySafely(req.params.id) }));
 
