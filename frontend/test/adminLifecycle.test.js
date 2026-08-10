@@ -40,10 +40,13 @@ test('blocked lifecycle actions use one clear how-to-resolve error presentation'
   }
 });
 
-test('course UI clearly communicates downward cascade and reference blockers', async () => {
+test('course UI clearly communicates automatic downward cascade and restore', async () => {
   const page = await readFrontend('src/pages/admin/CoursesPage.jsx');
-  assert.match(page, /Archive this Course and all of its owned curriculum together/);
-  assert.match(page, /Topics, Lessons, Quiz\/Skill Check questions, Interview Questions, Projects, and Roadmap Templates/);
+  assert.match(page, /Archive this Course directly/);
+  assert.match(page, /You do not need to archive its child curriculum first/);
+  assert.match(page, /Topics, Lessons, Quiz\/Skill Check questions, Interview Questions, Projects, and Roadmap Templates are archived automatically/);
   assert.match(page, /Learning Paths and prerequisite references are not changed/);
-  assert.match(page, /unarchive all of its Topics, Lessons, Questions, Interview Questions, Projects, and Roadmap Templates/);
+  assert.match(page, /restore all of its owned curriculum automatically/);
+  assert.match(page, /return to the Draft\/Published state they had before archiving/);
+  assert.match(page, /You do not need to restore them separately/);
 });
