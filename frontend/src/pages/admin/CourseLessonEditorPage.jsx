@@ -56,6 +56,7 @@ export default function CourseLessonEditorPage() {
 
   const courses = (coursesQuery.data?.courses || []).filter((course) => course.status !== 'archived');
   const topics = (topicsQuery.data?.topics || []).filter((topic) => topic.status === 'active');
+  const selectedCourse = courses.find((course) => course._id === courseId) || lessonQuery.data?.lesson?.course;
 
   const submit = (values) => {
     const payload = {
@@ -73,7 +74,11 @@ export default function CourseLessonEditorPage() {
     <ErrorMessage message={mutation.error?.message} />
     <form onSubmit={handleSubmit(submit)} className="space-y-5">
       <Card className="mx-auto w-full max-w-4xl space-y-4 shadow-sm">
-        <div className="grid gap-4 md:grid-cols-2"><Select label="Course" disabled={editing} {...register('course')} error={errors.course?.message}><option value="">Select course</option>{courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}</Select><Select label="Topic" {...register('topic')} error={errors.topic?.message} disabled={!courseId}><option value="">Select topic</option>{topics.map((topic) => <option key={topic._id} value={topic._id}>{topic.title}</option>)}</Select></div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {editing ? <><input type="hidden" {...register('course')} /><Select label="Course" value={courseId} disabled><option value={courseId}>{selectedCourse?.title || 'Selected course'}</option></Select></> : <Select label="Course" {...register('course')} error={errors.course?.message}><option value="">Select course</option>{courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}</Select>}
+          <Select label="Topic" {...register('topic')} error={errors.topic?.message} disabled={!courseId}><option value="">Select topic</option>{topics.map((topic) => <option key={topic._id} value={topic._id}>{topic.title}</option>)}</Select>
+        </div>
+        {editing ? <p className="text-xs text-muted-foreground">Course ownership is fixed after creation. You may move the Lesson only between active Topics in this Course.</p> : null}
         <div className="grid gap-4 md:grid-cols-[1.4fr_0.6fr]"><FormInput label="Lesson title" registration={register('title')} error={errors.title?.message} /><Select label="Difficulty" {...register('difficulty')} error={errors.difficulty?.message}><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></Select></div>
         <FormTextarea label="Theory / lesson content" rows={8} registration={register('theory')} error={errors.theory?.message} placeholder="Explain the concept clearly..." />
       </Card>
