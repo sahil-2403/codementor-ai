@@ -13,7 +13,8 @@ test('template admin separates lifecycle from permanent deletion', () => {
   assert.match(routes, /patch\('\/templates\/:id\/status'[\s\S]*updateTemplateStatus/);
   assert.match(routes, /delete\('\/templates\/:id'[\s\S]*deleteTemplate/);
   assert.doesNotMatch(routes, /templates\/:id\/duplicate/);
-  assert.match(controller, /export const deleteTemplate[\s\S]*adminContent\.deleteTemplate/);
+  assert.match(controller, /export const deleteTemplate[\s\S]*adminContent\.deleteTemplateSafely/);
+  assert.match(controller, /export const updateTemplateStatus[\s\S]*adminContent\.changeTemplateStatusSafely/);
   assert.match(service, /template\.deleteOne\(\)/);
   assert.match(service, /TEMPLATE_DELETE_REQUIRES_ARCHIVE/);
   assert.match(common, /PUBLISHABLE_STATUS\.ARCHIVED\]: new Set\(\[PUBLISHABLE_STATUS\.DRAFT\]\)/);
@@ -23,7 +24,7 @@ test('template publish validation is course-scoped and uses quiz-bank questions'
   const service = source('services/adminContent/template.service.js');
   assert.match(service, /bank:\s*'quiz'/);
   assert.match(service, /course:\s*template\.course/);
-  assert.match(service, /modules\.lessons/);
+  assert.match(service, /module\.lessons/);
   assert.match(service, /published Quiz-bank questions/);
   assert.doesNotMatch(service, /goalKey|lessonSlugs|legacyQuizBankFilter/);
 });
