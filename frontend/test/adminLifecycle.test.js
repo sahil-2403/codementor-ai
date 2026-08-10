@@ -23,7 +23,8 @@ test('admin lifecycle pages expose permanent deletion only for archived items', 
   for (const path of lifecyclePages) {
     const page = await readFrontend(path);
     assert.match(page, /const archived\s*=\s*[^;]*status\s*===\s*['"]archived['"]/);
-    assert.match(page, /archived\s*\?\s*<Button[^>]*variant=['"]danger['"][\s\S]*?>[\s\S]*?<Trash2[\s\S]*?Delete<\/Button>\s*:\s*null/);
+    assert.match(page, /archived\s*\?\s*<Button[^>]*variant=['"]danger['"]/);
+    assert.match(page, /Type DELETE to confirm/);
   }
 });
 
