@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Archive, Hammer, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Archive, Hammer, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminProjectApi } from '../../api/adminProjectApi.js';
 import Button from '../../components/common/Button.jsx';
@@ -37,6 +37,7 @@ export default function CourseProjectsPage() {
   const projects = projectsQuery.data?.projectTasks || [];
   const courses = (coursesQuery.data?.courses || []).filter((course) => course.status !== 'archived');
   const update = (key, value) => setFilters((current) => ({ ...current, [key]: value, page: 1 }));
+  const actionLabel = statusTarget?.status === 'published' ? 'Publish' : statusTarget?.status === 'draft' ? 'Restore to Draft' : 'Archive';
 
   return (
     <PageShell className="space-y-5 pb-8">
@@ -61,8 +62,9 @@ export default function CourseProjectsPage() {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {projects.length ? projects.map((project) => (
-          <Card key={project._id} className="min-w-0 shadow-sm">
+        {projects.length ? projects.map((project) => {
+          const archived = project.status === 'archived';
+          return <Card key={project._id} className="min-w-0 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h2 className="break-words text-lg font-bold text-foreground">{project.title}</h2><StatusPill status={project.status} /></div><p className="mt-1 text-xs font-semibold text-primary-strong">{project.course?.title || 'Unknown course'}</p></div>
               <span className="shrink-0 rounded-full bg-surface-secondary px-2.5 py-1 text-xs font-semibold capitalize text-muted-foreground">{project.difficulty}</span>
@@ -70,20 +72,24 @@ export default function CourseProjectsPage() {
             <p className="mt-3 text-sm leading-6 text-muted-foreground">{project.description}</p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground"><span>{project.estimatedMinutes || 0} min</span>{project.moduleTitle ? <span>• {project.moduleTitle}</span> : null}<span>• {(project.relatedLessons || []).length} related lesson(s)</span></div>
             <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
-              {project.status !== 'archived' ? <Link to={`/admin/project-tasks/${project._id}/edit`} className="ui-button ui-button--ghost min-h-9 gap-1.5 px-3 text-xs"><Pencil size={14} /> Edit</Link> : null}
+              {!archived ? <Link to={`/admin/project-tasks/${project._id}/edit`} className="ui-button ui-button--ghost min-h-9 gap-1.5 px-3 text-xs"><Pencil size={14} /> Edit</Link> : null}
               {project.status === 'draft' ? <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => setStatusTarget({ item: project, status: 'published' })}>Publish</Button> : null}
-              {project.status !== 'archived' ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: project, status: 'archived' })}><Archive size={14} /> Archive</Button> : null}
+              {!archived ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: project, status: 'archived' })}><Archive size={14} /> Archive</Button> : <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: project, status: 'draft' })}><RotateCcw size={14} /> Restore</Button>}
               {project.status !== 'published' ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { setDeleteTarget(project); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
             </div>
-          </Card>
-        )) : <div className="lg:col-span-2"><EmptyState title="No project tasks found" description="Choose a Course, create its first project task, or adjust the filters." /></div>}
+          </Card>;
+        }) : <div className="lg:col-span-2"><EmptyState title="No project tasks found" description="Choose a Course, create its first project task, or adjust the filters." /></div>}
       </div>
 
       <ConfirmDialog
         open={Boolean(statusTarget)}
-        title={statusTarget?.status === 'published' ? 'Publish project task?' : 'Archive project task?'}
-        description={statusTarget?.status === 'published' ? 'Publishing requires a published Course, published related Lessons, at least one requirement, and an expected output.' : 'Archiving removes this project from new learner project lists while preserving learner submissions.'}
-        confirmLabel={statusTarget?.status === 'published' ? 'Publish' : 'Archive'}
+        title={`${actionLabel} project task?`}
+        description={statusTarget?.status === 'published'
+          ? 'Publishing requires published related Lessons, at least one requirement, and an expected output. The parent Course may remain Draft while you stage its curriculum.'
+          : statusTarget?.status === 'draft'
+            ? 'Restoring returns this project task to Draft. Learners will not see it until it is explicitly published again.'
+            : 'Archiving removes this project from new learner project lists while preserving learner submissions.'}
+        confirmLabel={actionLabel}
         tone="primary"
         isLoading={statusMutation.isPending}
         onCancel={() => setStatusTarget(null)}
