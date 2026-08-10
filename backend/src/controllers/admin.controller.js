@@ -28,10 +28,7 @@ export const updateTopic = asyncHandler(async (req, res) => {
 });
 
 export const updateTopicStatus = asyncHandler(async (req, res) => {
-  const { topic, counts } = await adminContent.changeTopicStatus({
-    id: req.params.id,
-    status: req.body.status
-  });
+  const { topic, counts } = await adminContent.changeTopicStatus({ id: req.params.id, status: req.body.status });
   sendResponse(res, 200, `Topic ${topic.status}`, { topic, impact: counts });
 });
 
@@ -145,9 +142,7 @@ export const updateInterviewQuestionStatus = asyncHandler(async (req, res) => {
   const result = await adminContent.changeInterviewQuestionStatus({ id: req.params.id, ...req.body });
   const question = result?.question || result;
   const counts = result?.counts || null;
-  const message = req.body.status === 'restored'
-    ? 'Interview question restored'
-    : `Interview question ${question.status}`;
+  const message = req.body.status === 'restored' ? 'Interview question restored' : `Interview question ${question.status}`;
   sendResponse(res, 200, message, { interviewQuestion: question, ...(counts ? { impact: counts } : {}) });
 });
 
@@ -177,11 +172,11 @@ export const updateTemplate = asyncHandler(async (req, res) => {
 });
 
 export const updateTemplateStatus = asyncHandler(async (req, res) => {
-  const template = await adminContent.changeTemplateStatus({ id: req.params.id, ...req.body });
+  const template = await adminContent.changeTemplateStatusSafely({ id: req.params.id, ...req.body });
   sendResponse(res, 200, `Roadmap template ${template.status}`, { template });
 });
 
 export const deleteTemplate = asyncHandler(async (req, res) => {
-  const template = await adminContent.deleteTemplate(req.params.id);
+  const template = await adminContent.deleteTemplateSafely(req.params.id);
   sendResponse(res, 200, 'Roadmap template permanently deleted', { template });
 });
