@@ -11,6 +11,7 @@ import {
   cleanTemplateModules,
   ensureEditable,
   ensureFound,
+  requireArchivedForDelete,
   transitionStatus
 } from './common.js';
 
@@ -146,6 +147,7 @@ export const updateTemplate = async ({ id, payload }) => {
   delete normalized.course;
   delete normalized.level;
   delete normalized.estimatedDurationDays;
+  delete normalized.statusBeforeCourseArchive;
   if (Object.prototype.hasOwnProperty.call(payload, 'modules')) {
     normalized.modules = cleanTemplateModules(payload.modules);
     normalized.estimatedDurationDays = templateDurationDays(normalized.modules);
@@ -168,9 +170,7 @@ export const changeTemplateStatus = (args) => transitionStatus({
 
 export const deleteTemplate = async (id) => {
   const template = ensureFound(await RoadmapTemplate.findById(id), 'Roadmap template');
-  if (template.status === PUBLISHABLE_STATUS.PUBLISHED) {
-    throw new ApiError(409, 'Archive the roadmap template before permanently deleting it', [], 'TEMPLATE_DELETE_REQUIRES_ARCHIVE');
-  }
+  requireArchivedForDelete(template, 'Roadmap template');
   await template.deleteOne();
   await invalidateContentCache();
   return template;
