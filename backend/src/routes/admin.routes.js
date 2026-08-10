@@ -28,6 +28,11 @@ import {
   idParamSchema
 } from '../validations/admin.validation.js';
 import {
+  projectTaskSchema,
+  projectTaskUpdateSchema,
+  projectTaskStatusSchema
+} from '../validations/adminProject.validation.js';
+import {
   listTopics,
   getTopic,
   topicImpact,
@@ -83,6 +88,14 @@ import {
   updateLearningPathStatus,
   deleteLearningPath
 } from '../controllers/adminCatalog.controller.js';
+import {
+  listAdminProjectTasks,
+  getAdminProjectTask,
+  createAdminProjectTask,
+  updateAdminProjectTask,
+  updateAdminProjectTaskStatus,
+  deleteAdminProjectTask
+} from '../controllers/adminProject.controller.js';
 import { contentOverview } from '../controllers/adminOverview.controller.js';
 
 const router = Router();
@@ -142,6 +155,13 @@ router.get('/interview-questions/:id', validate(idParamSchema), getInterviewQues
 router.patch('/interview-questions/:id', adminWriteLimiter, validate(idParamSchema), validate(interviewQuestionUpdateSchema), updateInterviewQuestion);
 router.patch('/interview-questions/:id/status', adminWriteLimiter, validate(idParamSchema), validate(questionStatusUpdateSchema), updateInterviewQuestionStatus);
 router.delete('/interview-questions/:id', adminWriteLimiter, validate(idParamSchema), deleteInterviewQuestion);
+
+router.get('/project-tasks', listAdminProjectTasks);
+router.post('/project-tasks', adminWriteLimiter, validate(projectTaskSchema), createAdminProjectTask);
+router.get('/project-tasks/:id', validate(idParamSchema), getAdminProjectTask);
+router.patch('/project-tasks/:id', adminWriteLimiter, validate(idParamSchema), validate(projectTaskUpdateSchema), updateAdminProjectTask);
+router.patch('/project-tasks/:id/status', adminWriteLimiter, validate(idParamSchema), validate(projectTaskStatusSchema), updateAdminProjectTaskStatus);
+router.delete('/project-tasks/:id', adminWriteLimiter, validate(idParamSchema), deleteAdminProjectTask);
 
 router.get('/templates', listTemplates);
 router.post('/templates', adminWriteLimiter, validate(templateSchema), createTemplate);
