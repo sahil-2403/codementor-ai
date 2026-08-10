@@ -15,7 +15,7 @@ import { generateSlug } from '../../utils/generateSlug.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
 import { invalidateContentCache } from '../cacheInvalidation.service.js';
-import { assertCourseExists, cleanReferenceArray, cleanStringArray, ensureFound } from './common.js';
+import { assertCourseExists, cleanReferenceArray, cleanStringArray, ensureFound, requireArchivedForDelete } from './common.js';
 
 const ids = (documents = []) => documents.map((item) => item._id);
 const withSession = (query, session) => (session ? query.session(session) : query);
@@ -56,43 +56,26 @@ const archiveByTopic = async ({ model, ids: contentIds, topicId, session }) => {
   );
 };
 
-const restoreByTopic = async ({ model, ids: contentIds, topicId, session, supportsLessonBlockers = false }) => {
+const restoreByTopic = async ({ model, ids: contentIds, topicId, session, clearLessonBlockers = false, clearManualArchive = false }) => {
   if (!contentIds.length) return;
-  const blockers = supportsLessonBlockers
-    ? { $eq: [{ $size: { $ifNull: ['$archivedByLessons', []] } }, 0] }
-    : true;
-  await model.updateMany(
-    { _id: { $in: contentIds } },
-    [
-      { $set: { archivedByTopics: { $setDifference: [{ $ifNull: ['$archivedByTopics', []] }, [topicId]] } } },
-      {
-        $set: {
-          status: {
-            $cond: [
-              {
-                $and: [
-                  { $eq: [{ $size: { $ifNull: ['$archivedByTopics', []] } }, 0] },
-                  blockers,
-                  { $eq: [{ $ifNull: ['$manualArchive', false] }, false] },
-                  { $in: ['$statusBeforeTopicArchive', ['draft', 'published']] }
-                ]
-              },
-              '$statusBeforeTopicArchive',
-              '$status'
-            ]
-          },
-          statusBeforeTopicArchive: {
-            $cond: [
-              { $eq: [{ $size: { $ifNull: ['$archivedByTopics', []] } }, 0] },
-              null,
-              '$statusBeforeTopicArchive'
-            ]
-          }
-        }
-      }
-    ],
-    operationOptions(session)
-  );
+  const reset = {
+    archivedByTopics: { $setDifference: [{ $ifNull: ['$archivedByTopics', []] }, [topicId]] },
+    status: {
+      $cond: [
+        { $in: ['$statusBeforeTopicArchive', ['draft', 'published']] },
+        '$statusBeforeTopicArchive',
+        'draft'
+      ]
+    },
+    statusBeforeTopicArchive: null,
+    statusBeforeCascadeArchive: null
+  };
+  if (clearLessonBlockers) reset.archivedByLessons = [];
+  if (clearManualArchive) {
+    reset.manualArchive = false;
+    reset.statusBeforeManualArchive = null;
+  }
+  await model.updateMany({ _id: { $in: contentIds } }, [{ $set: reset }], operationOptions(session));
 };
 
 export const resolveTopicImpact = async (topicId, { session = null } = {}) => {
@@ -222,7 +205,12 @@ export const changeTopicStatus = async ({ id, status }) => {
         ? await withSession(RoadmapTemplate.findOne({ status: 'published', 'modules.lessons': { $in: impact.lessonIds } }).select('title'), session)
         : null;
       if (publishedTemplate) {
-        throw new ApiError(409, 'This topic contains lessons used by a published roadmap template. Update or archive the template first.', [{ field: 'template', message: publishedTemplate.title }], 'TEMPLATE_DEPENDENCY_EXISTS');
+        throw new ApiError(
+          409,
+          'This topic contains lessons used by a published roadmap template.',
+          [{ field: 'template', message: `Open Roadmap Templates and archive or update “${publishedTemplate.title}” first, then archive this Topic again.` }],
+          'TEMPLATE_DEPENDENCY_EXISTS'
+        );
       }
       topic.status = 'archived';
       await topic.save(operationOptions(session));
@@ -231,12 +219,20 @@ export const changeTopicStatus = async ({ id, status }) => {
       await archiveByTopic({ model: ProjectTask, ids: impact.projectTaskIds, topicId: topic._id, session });
       await archiveByTopic({ model: InterviewQuestion, ids: impact.interviewQuestionIds, topicId: topic._id, session });
     } else {
+      if (topic.course?.status === 'archived') {
+        throw new ApiError(
+          409,
+          'This topic cannot be restored while its Course is archived.',
+          [{ field: 'course', message: 'Open Courses and restore the parent Course first. Restoring the Course will restore all of its curriculum.' }],
+          'PARENT_ARCHIVED'
+        );
+      }
       topic.status = 'active';
       await topic.save(operationOptions(session));
-      await restoreByTopic({ model: Lesson, ids: impact.lessonIds, topicId: topic._id, session });
-      await restoreByTopic({ model: QuizQuestion, ids: impact.quizQuestionIds, topicId: topic._id, session, supportsLessonBlockers: true });
-      await restoreByTopic({ model: ProjectTask, ids: impact.projectTaskIds, topicId: topic._id, session, supportsLessonBlockers: true });
-      await restoreByTopic({ model: InterviewQuestion, ids: impact.interviewQuestionIds, topicId: topic._id, session });
+      await restoreByTopic({ model: Lesson, ids: impact.lessonIds, topicId: topic._id, session, clearManualArchive: true });
+      await restoreByTopic({ model: QuizQuestion, ids: impact.quizQuestionIds, topicId: topic._id, session, clearLessonBlockers: true, clearManualArchive: true });
+      await restoreByTopic({ model: ProjectTask, ids: impact.projectTaskIds, topicId: topic._id, session, clearLessonBlockers: true });
+      await restoreByTopic({ model: InterviewQuestion, ids: impact.interviewQuestionIds, topicId: topic._id, session, clearManualArchive: true });
     }
     return { topic, counts: impact.counts };
   });
@@ -248,9 +244,24 @@ export const deleteTopic = async (id) => {
   const result = await runLifecycleOperation(async (session) => {
     const impact = await resolveTopicImpact(id, { session });
     const { topic, lessonIds, quizQuestionIds, projectTaskIds, interviewQuestionIds, counts } = impact;
-    if (counts.templates) throw new ApiError(409, 'Remove this topic lessons from roadmap templates before deleting the topic.', [], 'TEMPLATE_DEPENDENCY_EXISTS');
+    requireArchivedForDelete(topic, 'Topic');
+    if (counts.templates) {
+      throw new ApiError(
+        409,
+        'This topic still contains lessons referenced by roadmap templates.',
+        [{ field: 'templates', message: 'Open Roadmap Templates and remove these lessons from every template first. Then return here and delete the archived Topic.' }],
+        'TEMPLATE_DEPENDENCY_EXISTS'
+      );
+    }
     const history = counts.projectSubmissions + counts.interviewAttempts + counts.quizAttempts + counts.affectedCoursePlans;
-    if (history > 0) throw new ApiError(409, 'This topic already has learner history. Archive it instead of deleting it.', [], 'LEARNER_HISTORY_EXISTS');
+    if (history > 0) {
+      throw new ApiError(
+        409,
+        'This topic has learner history, so it cannot be permanently deleted.',
+        [{ field: 'learnerHistory', message: 'Keep the Topic archived. Existing learner attempts and generated roadmaps must remain valid.' }],
+        'LEARNER_HISTORY_EXISTS'
+      );
+    }
 
     if (projectTaskIds.length) await ProjectTask.deleteMany({ _id: { $in: projectTaskIds } }, operationOptions(session));
     if (interviewQuestionIds.length) await InterviewQuestion.deleteMany({ _id: { $in: interviewQuestionIds } }, operationOptions(session));
