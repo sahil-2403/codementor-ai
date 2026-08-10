@@ -97,23 +97,35 @@ export const updateProjectTask = async ({ id, payload }) => {
 };
 
 export const changeProjectTaskStatus = async (args) => {
-  if (args.status === 'draft') {
-    const project = ensureFound(await ProjectTask.findById(args.id).select('course status'), 'Project task');
-    if (project.status === 'archived') {
-      const course = await Course.findById(project.course).select('status').lean();
-      if (!course || course.status === 'archived') {
-        throw new ApiError(409, 'This project task cannot be restored while its Course is archived.', [
-          { field: 'course', message: 'Open Courses and restore the parent Course first. Restoring the Course will restore all of its Project tasks.' }
-        ], 'PARENT_ARCHIVED');
-      }
+  const project = ensureFound(await ProjectTask.findById(args.id).select('course status statusBeforeCascadeArchive'), 'Project task');
+
+  if (args.status === 'archived' && ['draft', 'published'].includes(project.status)) {
+    await ProjectTask.updateOne(
+      { _id: args.id },
+      { $set: { statusBeforeCascadeArchive: project.status } }
+    );
+  }
+
+  if (args.status === 'draft' && project.status === 'archived') {
+    const course = await Course.findById(project.course).select('status').lean();
+    if (!course || course.status === 'archived') {
+      throw new ApiError(409, 'This project task cannot be restored while its Course is archived.', [
+        { field: 'course', message: 'Open Courses and restore the parent Course first. Restoring the Course will restore all of its Project tasks.' }
+      ], 'PARENT_ARCHIVED');
     }
   }
-  return transitionStatus({
+
+  const updated = await transitionStatus({
     model: ProjectTask,
     label: 'Project task',
     validatePublish,
     ...args
   });
+
+  if (args.status === 'draft') {
+    await ProjectTask.updateOne({ _id: args.id }, { $set: { statusBeforeCascadeArchive: null } });
+  }
+  return updated;
 };
 
 export const deleteProjectTask = async (id) => {
