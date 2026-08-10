@@ -18,6 +18,7 @@ import {
   cleanStringArray,
   ensureEditable,
   ensureFound,
+  requireArchivedForDelete,
   transitionStatus
 } from './common.js';
 
@@ -97,7 +98,15 @@ const assertQuestionCanLeavePublished = async (question) => {
   const coveredTags = new Set(remaining.flatMap((item) => item.tags || []));
   const uncovered = [...relevantTags].filter((tag) => !coveredTags.has(tag));
   if (uncovered.length) {
-    throw new ApiError(409, 'This question provides required coverage for a published roadmap template', uncovered.map((tag) => ({ field: 'tags', message: tag })), 'TEMPLATE_DEPENDENCY_EXISTS');
+    throw new ApiError(
+      409,
+      'This Quiz question provides coverage required by a published roadmap template.',
+      uncovered.map((tag) => ({
+        field: 'tags',
+        message: `Tag “${tag}” would have no published Quiz question. Publish another Quiz question with this tag, or archive/update the affected roadmap template first.`
+      })),
+      'TEMPLATE_DEPENDENCY_EXISTS'
+    );
   }
 };
 
@@ -195,7 +204,7 @@ export const updateQuestion = async ({ id, payload }) => {
   delete normalized.course;
   if (question.bank === QUESTION_BANKS.SKILL_CHECK) normalized.relatedLesson = undefined;
   else if (hasRelatedLesson) normalized.relatedLesson = payload.relatedLesson || undefined;
-  for (const field of ['status', 'manualArchive', 'statusBeforeManualArchive', 'archivedByTopics', 'archivedByLessons', 'statusBeforeCascadeArchive', 'statusBeforeTopicArchive']) delete normalized[field];
+  for (const field of ['status', 'manualArchive', 'statusBeforeManualArchive', 'archivedByTopics', 'archivedByLessons', 'statusBeforeCascadeArchive', 'statusBeforeTopicArchive', 'statusBeforeCourseArchive']) delete normalized[field];
 
   Object.assign(question, normalized);
   if (question.status === PUBLISHABLE_STATUS.PUBLISHED) await assertQuestionPublishable(question);
@@ -239,14 +248,29 @@ export const changeQuestionStatus = async ({ id, status, confirmPublish = false 
     }
 
     if (question.status !== PUBLISHABLE_STATUS.ARCHIVED) return { question, counts: impact.counts };
-    if ((question.archivedByTopics || []).length || (question.archivedByLessons || []).length) {
-      throw new ApiError(409, 'Restore the parent topic or lesson before restoring this question.', [], 'QUESTION_ARCHIVED_BY_PARENT');
+    if (question.course?.status === PUBLISHABLE_STATUS.ARCHIVED) {
+      throw new ApiError(409, 'This question cannot be restored while its Course is archived.', [
+        { field: 'course', message: 'Open Courses and restore the parent Course first. Restoring the Course will restore all of its curriculum.' }
+      ], 'PARENT_ARCHIVED');
+    }
+    if (question.topic?.status === 'archived' || (question.archivedByTopics || []).length) {
+      throw new ApiError(409, 'This question cannot be restored while its Topic is archived.', [
+        { field: 'topic', message: 'Open Topics and restore the parent Topic first. Restoring the Topic will restore its child content.' }
+      ], 'PARENT_ARCHIVED');
+    }
+    if (question.relatedLesson?.status === PUBLISHABLE_STATUS.ARCHIVED || (question.archivedByLessons || []).length) {
+      throw new ApiError(409, 'This Quiz question cannot be restored while its related Lesson is archived.', [
+        { field: 'relatedLesson', message: 'Open Lessons and restore the related Lesson first. Restoring the Lesson will restore its dependent Quiz questions.' }
+      ], 'PARENT_ARCHIVED');
     }
     question.manualArchive = false;
     question.status = ['draft', 'published'].includes(question.statusBeforeManualArchive) ? question.statusBeforeManualArchive : PUBLISHABLE_STATUS.DRAFT;
     question.statusBeforeManualArchive = null;
     question.statusBeforeCascadeArchive = null;
     question.statusBeforeTopicArchive = null;
+    question.statusBeforeCourseArchive = null;
+    question.archivedByTopics = [];
+    question.archivedByLessons = [];
     await question.save(operationOptions(session));
     return { question, counts: impact.counts };
   });
@@ -259,7 +283,7 @@ export const deleteQuestion = async (id) => {
   const result = await runLifecycleOperation(async (session) => {
     const impact = await resolveQuestionImpact(id, { session });
     const question = impact.question;
-    await assertQuestionCanLeavePublished(question);
+    requireArchivedForDelete(question, question.bank === QUESTION_BANKS.SKILL_CHECK ? 'Skill check' : 'Quiz question');
 
     await QuizAttempt.updateMany({ 'answers.question': question._id }, [{ $set: { answers: { $map: { input: { $ifNull: ['$answers', []] }, as: 'answer', in: { $cond: [{ $eq: ['$$answer.question', question._id] }, { $mergeObjects: ['$$answer', { question: null }] }, '$$answer'] } } } } }], operationOptions(session));
     await CoursePlan.updateMany({ 'modules.quizQuestions': question._id }, [{ $set: { modules: { $map: { input: { $ifNull: ['$modules', []] }, as: 'module', in: { $mergeObjects: ['$$module', { quizQuestions: { $filter: { input: { $ifNull: ['$$module.quizQuestions', []] }, as: 'questionId', cond: { $ne: ['$$questionId', question._id] } } } }] } } } } }], operationOptions(session));
