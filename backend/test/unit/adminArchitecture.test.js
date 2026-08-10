@@ -90,6 +90,18 @@ test('course lifecycle cascades down through owned curriculum only', () => {
   assert.doesNotMatch(lifecycle, /archiveCourseOwnedContent[\s\S]*Technology\.updateMany/);
 });
 
+test('course archive remembers real child state even when children were archived first', () => {
+  const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
+  const project = source('services/adminContent/projectTask.service.js');
+
+  assert.match(lifecycle, /const rememberedPublishableStatus/);
+  assert.match(lifecycle, /statusBeforeManualArchive/);
+  assert.match(lifecycle, /statusBeforeCascadeArchive/);
+  assert.match(lifecycle, /statusBeforeCourseArchive/);
+  assert.match(lifecycle, /RoadmapTemplate\.updateMany[\s\S]*rememberedPublishableStatus\('statusBeforeCourseArchive'\)/);
+  assert.match(project, /statusBeforeCascadeArchive:\s*project\.status/);
+});
+
 test('catalog archives protect external references and explain how to resolve blockers', () => {
   const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
   const catalogController = source('controllers/adminCatalog.controller.js');
@@ -102,7 +114,7 @@ test('catalog archives protect external references and explain how to resolve bl
   assert.match(lifecycle, /Open Learning Paths and remove the course first/);
   assert.match(lifecycle, /remove the prerequisite first/);
   assert.match(lifecycle, /assertTemplateCanLeavePublishedCoverage/);
-  assert.match(lifecycle, /Archive the Course first\. Course archiving will archive all of its templates and curriculum together/);
+  assert.match(lifecycle, /Archive the Course instead\. Course archiving automatically archives all of its Templates and curriculum/);
   assert.match(catalogController, /changeTechnologyStatusSafely/);
   assert.match(catalogController, /changeCourseStatusSafely/);
   assert.match(contentController, /changeTemplateStatusSafely/);
