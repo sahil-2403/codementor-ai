@@ -13,23 +13,29 @@ test('admin exposes one dedicated content overview endpoint', () => {
   assert.match(controller, /Admin content overview/);
 });
 
-test('content overview is backed by real content counts and relationships', () => {
+test('content overview reports catalog and course-owned content', () => {
   const service = source('services/adminContent/overview.service.js');
 
+  assert.match(service, /Technology\.countDocuments\(\)/);
+  assert.match(service, /Course\.countDocuments\(\)/);
+  assert.match(service, /LearningPath\.countDocuments\(\)/);
   assert.match(service, /Topic\.countDocuments\(\)/);
   assert.match(service, /Lesson\.countDocuments\(\)/);
-  assert.match(service, /QuizQuestion\.countDocuments\(legacyQuizBankFilter\)/);
+  assert.match(service, /QuizQuestion\.countDocuments\(\{ bank: 'quiz' \}\)/);
   assert.match(service, /QuizQuestion\.countDocuments\(\{ bank: 'skill_check' \}\)/);
   assert.match(service, /InterviewQuestion\.countDocuments\(\)/);
   assert.match(service, /RoadmapTemplate\.countDocuments\(\)/);
   assert.match(service, /topicsWithoutLessons/);
   assert.match(service, /publishedLessonsWithoutQuizCoverage/);
+  assert.match(service, /templateByCourseLevel/);
   assert.match(service, /recentContent/);
 });
 
-test('overview quiz coverage keeps legacy quiz-bank compatibility', () => {
+test('overview template coverage is keyed by course and level', () => {
   const service = source('services/adminContent/overview.service.js');
-  assert.match(service, /legacyQuizBankFilter/);
-  assert.match(service, /bank:\s*'quiz'/);
-  assert.match(service, /bank:\s*\{\s*\$exists:\s*false\s*\}/);
+  assert.match(service, /\$\{template\.course\}:\$\{template\.level\}/);
+  assert.match(service, /courseId:\s*course\._id/);
+  assert.match(service, /courseStatus:\s*course\.status/);
+  assert.match(service, /missingPublishedTemplateLevels/);
+  assert.doesNotMatch(service, /goalKey|legacyQuizBankFilter/);
 });
