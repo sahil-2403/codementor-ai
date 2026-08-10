@@ -55,14 +55,15 @@ export default function TemplateEditorPage() {
     }
   }, [templateCourseId, coursesQuery.data?.courses, selectedCourseId]);
 
-  const lessonsQuery = useAdminLessons({ limit: 100, course: selectedCourseId }, Boolean(selectedCourseId));
-  const questionsQuery = useAdminQuestions({ limit: 100, bank: 'quiz', course: selectedCourseId });
-  const templatesQuery = useAdminTemplates({ limit: 100, course: selectedCourseId });
+  const courseSelected = Boolean(selectedCourseId);
+  const lessonsQuery = useAdminLessons({ limit: 100, course: selectedCourseId }, courseSelected);
+  const questionsQuery = useAdminQuestions({ limit: 100, bank: 'quiz', course: selectedCourseId }, courseSelected);
+  const templatesQuery = useAdminTemplates({ limit: 100, course: selectedCourseId }, courseSelected);
   const createTemplate = useCreateTemplate();
   const updateTemplate = useUpdateTemplate();
 
   const loading = coursesQuery.isLoading || (isEditing && templateQuery.isLoading)
-    || (selectedCourseId && (lessonsQuery.isLoading || questionsQuery.isLoading || templatesQuery.isLoading));
+    || (courseSelected && (lessonsQuery.isLoading || questionsQuery.isLoading || templatesQuery.isLoading));
   if (loading) return <Loader label="Loading roadmap template editor..." />;
 
   if (isEditing && templateQuery.error) {
