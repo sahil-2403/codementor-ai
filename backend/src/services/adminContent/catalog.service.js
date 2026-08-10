@@ -10,6 +10,7 @@ import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
 import { invalidateContentCache } from '../cacheInvalidation.service.js';
 import { cleanReferenceArray, ensureEditable, ensureFound, PUBLISHABLE_STATUS, transitionStatus } from './common.js';
+import { assertCourseReadyForCatalog } from './courseReadiness.service.js';
 
 const normalizeCourse = (payload = {}) => ({
   ...payload,
@@ -64,6 +65,8 @@ const assertCoursePublishable = async (course) => {
       throw new ApiError(400, 'All prerequisite courses must be published first', [], 'CONTENT_NOT_READY');
     }
   }
+
+  await assertCourseReadyForCatalog(course);
 };
 
 const assertLearningPathPublishable = async (path) => {
