@@ -4,8 +4,10 @@ import { queryKeys } from '../constants/queryKeys.js';
 import { useInvalidatingMutation } from './queryUtils.js';
 
 const adminOverviewQueryKey = ['admin-content-overview'];
+const adminCourseWorkspaceQueryKey = ['admin-course-workspace'];
 const catalogQueryKeys = [
   adminOverviewQueryKey,
+  adminCourseWorkspaceQueryKey,
   ['catalog'],
   ['admin-technologies'],
   ['admin-technology'],
@@ -22,7 +24,7 @@ const catalogQueryKeys = [
 ];
 
 const topicCascadeQueryKeys = [
-  adminOverviewQueryKey,
+  adminOverviewQueryKey, adminCourseWorkspaceQueryKey,
   ['admin-topics'], ['admin-topic'], ['admin-topic-impact'],
   ['admin-lessons'], ['admin-lesson'], ['admin-lesson-impact'],
   ['admin-questions'], ['admin-question'], ['admin-question-impact'],
@@ -31,26 +33,26 @@ const topicCascadeQueryKeys = [
 ];
 
 const lessonCascadeQueryKeys = [
-  adminOverviewQueryKey,
+  adminOverviewQueryKey, adminCourseWorkspaceQueryKey,
   ['admin-lessons'], ['admin-lesson'], ['admin-lesson-impact'], ['admin-topic-impact'],
   ['admin-questions'], ['admin-question'], ['admin-question-impact'],
   ['project-tasks'], ['project-task'], ['lesson'], ['quiz'], ['roadmap'], ['dashboard'], ['reports']
 ];
 
 const questionLifecycleQueryKeys = [
-  adminOverviewQueryKey,
+  adminOverviewQueryKey, adminCourseWorkspaceQueryKey,
   ['admin-questions'], ['admin-question'], ['admin-question-impact'], ['admin-topic-impact'], ['admin-lesson-impact'],
   ['quiz'], ['quiz-attempt'], ['assessment'], ['roadmap'], ['dashboard'], ['onboarding-status']
 ];
 
 const interviewQuestionLifecycleQueryKeys = [
-  adminOverviewQueryKey,
+  adminOverviewQueryKey, adminCourseWorkspaceQueryKey,
   ['admin-interview-questions'], ['admin-interview-question'], ['admin-interview-question-impact'], ['admin-topic-impact'],
   ['interview-questions'], ['interview-attempts'], ['dashboard']
 ];
 
 const templateLifecycleQueryKeys = [
-  adminOverviewQueryKey,
+  adminOverviewQueryKey, adminCourseWorkspaceQueryKey,
   ['admin-templates'], ['admin-template'], ['admin-courses'], ['catalog'], ['onboarding-status']
 ];
 
@@ -93,23 +95,23 @@ export const useUpdateLearningPath = () => useInvalidatingMutation(adminApi.upda
 export const useUpdateLearningPathStatus = () => useInvalidatingMutation(adminApi.updateLearningPathStatus, catalogQueryKeys);
 export const useDeleteLearningPath = () => useInvalidatingMutation(adminApi.deleteLearningPath, catalogQueryKeys);
 
-export const useCreateTopic = () => useInvalidatingMutation(adminApi.createTopic, [adminOverviewQueryKey, ['admin-topics']]);
-export const useUpdateTopic = () => useInvalidatingMutation(adminApi.updateTopic, [adminOverviewQueryKey, ['admin-topics'], ['admin-topic'], ['admin-interview-questions']]);
+export const useCreateTopic = () => useInvalidatingMutation(adminApi.createTopic, [adminOverviewQueryKey, adminCourseWorkspaceQueryKey, ['admin-topics']]);
+export const useUpdateTopic = () => useInvalidatingMutation(adminApi.updateTopic, [adminOverviewQueryKey, adminCourseWorkspaceQueryKey, ['admin-topics'], ['admin-topic'], ['admin-interview-questions']]);
 export const useUpdateTopicStatus = () => useInvalidatingMutation(adminApi.updateTopicStatus, topicCascadeQueryKeys);
 export const useDeleteTopic = () => useInvalidatingMutation(adminApi.deleteTopic, topicCascadeQueryKeys);
 
-export const useCreateLesson = () => useInvalidatingMutation(adminApi.createLesson, [adminOverviewQueryKey, ['admin-lessons'], ['admin-templates']]);
-export const useUpdateLesson = () => useInvalidatingMutation(adminApi.updateLesson, [adminOverviewQueryKey, ['admin-lessons'], ['admin-lesson'], ['admin-templates']]);
+export const useCreateLesson = () => useInvalidatingMutation(adminApi.createLesson, [adminOverviewQueryKey, adminCourseWorkspaceQueryKey, ['admin-lessons'], ['admin-templates']]);
+export const useUpdateLesson = () => useInvalidatingMutation(adminApi.updateLesson, [adminOverviewQueryKey, adminCourseWorkspaceQueryKey, ['admin-lessons'], ['admin-lesson'], ['admin-templates']]);
 export const useUpdateLessonStatus = () => useInvalidatingMutation(adminApi.updateLessonStatus, lessonCascadeQueryKeys);
 export const useDeleteLesson = () => useInvalidatingMutation(adminApi.deleteLesson, lessonCascadeQueryKeys);
 
-export const useCreateQuestion = () => useInvalidatingMutation(adminApi.createQuestion, [adminOverviewQueryKey, ['admin-questions'], ['admin-templates']]);
-export const useUpdateQuestion = () => useInvalidatingMutation(adminApi.updateQuestion, [adminOverviewQueryKey, ['admin-questions'], ['admin-question'], ['admin-templates']]);
+export const useCreateQuestion = () => useInvalidatingMutation(adminApi.createQuestion, [adminOverviewQueryKey, adminCourseWorkspaceQueryKey, ['admin-questions'], ['admin-templates']]);
+export const useUpdateQuestion = () => useInvalidatingMutation(adminApi.updateQuestion, [adminOverviewQueryKey, adminCourseWorkspaceQueryKey, ['admin-questions'], ['admin-question'], ['admin-templates']]);
 export const useUpdateQuestionStatus = () => useInvalidatingMutation(adminApi.updateQuestionStatus, questionLifecycleQueryKeys);
 export const useDeleteQuestion = () => useInvalidatingMutation(adminApi.deleteQuestion, questionLifecycleQueryKeys);
 
-export const useCreateInterviewQuestion = () => useInvalidatingMutation(adminApi.createInterviewQuestion, [adminOverviewQueryKey, ['admin-interview-questions']]);
-export const useUpdateInterviewQuestion = () => useInvalidatingMutation(adminApi.updateInterviewQuestion, [adminOverviewQueryKey, ['admin-interview-questions'], ['admin-interview-question']]);
+export const useCreateInterviewQuestion = () => useInvalidatingMutation(adminApi.createInterviewQuestion, [adminOverviewQueryKey, adminCourseWorkspaceQueryKey, ['admin-interview-questions']]);
+export const useUpdateInterviewQuestion = () => useInvalidatingMutation(adminApi.updateInterviewQuestion, [adminOverviewQueryKey, adminCourseWorkspaceQueryKey, ['admin-interview-questions'], ['admin-interview-question']]);
 export const useUpdateInterviewQuestionStatus = () => useInvalidatingMutation(adminApi.updateInterviewQuestionStatus, interviewQuestionLifecycleQueryKeys);
 export const useDeleteInterviewQuestion = () => useInvalidatingMutation(adminApi.deleteInterviewQuestion, interviewQuestionLifecycleQueryKeys);
 
