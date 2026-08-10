@@ -9,3 +9,4 @@ import './sourceContracts.test.js';
 import './templateAdmin.test.js';
 import './adminOverview.test.js';
 import './seedContracts.test.js';
+import './adminArchitecture.test.js';
