@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Archive, MessageSquareText, Pencil, Plus, Trash2 } from 'lucide-react';
+import LifecycleError from '../../components/admin/LifecycleError.jsx';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
@@ -66,8 +67,9 @@ export default function CourseInterviewQuestionsPage() {
       </Card>
 
       <div className="space-y-3">
-        {questions.length ? questions.map((question) => (
-          <Card key={question._id} className="min-w-0 shadow-sm">
+        {questions.length ? questions.map((question) => {
+          const archived = question.status === 'archived';
+          return <Card key={question._id} className="min-w-0 shadow-sm">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2"><h2 className="break-words text-base font-bold leading-6 text-foreground">{question.question}</h2><StatusPill status={question.status} /></div>
@@ -76,38 +78,38 @@ export default function CourseInterviewQuestionsPage() {
                 <p className="mt-3 text-sm leading-6 text-muted-foreground">{question.expectedAnswer}</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {question.status !== 'archived' ? <Link to={`/admin/questions/interview/${question._id}/edit`} className="ui-button ui-button--ghost min-h-9 gap-1.5 px-3 text-xs"><Pencil size={14} /> Edit</Link> : <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => setStatusTarget({ item: question, status: 'restored' })}>Restore</Button>}
+                {!archived ? <Link to={`/admin/questions/interview/${question._id}/edit`} className="ui-button ui-button--ghost min-h-9 gap-1.5 px-3 text-xs"><Pencil size={14} /> Edit</Link> : <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => { updateStatus.reset(); setStatusTarget({ item: question, status: 'restored' }); }}>Restore</Button>}
                 {question.status === 'draft' ? <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => setStatusTarget({ item: question, status: 'published' })}>Publish</Button> : null}
-                {question.status !== 'archived' ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: question, status: 'archived' })}><Archive size={14} /> Archive</Button> : null}
-                <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { setDeleteTarget(question); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button>
+                {!archived ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { updateStatus.reset(); setStatusTarget({ item: question, status: 'archived' }); }}><Archive size={14} /> Archive</Button> : null}
+                {archived ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { deleteQuestion.reset(); setDeleteTarget(question); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
               </div>
             </div>
-          </Card>
-        )) : <EmptyState title="No interview questions found" description="Choose a Course, add its first interview question, or adjust the filters." />}
+          </Card>;
+        }) : <EmptyState title="No interview questions found" description="Choose a Course, add its first interview question, or adjust the filters." />}
       </div>
 
       <ConfirmDialog
         open={Boolean(statusTarget)}
         title={statusTarget?.status === 'published' ? 'Publish interview question?' : statusTarget?.status === 'restored' ? 'Restore interview question?' : 'Archive interview question?'}
-        description={statusTarget?.status === 'published' ? 'The parent Course may be Draft or Published, but it cannot be Archived and the linked Topic must remain active. Publishing the Course later is the final learner-catalog gate.' : 'This lifecycle change keeps the question tied to its existing Course and Topic.'}
+        description={statusTarget?.status === 'published' ? 'The Course and linked Topic must be available.' : statusTarget?.status === 'restored' ? 'Restore this Interview question. If its Course or Topic is archived, restore that parent first.' : 'Archive this Interview question before permanent deletion. Its Course and Topic are not changed.'}
         confirmLabel={statusTarget?.status === 'published' ? 'Publish' : statusTarget?.status === 'restored' ? 'Restore' : 'Archive'}
         tone="primary"
         isLoading={updateStatus.isPending}
         onCancel={() => setStatusTarget(null)}
         onConfirm={() => updateStatus.mutate({ id: statusTarget.item._id, status: statusTarget.status, confirmPublish: statusTarget.status === 'published' }, { onSuccess: () => setStatusTarget(null) })}
-      ><ErrorMessage message={updateStatus.error?.message} /></ConfirmDialog>
+      ><LifecycleError error={updateStatus.error} /></ConfirmDialog>
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title="Delete interview question permanently?"
-        description="Learner interview attempts block permanent deletion. Archive the question when it already has learner history."
+        title="Delete archived interview question permanently?"
+        description="Permanently delete this archived Interview question. Learner interview attempts will block deletion; in that case keep it archived."
         confirmLabel="Delete permanently"
         tone="danger"
         isLoading={deleteQuestion.isPending}
         confirmDisabled={deleteConfirmation !== 'DELETE'}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => deleteQuestion.mutate(deleteTarget._id, { onSuccess: () => setDeleteTarget(null) })}
-      ><Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /><ErrorMessage message={deleteQuestion.error?.message} /></ConfirmDialog>
+        onCancel={() => { setDeleteTarget(null); setDeleteConfirmation(''); }}
+        onConfirm={() => deleteQuestion.mutate(deleteTarget._id, { onSuccess: () => { setDeleteTarget(null); setDeleteConfirmation(''); } })}
+      ><Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /><LifecycleError error={deleteQuestion.error} /></ConfirmDialog>
     </PageShell>
   );
 }
