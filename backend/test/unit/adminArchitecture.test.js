@@ -49,3 +49,36 @@ test('project task history checks use the real projectTask submission reference'
   assert.match(service, /ProjectSubmission\.countDocuments\(\{ projectTask: project\._id \}\)/);
   assert.doesNotMatch(service, /ProjectSubmission\.countDocuments\(\{ task:/);
 });
+
+test('catalog archives cannot break active dependency chains', () => {
+  const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
+  const catalogController = source('controllers/adminCatalog.controller.js');
+  const contentController = source('controllers/admin.controller.js');
+
+  assert.match(lifecycle, /assertTechnologyArchiveSafe/);
+  assert.match(lifecycle, /active course\(s\) use this technology/);
+  assert.match(lifecycle, /assertCourseArchiveSafe/);
+  assert.match(lifecycle, /active learning path\(s\) include this course/);
+  assert.match(lifecycle, /assertTemplateCanLeavePublishedCoverage/);
+  assert.match(lifecycle, /Archive the Course first, then archive or delete this required roadmap template/);
+  assert.match(catalogController, /changeTechnologyStatusSafely/);
+  assert.match(catalogController, /changeCourseStatusSafely/);
+  assert.match(contentController, /changeTemplateStatusSafely/);
+  assert.match(contentController, /deleteTemplateSafely/);
+});
+
+test('permanent catalog deletion protects deep content and learner history', () => {
+  const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
+  const catalogController = source('controllers/adminCatalog.controller.js');
+
+  assert.match(lifecycle, /Technology\.countDocuments\(\{ parentTechnology: id \}\)/);
+  assert.match(lifecycle, /Lesson\.countDocuments\(\{ course: id \}\)/);
+  assert.match(lifecycle, /QuizQuestion\.countDocuments\(\{ course: id \}\)/);
+  assert.match(lifecycle, /InterviewQuestion\.countDocuments\(\{ course: id \}\)/);
+  assert.match(lifecycle, /ProjectTask\.countDocuments\(\{ course: id \}\)/);
+  assert.match(lifecycle, /CoursePlan\.countDocuments\(\{ course: id \}\)/);
+  assert.match(lifecycle, /CoursePlan\.countDocuments\(\{ learningPath: id \}\)/);
+  assert.match(catalogController, /deleteTechnologySafely/);
+  assert.match(catalogController, /deleteCourseSafely/);
+  assert.match(catalogController, /deleteLearningPathSafely/);
+});
