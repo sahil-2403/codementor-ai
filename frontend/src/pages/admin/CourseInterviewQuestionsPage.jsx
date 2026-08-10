@@ -89,7 +89,7 @@ export default function CourseInterviewQuestionsPage() {
       <ConfirmDialog
         open={Boolean(statusTarget)}
         title={statusTarget?.status === 'published' ? 'Publish interview question?' : statusTarget?.status === 'restored' ? 'Restore interview question?' : 'Archive interview question?'}
-        description={statusTarget?.status === 'published' ? 'The Course must be published and the linked Topic must remain active.' : 'This lifecycle change keeps the question tied to its existing Course and Topic.'}
+        description={statusTarget?.status === 'published' ? 'The parent Course may be Draft or Published, but it cannot be Archived and the linked Topic must remain active. Publishing the Course later is the final learner-catalog gate.' : 'This lifecycle change keeps the question tied to its existing Course and Topic.'}
         confirmLabel={statusTarget?.status === 'published' ? 'Publish' : statusTarget?.status === 'restored' ? 'Restore' : 'Archive'}
         tone="primary"
         isLoading={updateStatus.isPending}
