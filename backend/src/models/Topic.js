@@ -22,7 +22,8 @@ const topicSchema = new mongoose.Schema(
       enum: ['active', 'archived'],
       default: 'active',
       index: true
-    }
+    },
+    statusBeforeCourseArchive: { type: String, enum: ['active'], default: null }
   },
   { timestamps: true }
 );
