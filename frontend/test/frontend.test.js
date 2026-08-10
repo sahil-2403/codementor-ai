@@ -21,8 +21,8 @@ test('shared utilities keep class names and empty dates deterministic', () => {
   assert.match(formatDate('2026-08-04T00:00:00.000Z'), /2026/);
 });
 
-test('onboarding copy preserves beginner and optional-diagnostic paths', () => {
-  assert.deepEqual(onboardingSteps.map((step) => step.key), ['goal', 'level', 'setup', 'roadmap']);
+test('onboarding copy preserves catalog and optional-diagnostic paths', () => {
+  assert.deepEqual(onboardingSteps.map((step) => step.key), ['catalog', 'level', 'setup', 'roadmap']);
   assert.equal(onboardingCopyByLevel.beginner.badge, 'No assessment required');
   assert.match(onboardingCopyByLevel.intermediate.badge, /optional/i);
   assert.match(onboardingCopyByLevel.advanced.badge, /optional/i);
@@ -95,8 +95,8 @@ test('interview expected answers and review retries stay attempt-gated', async (
 test('admin publishing uses the shared confirmed lifecycle', async () => {
   const [routes, lessons, questions, templates] = await Promise.all([
     readRepo('backend/src/routes/admin.routes.js'),
-    readFrontend('src/pages/admin/LessonsPage.jsx'),
-    readFrontend('src/pages/admin/QuestionsPage.jsx'),
+    readFrontend('src/pages/admin/CourseLessonsPage.jsx'),
+    readFrontend('src/pages/admin/CourseQuestionBankPage.jsx'),
     readFrontend('src/pages/admin/TemplatesPage.jsx')
   ]);
   assert.doesNotMatch(routes, /admiinWriteLimiter/);
@@ -106,6 +106,34 @@ test('admin publishing uses the shared confirmed lifecycle', async () => {
     assert.match(source, /ConfirmDialog/);
     assert.match(source, /confirmPublish:\s*true/);
   }
+});
+
+test('admin routes use course-aware catalog and curriculum pages', async () => {
+  const routes = await readFrontend('src/routes/AppRoutes.jsx');
+  for (const path of [
+    '/admin/catalog',
+    '/admin/technologies/new',
+    '/admin/courses/new',
+    '/admin/courses/:courseId/workspace',
+    '/admin/learning-paths/new',
+    '/admin/project-tasks',
+    '/admin/templates/new'
+  ]) assert.match(routes, new RegExp(path.replace(/[/:]/g, (token) => token === '/' ? '\\/' : token)));
+  assert.match(routes, /CourseTopicsPage/);
+  assert.match(routes, /CourseLessonEditorPage/);
+  assert.match(routes, /CourseQuestionEditorPage/);
+  assert.match(routes, /CourseInterviewQuestionEditorPage/);
+});
+
+test('admin form schemas are course-first and no longer goal-key based', async () => {
+  const schema = await readFrontend('src/validations/admin.schema.js');
+  assert.match(schema, /technologyFormSchema/);
+  assert.match(schema, /courseFormSchema/);
+  assert.match(schema, /learningPathFormSchema/);
+  assert.match(schema, /topicFormSchema/);
+  assert.match(schema, /course:\s*objectId/);
+  assert.match(schema, /lessons:\s*z\.array\(objectId\)/);
+  assert.doesNotMatch(schema, /goalKey|lessonSlugs/);
 });
 
 test('roadmap template admin uses a structured editor and explicit deletion', async () => {
@@ -120,6 +148,7 @@ test('roadmap template admin uses a structured editor and explicit deletion', as
   assert.match(form, /useFieldArray/);
   assert.doesNotMatch(form, /modulesText|Modules JSON|JSON\.parse|JSON\.stringify/);
   assert.match(page, /Type DELETE to confirm/);
+  assert.match(page, /Restore to Draft/);
   assert.doesNotMatch(page, /Duplicate/);
   assert.match(api, /deleteTemplate/);
   assert.doesNotMatch(api, /duplicateTemplate|archiveTemplate/);
