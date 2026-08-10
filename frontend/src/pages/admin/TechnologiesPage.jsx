@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Archive, Boxes, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Archive, Boxes, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
@@ -29,6 +29,7 @@ export default function TechnologiesPage() {
   if (query.isLoading) return <Loader label="Loading technologies..." />;
   const technologies = query.data?.technologies || [];
   const updateFilter = (key, value) => setFilters((current) => ({ ...current, [key]: value, page: 1 }));
+  const actionLabel = statusTarget?.status === 'published' ? 'Publish' : statusTarget?.status === 'draft' ? 'Restore to Draft' : 'Archive';
 
   return (
     <PageShell className="space-y-5 pb-8">
@@ -55,8 +56,9 @@ export default function TechnologiesPage() {
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {technologies.length ? technologies.map((technology) => (
-          <Card key={technology._id} className="min-w-0 shadow-sm">
+        {technologies.length ? technologies.map((technology) => {
+          const archived = technology.status === 'archived';
+          return <Card key={technology._id} className="min-w-0 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2"><h2 className="break-words text-lg font-bold text-foreground">{technology.name}</h2><StatusPill status={technology.status} /></div>
@@ -67,20 +69,24 @@ export default function TechnologiesPage() {
             <p className="mt-3 text-sm leading-6 text-muted-foreground">{technology.description || 'No description yet.'}</p>
             {technology.parentTechnology ? <p className="mt-3 text-xs text-muted-foreground">Parent: <strong className="text-foreground">{technology.parentTechnology.name}</strong></p> : null}
             <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
-              {technology.status !== 'archived' ? <Link to={`/admin/technologies/${technology._id}/edit`} className="ui-button ui-button--ghost min-h-9 gap-1.5 px-3 text-xs"><Pencil size={14} /> Edit</Link> : null}
+              {!archived ? <Link to={`/admin/technologies/${technology._id}/edit`} className="ui-button ui-button--ghost min-h-9 gap-1.5 px-3 text-xs"><Pencil size={14} /> Edit</Link> : null}
               {technology.status === 'draft' ? <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => setStatusTarget({ item: technology, status: 'published' })}>Publish</Button> : null}
-              {technology.status !== 'archived' ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: technology, status: 'archived' })}><Archive size={14} /> Archive</Button> : null}
+              {!archived ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: technology, status: 'archived' })}><Archive size={14} /> Archive</Button> : <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: technology, status: 'draft' })}><RotateCcw size={14} /> Restore</Button>}
               {technology.status !== 'published' ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { setDeleteTarget(technology); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
             </div>
-          </Card>
-        )) : <div className="md:col-span-2 xl:col-span-3"><EmptyState title="No technologies found" description="Create the first technology or change the filters." /></div>}
+          </Card>;
+        }) : <div className="md:col-span-2 xl:col-span-3"><EmptyState title="No technologies found" description="Create the first technology or change the filters." /></div>}
       </div>
 
       <ConfirmDialog
         open={Boolean(statusTarget)}
-        title={statusTarget?.status === 'published' ? 'Publish technology?' : 'Archive technology?'}
-        description={statusTarget?.status === 'published' ? 'Published technologies become available in the learner catalog and course configuration.' : 'Archiving hides this technology from new catalog use. Existing dependent courses must be handled before permanent deletion.'}
-        confirmLabel={statusTarget?.status === 'published' ? 'Publish' : 'Archive'}
+        title={`${actionLabel} technology?`}
+        description={statusTarget?.status === 'published'
+          ? 'Published technologies become available in learner discovery and published Course configuration.'
+          : statusTarget?.status === 'draft'
+            ? 'Restoring returns this technology to Draft. Review it before publishing it again.'
+            : 'Archiving hides this technology from new catalog use. Existing dependent courses must be handled before permanent deletion.'}
+        confirmLabel={actionLabel}
         tone="primary"
         isLoading={updateStatus.isPending}
         onCancel={() => setStatusTarget(null)}
