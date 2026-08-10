@@ -31,7 +31,7 @@ const validatePublish = async (project) => {
   const courseId = referenceId(project.course);
   const course = await Course.findById(courseId).select('status title').lean();
   if (!course || course.status === 'archived') {
-    throw new ApiError(400, 'Project task must belong to an available Course', [], 'CONTENT_NOT_READY');
+    throw new ApiError(400, 'Project task must belong to an available Course', [{ field: 'course', message: 'Restore the parent Course before publishing this Project task.' }], 'CONTENT_NOT_READY');
   }
   await validateLessons({ courseId, lessonIds: project.relatedLessons || [], requirePublished: true });
   if (!project.requirements?.length) {
@@ -96,12 +96,25 @@ export const updateProjectTask = async ({ id, payload }) => {
   return project;
 };
 
-export const changeProjectTaskStatus = (args) => transitionStatus({
-  model: ProjectTask,
-  label: 'Project task',
-  validatePublish,
-  ...args
-});
+export const changeProjectTaskStatus = async (args) => {
+  if (args.status === 'draft') {
+    const project = ensureFound(await ProjectTask.findById(args.id).select('course status'), 'Project task');
+    if (project.status === 'archived') {
+      const course = await Course.findById(project.course).select('status').lean();
+      if (!course || course.status === 'archived') {
+        throw new ApiError(409, 'This project task cannot be restored while its Course is archived.', [
+          { field: 'course', message: 'Open Courses and restore the parent Course first. Restoring the Course will restore all of its Project tasks.' }
+        ], 'PARENT_ARCHIVED');
+      }
+    }
+  }
+  return transitionStatus({
+    model: ProjectTask,
+    label: 'Project task',
+    validatePublish,
+    ...args
+  });
+};
 
 export const deleteProjectTask = async (id) => {
   const project = ensureFound(await ProjectTask.findById(id), 'Project task');
