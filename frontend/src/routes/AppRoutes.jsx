@@ -33,24 +33,27 @@ const ProfilePage = lazy(() => import('../pages/learner/ProfilePage.jsx'));
 const ProjectsPage = lazy(() => import('../pages/learner/ProjectsPage.jsx'));
 const ProjectTaskPage = lazy(() => import('../pages/learner/ProjectTaskPage.jsx'));
 const InterviewPage = lazy(() => import('../pages/learner/InterviewPage.jsx'));
+
 const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage.jsx'));
 const AdminCatalogPage = lazy(() => import('../pages/admin/AdminCatalogPage.jsx'));
 const TechnologiesPage = lazy(() => import('../pages/admin/TechnologiesPage.jsx'));
 const TechnologyEditorPage = lazy(() => import('../pages/admin/TechnologyEditorPage.jsx'));
 const CoursesPage = lazy(() => import('../pages/admin/CoursesPage.jsx'));
 const CourseEditorPage = lazy(() => import('../pages/admin/CourseEditorPage.jsx'));
+const CourseWorkspacePage = lazy(() => import('../pages/admin/CourseWorkspacePage.jsx'));
 const LearningPathsPage = lazy(() => import('../pages/admin/LearningPathsPage.jsx'));
 const LearningPathEditorPage = lazy(() => import('../pages/admin/LearningPathEditorPage.jsx'));
-const TopicsPage = lazy(() => import('../pages/admin/TopicsPage.jsx'));
-const TopicEditorPage = lazy(() => import('../pages/admin/TopicEditorPage.jsx'));
-const LessonsPage = lazy(() => import('../pages/admin/LessonsPage.jsx'));
-const LessonEditorPage = lazy(() => import('../pages/admin/LessonEditorPage.jsx'));
+const CourseTopicsPage = lazy(() => import('../pages/admin/CourseTopicsPage.jsx'));
+const CourseTopicEditorPage = lazy(() => import('../pages/admin/CourseTopicEditorPage.jsx'));
+const CourseLessonsPage = lazy(() => import('../pages/admin/CourseLessonsPage.jsx'));
+const CourseLessonEditorPage = lazy(() => import('../pages/admin/CourseLessonEditorPage.jsx'));
 const QuestionsPage = lazy(() => import('../pages/admin/QuestionsPage.jsx'));
-const QuizQuestionsPage = lazy(() => import('../pages/admin/QuizQuestionsPage.jsx'));
-const SkillChecksPage = lazy(() => import('../pages/admin/SkillChecksPage.jsx'));
-const QuestionEditorPage = lazy(() => import('../pages/admin/QuestionEditorPage.jsx'));
-const InterviewQuestionsPage = lazy(() => import('../pages/admin/InterviewQuestionsPage.jsx'));
-const InterviewQuestionEditorPage = lazy(() => import('../pages/admin/InterviewQuestionEditorPage.jsx'));
+const CourseQuestionBankPage = lazy(() => import('../pages/admin/CourseQuestionBankPage.jsx'));
+const CourseQuestionEditorPage = lazy(() => import('../pages/admin/CourseQuestionEditorPage.jsx'));
+const CourseInterviewQuestionsPage = lazy(() => import('../pages/admin/CourseInterviewQuestionsPage.jsx'));
+const CourseInterviewQuestionEditorPage = lazy(() => import('../pages/admin/CourseInterviewQuestionEditorPage.jsx'));
+const CourseProjectsPage = lazy(() => import('../pages/admin/CourseProjectsPage.jsx'));
+const CourseProjectEditorPage = lazy(() => import('../pages/admin/CourseProjectEditorPage.jsx'));
 const TemplatesPage = lazy(() => import('../pages/admin/TemplatesPage.jsx'));
 const TemplateEditorPage = lazy(() => import('../pages/admin/TemplateEditorPage.jsx'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage.jsx'));
@@ -98,31 +101,43 @@ export default function AppRoutes() {
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<AdminDashboardPage />} />
             <Route path="/admin/catalog" element={<AdminCatalogPage />} />
+
             <Route path="/admin/technologies" element={<TechnologiesPage />} />
             <Route path="/admin/technologies/new" element={<TechnologyEditorPage />} />
             <Route path="/admin/technologies/:technologyId/edit" element={<TechnologyEditorPage />} />
+
             <Route path="/admin/courses" element={<CoursesPage />} />
             <Route path="/admin/courses/new" element={<CourseEditorPage />} />
             <Route path="/admin/courses/:courseId/edit" element={<CourseEditorPage />} />
+            <Route path="/admin/courses/:courseId/workspace" element={<CourseWorkspacePage />} />
+
             <Route path="/admin/learning-paths" element={<LearningPathsPage />} />
             <Route path="/admin/learning-paths/new" element={<LearningPathEditorPage />} />
             <Route path="/admin/learning-paths/:pathId/edit" element={<LearningPathEditorPage />} />
-            <Route path="/admin/topics" element={<TopicsPage />} />
-            <Route path="/admin/topics/new" element={<TopicEditorPage />} />
-            <Route path="/admin/topics/:topicId/edit" element={<TopicEditorPage />} />
-            <Route path="/admin/lessons" element={<LessonsPage />} />
-            <Route path="/admin/lessons/new" element={<LessonEditorPage />} />
-            <Route path="/admin/lessons/:lessonId/edit" element={<LessonEditorPage />} />
+
+            <Route path="/admin/topics" element={<CourseTopicsPage />} />
+            <Route path="/admin/topics/new" element={<CourseTopicEditorPage />} />
+            <Route path="/admin/topics/:topicId/edit" element={<CourseTopicEditorPage />} />
+
+            <Route path="/admin/lessons" element={<CourseLessonsPage />} />
+            <Route path="/admin/lessons/new" element={<CourseLessonEditorPage />} />
+            <Route path="/admin/lessons/:lessonId/edit" element={<CourseLessonEditorPage />} />
+
             <Route path="/admin/questions" element={<QuestionsPage />} />
-            <Route path="/admin/questions/quiz" element={<QuizQuestionsPage />} />
-            <Route path="/admin/questions/quiz/new" element={<QuestionEditorPage bank="quiz" />} />
-            <Route path="/admin/questions/quiz/:questionId/edit" element={<QuestionEditorPage bank="quiz" />} />
-            <Route path="/admin/questions/skill-checks" element={<SkillChecksPage />} />
-            <Route path="/admin/questions/skill-checks/new" element={<QuestionEditorPage bank="skill_check" />} />
-            <Route path="/admin/questions/skill-checks/:questionId/edit" element={<QuestionEditorPage bank="skill_check" />} />
-            <Route path="/admin/questions/interview" element={<InterviewQuestionsPage />} />
-            <Route path="/admin/questions/interview/new" element={<InterviewQuestionEditorPage />} />
-            <Route path="/admin/questions/interview/:questionId/edit" element={<InterviewQuestionEditorPage />} />
+            <Route path="/admin/questions/quiz" element={<CourseQuestionBankPage bank="quiz" />} />
+            <Route path="/admin/questions/quiz/new" element={<CourseQuestionEditorPage bank="quiz" />} />
+            <Route path="/admin/questions/quiz/:questionId/edit" element={<CourseQuestionEditorPage bank="quiz" />} />
+            <Route path="/admin/questions/skill-checks" element={<CourseQuestionBankPage bank="skill_check" />} />
+            <Route path="/admin/questions/skill-checks/new" element={<CourseQuestionEditorPage bank="skill_check" />} />
+            <Route path="/admin/questions/skill-checks/:questionId/edit" element={<CourseQuestionEditorPage bank="skill_check" />} />
+            <Route path="/admin/questions/interview" element={<CourseInterviewQuestionsPage />} />
+            <Route path="/admin/questions/interview/new" element={<CourseInterviewQuestionEditorPage />} />
+            <Route path="/admin/questions/interview/:questionId/edit" element={<CourseInterviewQuestionEditorPage />} />
+
+            <Route path="/admin/project-tasks" element={<CourseProjectsPage />} />
+            <Route path="/admin/project-tasks/new" element={<CourseProjectEditorPage />} />
+            <Route path="/admin/project-tasks/:projectId/edit" element={<CourseProjectEditorPage />} />
+
             <Route path="/admin/templates" element={<TemplatesPage />} />
             <Route path="/admin/templates/new" element={<TemplateEditorPage />} />
             <Route path="/admin/templates/:templateId/edit" element={<TemplateEditorPage />} />
