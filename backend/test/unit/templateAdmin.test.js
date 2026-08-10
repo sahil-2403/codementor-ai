@@ -21,12 +21,16 @@ test('template admin separates archive, restore, and permanent deletion', () => 
   assert.match(common, /PUBLISHABLE_STATUS\.ARCHIVED\]: new Set\(\[PUBLISHABLE_STATUS\.DRAFT\]\)/);
 });
 
-test('template publish validation is course-scoped and uses quiz-bank questions', () => {
+test('template publish validation is course-scoped and explains lesson and quiz blockers', () => {
   const service = source('services/adminContent/template.service.js');
   assert.match(service, /bank:\s*'quiz'/);
-  assert.match(service, /course:\s*template\.course/);
+  assert.match(service, /course:\s*referenceId\(template\.course\)/);
   assert.match(service, /module\.lessons/);
-  assert.match(service, /published Quiz-bank questions/);
+  assert.match(service, /referencedLessons/);
+  assert.match(service, /“\$\{lesson\.title\}” is \$\{lesson\.status\}/);
+  assert.match(service, /Open Lessons for “\$\{course\.title\}”/);
+  assert.match(service, /Quiz tag “\$\{tag\}” has no published Quiz question/);
+  assert.doesNotMatch(service, /message:\s*id\.toString\(\)/);
   assert.doesNotMatch(service, /goalKey|lessonSlugs|legacyQuizBankFilter/);
 });
 
