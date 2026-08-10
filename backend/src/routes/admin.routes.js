@@ -25,7 +25,6 @@ import {
   interviewQuestionUpdateSchema,
   templateSchema,
   templateUpdateSchema,
-  statusUpdateSchema,
   idParamSchema
 } from '../validations/admin.validation.js';
 import {
@@ -148,7 +147,7 @@ router.get('/templates', listTemplates);
 router.post('/templates', adminWriteLimiter, validate(templateSchema), createTemplate);
 router.get('/templates/:id', validate(idParamSchema), getTemplate);
 router.patch('/templates/:id', adminWriteLimiter, validate(idParamSchema), validate(templateUpdateSchema), updateTemplate);
-router.patch('/templates/:id/status', adminWriteLimiter, validate(idParamSchema), validate(statusUpdateSchema), updateTemplateStatus);
+router.patch('/templates/:id/status', adminWriteLimiter, validate(idParamSchema), validate(catalogStatusUpdateSchema), updateTemplateStatus);
 router.delete('/templates/:id', adminWriteLimiter, validate(idParamSchema), deleteTemplate);
 
 export default router;
