@@ -14,6 +14,7 @@ import {
   cleanStringArray,
   ensureEditable,
   ensureFound,
+  requireArchivedForDelete,
   transitionStatus
 } from './common.js';
 
@@ -178,12 +179,22 @@ export const changeInterviewQuestionStatus = async ({ id, status, confirmPublish
       return { question, counts: impact.counts };
     }
     if (question.status !== PUBLISHABLE_STATUS.ARCHIVED) return { question, counts: impact.counts };
-    if ((question.archivedByTopics || []).length) throw new ApiError(409, 'Restore the parent topic before restoring this interview question.', [], 'INTERVIEW_QUESTION_ARCHIVED_BY_TOPIC');
+    if (question.course?.status === PUBLISHABLE_STATUS.ARCHIVED) {
+      throw new ApiError(409, 'This interview question cannot be restored while its Course is archived.', [
+        { field: 'course', message: 'Open Courses and restore the parent Course first. Restoring the Course will restore all of its curriculum.' }
+      ], 'PARENT_ARCHIVED');
+    }
+    if (question.topicRef?.status === 'archived' || (question.archivedByTopics || []).length) {
+      throw new ApiError(409, 'This interview question cannot be restored while its Topic is archived.', [
+        { field: 'topic', message: 'Open Topics and restore the parent Topic first. Restoring the Topic will restore its child content.' }
+      ], 'PARENT_ARCHIVED');
+    }
     question.manualArchive = false;
     question.status = ['draft', 'published'].includes(question.statusBeforeManualArchive) ? question.statusBeforeManualArchive : PUBLISHABLE_STATUS.DRAFT;
     question.statusBeforeManualArchive = null;
     question.statusBeforeCascadeArchive = null;
     question.statusBeforeTopicArchive = null;
+    question.archivedByTopics = [];
     await question.save(operationOptions(session));
     return { question, counts: impact.counts };
   });
@@ -195,8 +206,14 @@ export const changeInterviewQuestionStatus = async ({ id, status, confirmPublish
 export const deleteInterviewQuestion = async (id) => {
   const result = await runLifecycleOperation(async (session) => {
     const impact = await resolveInterviewQuestionImpact(id, { session });
+    requireArchivedForDelete(impact.question, 'Interview question');
     if (impact.counts.interviewAttempts > 0) {
-      throw new ApiError(409, 'This interview question already has learner attempts. Archive it instead of deleting it.', [], 'LEARNER_HISTORY_EXISTS');
+      throw new ApiError(
+        409,
+        'This interview question has learner attempts, so it cannot be permanently deleted.',
+        [{ field: 'learnerHistory', message: `Keep the Interview question archived. ${impact.counts.interviewAttempts} learner attempt(s) must remain connected to it.` }],
+        'LEARNER_HISTORY_EXISTS'
+      );
     }
     await InterviewQuestion.deleteOne({ _id: impact.question._id }, operationOptions(session));
     return { question: impact.question, counts: impact.counts };
