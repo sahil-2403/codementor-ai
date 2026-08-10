@@ -13,7 +13,7 @@ export const PUBLISHABLE_STATUS = Object.freeze({
 const allowedStatusTransitions = Object.freeze({
   [PUBLISHABLE_STATUS.DRAFT]: new Set([PUBLISHABLE_STATUS.PUBLISHED, PUBLISHABLE_STATUS.ARCHIVED]),
   [PUBLISHABLE_STATUS.PUBLISHED]: new Set([PUBLISHABLE_STATUS.ARCHIVED]),
-  [PUBLISHABLE_STATUS.ARCHIVED]: new Set()
+  [PUBLISHABLE_STATUS.ARCHIVED]: new Set([PUBLISHABLE_STATUS.DRAFT])
 });
 
 export const ensureFound = (document, label) => {
