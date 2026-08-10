@@ -67,6 +67,15 @@ test('catalog archives cannot break active dependency chains', () => {
   assert.match(contentController, /deleteTemplateSafely/);
 });
 
+test('technology hierarchy cannot become circular', () => {
+  const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
+  const controller = source('controllers/adminCatalog.controller.js');
+  assert.match(lifecycle, /assertTechnologyParentAcyclic/);
+  assert.match(lifecycle, /Technology parent relationships cannot form a cycle/);
+  assert.match(lifecycle, /updateTechnologySafely/);
+  assert.match(controller, /updateTechnologySafely/);
+});
+
 test('permanent catalog deletion protects deep content and learner history', () => {
   const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
   const catalogController = source('controllers/adminCatalog.controller.js');
