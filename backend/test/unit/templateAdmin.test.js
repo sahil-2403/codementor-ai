@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const source = (relativePath) => readFileSync(new URL(`../../src/${relativePath}`, import.meta.url), 'utf8');
 
-test('template admin separates lifecycle from permanent deletion', () => {
+test('template admin separates archive, restore, and permanent deletion', () => {
   const routes = source('routes/admin.routes.js');
   const controller = source('controllers/admin.controller.js');
   const service = source('services/adminContent/template.service.js');
@@ -15,8 +15,9 @@ test('template admin separates lifecycle from permanent deletion', () => {
   assert.doesNotMatch(routes, /templates\/:id\/duplicate/);
   assert.match(controller, /export const deleteTemplate[\s\S]*adminContent\.deleteTemplateSafely/);
   assert.match(controller, /export const updateTemplateStatus[\s\S]*adminContent\.changeTemplateStatusSafely/);
+  assert.match(service, /requireArchivedForDelete\(template, 'Roadmap template'\)/);
   assert.match(service, /template\.deleteOne\(\)/);
-  assert.match(service, /TEMPLATE_DELETE_REQUIRES_ARCHIVE/);
+  assert.match(common, /Archive this \$\{label\.toLowerCase\(\)\} before deleting it permanently/);
   assert.match(common, /PUBLISHABLE_STATUS\.ARCHIVED\]: new Set\(\[PUBLISHABLE_STATUS\.DRAFT\]\)/);
 });
 
