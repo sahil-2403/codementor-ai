@@ -16,6 +16,7 @@ import {
 } from './common.js';
 
 const templateDurationDays = (modules = []) => modules.reduce((sum, module) => sum + (Number(module.durationDays) || 0), 0);
+const referenceId = (value) => value?._id || value;
 
 const assertTemplateIdentityAvailable = async ({ course, level, excludeId = null }) => {
   const filter = { course, level };
@@ -32,53 +33,74 @@ const assertTemplateIdentityAvailable = async ({ course, level, excludeId = null
 const assertTemplatePublishable = async (template) => {
   const errors = [];
   const modules = template.modules || [];
-  const course = await assertCourseExists(template.course, { requirePublished: true });
+  const course = await assertCourseExists(referenceId(template.course));
   if (!(course.availableLevels || []).includes(template.level)) {
-    errors.push({ field: 'level', message: 'This level is not enabled for the selected course' });
+    errors.push({ field: 'level', message: 'This level is not enabled for the selected course.' });
   }
-  if (!modules.length) errors.push({ field: 'modules', message: 'Add at least one roadmap module' });
+  if (!modules.length) errors.push({ field: 'modules', message: 'Add at least one roadmap module.' });
 
   const orders = new Set();
   const allLessonIds = [];
   const allQuizTags = [];
   modules.forEach((module, index) => {
-    if (!String(module.title || '').trim()) errors.push({ field: `modules.${index}.title`, message: 'Module title is required' });
-    if (!Number.isInteger(module.order) || module.order < 1) errors.push({ field: `modules.${index}.order`, message: 'Module order must be a positive integer' });
-    if (orders.has(module.order)) errors.push({ field: `modules.${index}.order`, message: 'Module order values must be unique' });
+    if (!String(module.title || '').trim()) errors.push({ field: `modules.${index}.title`, message: 'Module title is required.' });
+    if (!Number.isInteger(module.order) || module.order < 1) errors.push({ field: `modules.${index}.order`, message: 'Module order must be a positive integer.' });
+    if (orders.has(module.order)) errors.push({ field: `modules.${index}.order`, message: 'Module order values must be unique.' });
     orders.add(module.order);
-    if (!module.lessons?.length) errors.push({ field: `modules.${index}.lessons`, message: 'Add at least one lesson' });
-    if (!module.quizTags?.length) errors.push({ field: `modules.${index}.quizTags`, message: 'Add at least one quiz tag' });
-    allLessonIds.push(...(module.lessons || []).map((lesson) => lesson?._id || lesson));
+    if (!module.lessons?.length) errors.push({ field: `modules.${index}.lessons`, message: 'Add at least one lesson.' });
+    if (!module.quizTags?.length) errors.push({ field: `modules.${index}.quizTags`, message: 'Add at least one quiz tag.' });
+    allLessonIds.push(...(module.lessons || []).map(referenceId));
     allQuizTags.push(...(module.quizTags || []));
   });
 
-  if (templateDurationDays(modules) > 365) errors.push({ field: 'modules', message: 'The full roadmap must be 365 days or less' });
+  if (templateDurationDays(modules) > 365) errors.push({ field: 'modules', message: 'The full roadmap must be 365 days or less.' });
   if (new Set(allLessonIds.map(String)).size !== allLessonIds.length) {
-    errors.push({ field: 'modules', message: 'A lesson can appear only once in a roadmap template' });
+    errors.push({ field: 'modules', message: 'A lesson can appear only once in a roadmap template.' });
   }
   if (errors.length) throw new ApiError(400, 'Roadmap template is not ready to publish', errors, 'CONTENT_NOT_READY');
 
-  const [lessons, questions] = await Promise.all([
-    Lesson.find({
-      _id: { $in: allLessonIds },
-      course: template.course,
-      status: PUBLISHABLE_STATUS.PUBLISHED
-    }).select('_id').lean(),
+  const [referencedLessons, questions] = await Promise.all([
+    Lesson.find({ _id: { $in: allLessonIds } })
+      .select('_id title status course')
+      .lean(),
     QuizQuestion.find({
-      course: template.course,
+      course: referenceId(template.course),
       bank: 'quiz',
       tags: { $in: allQuizTags },
       status: PUBLISHABLE_STATUS.PUBLISHED
     }).select('tags').lean()
   ]);
 
-  const publishedLessonIds = new Set(lessons.map((lesson) => lesson._id.toString()));
-  const missingLessons = allLessonIds.filter((id) => !publishedLessonIds.has(id.toString()));
-  if (missingLessons.length) {
+  const lessonsById = new Map(referencedLessons.map((lesson) => [lesson._id.toString(), lesson]));
+  const courseId = String(referenceId(template.course));
+  const lessonIssues = allLessonIds.flatMap((id) => {
+    const lesson = lessonsById.get(String(id));
+    if (!lesson) {
+      return [{
+        field: 'modules.lessons',
+        message: `A Lesson referenced by this Template no longer exists. Edit the Template and select an existing Lesson from “${course.title}”.`
+      }];
+    }
+    if (String(lesson.course) !== courseId) {
+      return [{
+        field: 'modules.lessons',
+        message: `“${lesson.title}” belongs to another Course. Edit the Template and replace it with a Lesson from “${course.title}”.`
+      }];
+    }
+    if (lesson.status !== PUBLISHABLE_STATUS.PUBLISHED) {
+      return [{
+        field: 'modules.lessons',
+        message: `“${lesson.title}” is ${lesson.status}. Open Lessons for “${course.title}”, publish this Lesson, then publish the Template again.`
+      }];
+    }
+    return [];
+  });
+
+  if (lessonIssues.length) {
     throw new ApiError(
       400,
-      'Roadmap template references lessons that are missing, unpublished, or belong to another course',
-      missingLessons.map((id) => ({ field: 'modules.lessons', message: id.toString() })),
+      'This roadmap template cannot be published because some Lessons are not ready.',
+      lessonIssues,
       'CONTENT_REFERENCE_INVALID'
     );
   }
@@ -88,8 +110,11 @@ const assertTemplatePublishable = async (template) => {
   if (missingQuizTags.length) {
     throw new ApiError(
       400,
-      'Roadmap template references quiz tags with no published Quiz-bank questions in this course',
-      missingQuizTags.map((tag) => ({ field: 'modules.quizTags', message: tag })),
+      'This roadmap template cannot be published because some Quiz tags have no published questions.',
+      missingQuizTags.map((tag) => ({
+        field: 'modules.quizTags',
+        message: `Quiz tag “${tag}” has no published Quiz question in “${course.title}”. Open Quiz Questions, publish at least one question with this tag, then publish the Template again.`
+      })),
       'CONTENT_REFERENCE_INVALID'
     );
   }
