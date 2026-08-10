@@ -3,6 +3,9 @@ import { Course } from './Course.js';
 import { Topic } from './Topic.js';
 import { Lesson } from './Lesson.js';
 
+const referenceId = (value) => value?._id || value;
+const referenceString = (value) => String(referenceId(value) || '');
+
 const quizQuestionSchema = new mongoose.Schema(
   {
     course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true, index: true },
@@ -30,19 +33,25 @@ const quizQuestionSchema = new mongoose.Schema(
 );
 
 quizQuestionSchema.pre('validate', async function validateOwnership() {
-  if (!this.course || !this.topic) return;
+  const courseId = referenceId(this.course);
+  const topicId = referenceId(this.topic);
+  const lessonId = referenceId(this.relatedLesson);
+  if (!courseId || !topicId) return;
+
   const [course, topic, lesson] = await Promise.all([
-    Course.findById(this.course).select('_id status').lean(),
-    Topic.findById(this.topic).select('_id course status').lean(),
-    this.relatedLesson ? Lesson.findById(this.relatedLesson).select('_id course topic status').lean() : null
+    Course.findById(courseId).select('_id status').lean(),
+    Topic.findById(topicId).select('_id course status').lean(),
+    lessonId ? Lesson.findById(lessonId).select('_id course topic status').lean() : null
   ]);
+
   if (!course || course.status === 'archived') this.invalidate('course', 'Question must belong to an available course');
   if (!topic || topic.status !== 'active') this.invalidate('topic', 'Question must belong to an active topic');
-  else if (topic.course.toString() !== this.course.toString()) this.invalidate('topic', 'Question topic must belong to the same course');
-  if (this.relatedLesson) {
+  else if (referenceString(topic.course) !== referenceString(courseId)) this.invalidate('topic', 'Question topic must belong to the same course');
+
+  if (lessonId) {
     if (!lesson) this.invalidate('relatedLesson', 'Related lesson does not exist');
-    else if (lesson.course.toString() !== this.course.toString()) this.invalidate('relatedLesson', 'Related lesson must belong to the same course');
-    else if (lesson.topic.toString() !== this.topic.toString()) this.invalidate('relatedLesson', 'Related lesson must belong to the selected topic');
+    else if (referenceString(lesson.course) !== referenceString(courseId)) this.invalidate('relatedLesson', 'Related lesson must belong to the same course');
+    else if (referenceString(lesson.topic) !== referenceString(topicId)) this.invalidate('relatedLesson', 'Related lesson must belong to the selected topic');
   }
 });
 
