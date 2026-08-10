@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import { Course } from './Course.js';
 import { Lesson } from './Lesson.js';
 
+const referenceId = (value) => value?._id || value;
+const referenceString = (value) => String(referenceId(value) || '');
+
 const projectTaskSchema = new mongoose.Schema(
   {
     course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true, index: true },
@@ -30,16 +33,20 @@ const projectTaskSchema = new mongoose.Schema(
 );
 
 projectTaskSchema.pre('validate', async function validateOwnership() {
-  if (!this.course) return;
+  const courseId = referenceId(this.course);
+  const lessonIds = (this.relatedLessons || []).map(referenceId).filter(Boolean);
+  if (!courseId) return;
+
   const [course, lessons] = await Promise.all([
-    Course.findById(this.course).select('_id status').lean(),
-    this.relatedLessons?.length
-      ? Lesson.find({ _id: { $in: this.relatedLessons } }).select('_id course').lean()
+    Course.findById(courseId).select('_id status').lean(),
+    lessonIds.length
+      ? Lesson.find({ _id: { $in: lessonIds } }).select('_id course').lean()
       : []
   ]);
+
   if (!course || course.status === 'archived') this.invalidate('course', 'Project must belong to an available course');
-  if (lessons.length !== (this.relatedLessons || []).length) this.invalidate('relatedLessons', 'One or more related lessons do not exist');
-  else if (lessons.some((lesson) => lesson.course.toString() !== this.course.toString())) {
+  if (lessons.length !== new Set(lessonIds.map(String)).size) this.invalidate('relatedLessons', 'One or more related lessons do not exist');
+  else if (lessons.some((lesson) => referenceString(lesson.course) !== referenceString(courseId))) {
     this.invalidate('relatedLessons', 'All related lessons must belong to the same course');
   }
 });
