@@ -10,6 +10,7 @@ import { CoursePlan } from '../../models/CoursePlan.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { PUBLISHABLE_STATUS, ensureFound } from './common.js';
 import {
+  updateTechnology,
   changeTechnologyStatus,
   changeCourseStatus,
   deleteTechnology,
@@ -20,19 +21,33 @@ import { changeTemplateStatus, deleteTemplate } from './template.service.js';
 
 const activeCatalogFilter = { $ne: PUBLISHABLE_STATUS.ARCHIVED };
 
-const dependencyError = (message, details = []) => new ApiError(
-  409,
-  message,
-  details,
-  'CONTENT_DEPENDENCY_EXISTS'
-);
+const dependencyError = (message, details = []) => new ApiError(409, message, details, 'CONTENT_DEPENDENCY_EXISTS');
+
+const assertTechnologyParentAcyclic = async ({ id, parentTechnology }) => {
+  if (!parentTechnology) return;
+  const target = String(id);
+  let currentId = String(parentTechnology);
+  const visited = new Set();
+
+  while (currentId) {
+    if (currentId === target) {
+      throw new ApiError(400, 'Technology parent relationships cannot form a cycle', [
+        { field: 'parentTechnology', message: 'Choose a parent that is not this technology or one of its descendants' }
+      ], 'CATALOG_CYCLE');
+    }
+    if (visited.has(currentId)) {
+      throw new ApiError(409, 'The existing technology hierarchy already contains a cycle', [], 'CATALOG_CYCLE');
+    }
+    visited.add(currentId);
+    const technology = await Technology.findById(currentId).select('_id parentTechnology').lean();
+    if (!technology?.parentTechnology) return;
+    currentId = String(technology.parentTechnology);
+  }
+};
 
 const assertTechnologyArchiveSafe = async (technologyId) => {
   const [courses, paths, children] = await Promise.all([
-    Course.countDocuments({
-      status: activeCatalogFilter,
-      $or: [{ technologies: technologyId }, { primaryTechnology: technologyId }]
-    }),
+    Course.countDocuments({ status: activeCatalogFilter, $or: [{ technologies: technologyId }, { primaryTechnology: technologyId }] }),
     LearningPath.countDocuments({ status: activeCatalogFilter, technologies: technologyId }),
     Technology.countDocuments({ status: activeCatalogFilter, parentTechnology: technologyId })
   ]);
@@ -61,13 +76,9 @@ const assertCourseArchiveSafe = async (courseId) => {
 };
 
 const assertTemplateCanLeavePublishedCoverage = async (templateId) => {
-  const template = ensureFound(
-    await RoadmapTemplate.findById(templateId).select('_id course level title status').lean(),
-    'Roadmap template'
-  );
+  const template = ensureFound(await RoadmapTemplate.findById(templateId).select('_id course level title status').lean(), 'Roadmap template');
   const course = await Course.findById(template.course).select('_id title status availableLevels').lean();
-  const requiredByPublishedCourse = course?.status === PUBLISHABLE_STATUS.PUBLISHED
-    && (course.availableLevels || []).includes(template.level);
+  const requiredByPublishedCourse = course?.status === PUBLISHABLE_STATUS.PUBLISHED && (course.availableLevels || []).includes(template.level);
 
   if (requiredByPublishedCourse) {
     throw dependencyError(
@@ -75,6 +86,13 @@ const assertTemplateCanLeavePublishedCoverage = async (templateId) => {
       [{ field: 'course', message: 'Archive the Course first, then archive or delete this required roadmap template' }]
     );
   }
+};
+
+export const updateTechnologySafely = async ({ id, payload }) => {
+  if (Object.prototype.hasOwnProperty.call(payload, 'parentTechnology')) {
+    await assertTechnologyParentAcyclic({ id, parentTechnology: payload.parentTechnology });
+  }
+  return updateTechnology({ id, payload });
 };
 
 export const changeTechnologyStatusSafely = async (args) => {
