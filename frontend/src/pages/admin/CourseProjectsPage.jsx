@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Archive, Hammer, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminProjectApi } from '../../api/adminProjectApi.js';
+import LifecycleError from '../../components/admin/LifecycleError.jsx';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
@@ -74,8 +75,8 @@ export default function CourseProjectsPage() {
             <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
               {!archived ? <Link to={`/admin/project-tasks/${project._id}/edit`} className="ui-button ui-button--ghost min-h-9 gap-1.5 px-3 text-xs"><Pencil size={14} /> Edit</Link> : null}
               {project.status === 'draft' ? <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => setStatusTarget({ item: project, status: 'published' })}>Publish</Button> : null}
-              {!archived ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: project, status: 'archived' })}><Archive size={14} /> Archive</Button> : <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: project, status: 'draft' })}><RotateCcw size={14} /> Restore</Button>}
-              {project.status !== 'published' ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { setDeleteTarget(project); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
+              {!archived ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { statusMutation.reset(); setStatusTarget({ item: project, status: 'archived' }); }}><Archive size={14} /> Archive</Button> : <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { statusMutation.reset(); setStatusTarget({ item: project, status: 'draft' }); }}><RotateCcw size={14} /> Restore</Button>}
+              {archived ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { deleteMutation.reset(); setDeleteTarget(project); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
             </div>
           </Card>;
         }) : <div className="lg:col-span-2"><EmptyState title="No project tasks found" description="Choose a Course, create its first project task, or adjust the filters." /></div>}
@@ -85,28 +86,28 @@ export default function CourseProjectsPage() {
         open={Boolean(statusTarget)}
         title={`${actionLabel} project task?`}
         description={statusTarget?.status === 'published'
-          ? 'Publishing requires published related Lessons, at least one requirement, and an expected output. The parent Course may remain Draft while you stage its curriculum.'
+          ? 'Publishing requires published related Lessons, at least one requirement, and an expected output.'
           : statusTarget?.status === 'draft'
-            ? 'Restoring returns this project task to Draft. Learners will not see it until it is explicitly published again.'
-            : 'Archiving removes this project from new learner project lists while preserving learner submissions.'}
+            ? 'Restore this Project task to Draft. If the parent Course is archived, restore the Course first.'
+            : 'Archive this Project task before permanent deletion. The Course and related Lessons are not changed.'}
         confirmLabel={actionLabel}
         tone="primary"
         isLoading={statusMutation.isPending}
         onCancel={() => setStatusTarget(null)}
         onConfirm={() => statusMutation.mutate({ id: statusTarget.item._id, status: statusTarget.status, confirmPublish: statusTarget.status === 'published' })}
-      ><ErrorMessage message={statusMutation.error?.message} /></ConfirmDialog>
+      ><LifecycleError error={statusMutation.error} /></ConfirmDialog>
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title="Delete project task permanently?"
-        description="Permanent deletion is blocked after learners submit work. Archive used projects instead."
+        title="Delete archived project task permanently?"
+        description="Permanently delete this archived Project task. Learner submissions will block deletion; in that case keep the Project archived."
         confirmLabel="Delete permanently"
         tone="danger"
         isLoading={deleteMutation.isPending}
         confirmDisabled={deleteConfirmation !== 'DELETE'}
-        onCancel={() => setDeleteTarget(null)}
+        onCancel={() => { setDeleteTarget(null); setDeleteConfirmation(''); }}
         onConfirm={() => deleteMutation.mutate(deleteTarget._id)}
-      ><Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /><ErrorMessage message={deleteMutation.error?.message} /></ConfirmDialog>
+      ><Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /><LifecycleError error={deleteMutation.error} /></ConfirmDialog>
     </PageShell>
   );
 }
