@@ -4,10 +4,11 @@ import { readFileSync } from 'node:fs';
 
 const source = (relativePath) => readFileSync(new URL(`../../src/${relativePath}`, import.meta.url), 'utf8');
 
-test('template admin separates archive from permanent deletion', () => {
+test('template admin separates lifecycle from permanent deletion', () => {
   const routes = source('routes/admin.routes.js');
   const controller = source('controllers/admin.controller.js');
   const service = source('services/adminContent/template.service.js');
+  const common = source('services/adminContent/common.js');
 
   assert.match(routes, /patch\('\/templates\/:id\/status'[\s\S]*updateTemplateStatus/);
   assert.match(routes, /delete\('\/templates\/:id'[\s\S]*deleteTemplate/);
@@ -15,14 +16,16 @@ test('template admin separates archive from permanent deletion', () => {
   assert.match(controller, /export const deleteTemplate[\s\S]*adminContent\.deleteTemplate/);
   assert.match(service, /template\.deleteOne\(\)/);
   assert.match(service, /TEMPLATE_DELETE_REQUIRES_ARCHIVE/);
+  assert.match(common, /PUBLISHABLE_STATUS\.ARCHIVED\]: new Set\(\[PUBLISHABLE_STATUS\.DRAFT\]\)/);
 });
 
-test('template publish validation uses only roadmap quiz-bank questions', () => {
+test('template publish validation is course-scoped and uses quiz-bank questions', () => {
   const service = source('services/adminContent/template.service.js');
-  assert.match(service, /legacyQuizBankFilter/);
   assert.match(service, /bank:\s*'quiz'/);
-  assert.match(service, /QuizQuestion\.find\([\s\S]*legacyQuizBankFilter/);
-  assert.match(service, /published quiz questions/);
+  assert.match(service, /course:\s*template\.course/);
+  assert.match(service, /modules\.lessons/);
+  assert.match(service, /published Quiz-bank questions/);
+  assert.doesNotMatch(service, /goalKey|lessonSlugs|legacyQuizBankFilter/);
 });
 
 test('template duration is derived from module durations on writes', () => {
