@@ -100,12 +100,19 @@ test('admin publishing uses the shared confirmed lifecycle', async () => {
     readFrontend('src/pages/admin/TemplatesPage.jsx')
   ]);
   assert.doesNotMatch(routes, /admiinWriteLimiter/);
+  assert.match(routes, /lessons\/:id\/status', adminWriteLimiter/);
   assert.match(routes, /questions\/:id\/status', adminWriteLimiter/);
+  assert.match(routes, /templates\/:id\/status', adminWriteLimiter/);
+
   for (const source of [lessons, questions, templates]) {
     assert.doesNotMatch(source, /window\.confirm/);
     assert.match(source, /ConfirmDialog/);
-    assert.match(source, /confirmPublish:\s*true/);
   }
+
+  for (const source of [lessons, questions]) {
+    assert.match(source, /confirmPublish:\s*statusTarget\.status\s*===\s*['"]published['"]/);
+  }
+  assert.match(templates, /status:\s*['"]published['"][\s\S]*confirmPublish:\s*true/);
 });
 
 test('admin routes use course-aware catalog and curriculum pages', async () => {
