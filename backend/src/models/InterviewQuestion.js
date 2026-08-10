@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import { Course } from './Course.js';
 import { Topic } from './Topic.js';
 
+const referenceId = (value) => value?._id || value;
+const referenceString = (value) => String(referenceId(value) || '');
+
 const interviewQuestionSchema = new mongoose.Schema(
   {
     course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true, index: true },
@@ -25,15 +28,19 @@ const interviewQuestionSchema = new mongoose.Schema(
 );
 
 interviewQuestionSchema.pre('validate', async function validateOwnership() {
-  if (!this.course) return;
+  const courseId = referenceId(this.course);
+  const topicId = referenceId(this.topicRef);
+  if (!courseId) return;
+
   const [course, topic] = await Promise.all([
-    Course.findById(this.course).select('_id status').lean(),
-    this.topicRef ? Topic.findById(this.topicRef).select('_id course title status').lean() : null
+    Course.findById(courseId).select('_id status').lean(),
+    topicId ? Topic.findById(topicId).select('_id course title status').lean() : null
   ]);
+
   if (!course || course.status === 'archived') this.invalidate('course', 'Interview question must belong to an available course');
-  if (this.topicRef) {
+  if (topicId) {
     if (!topic || topic.status !== 'active') this.invalidate('topicRef', 'Interview topic is unavailable');
-    else if (topic.course.toString() !== this.course.toString()) this.invalidate('topicRef', 'Interview topic must belong to the same course');
+    else if (referenceString(topic.course) !== referenceString(courseId)) this.invalidate('topicRef', 'Interview topic must belong to the same course');
     else this.topic = topic.title;
   }
 });
