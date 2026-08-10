@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Archive, Boxes, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import LifecycleError from '../../components/admin/LifecycleError.jsx';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
@@ -72,7 +73,7 @@ export default function TechnologiesPage() {
               {!archived ? <Link to={`/admin/technologies/${technology._id}/edit`} className="ui-button ui-button--ghost min-h-9 gap-1.5 px-3 text-xs"><Pencil size={14} /> Edit</Link> : null}
               {technology.status === 'draft' ? <Button variant="secondary" className="min-h-9 px-3 text-xs" onClick={() => setStatusTarget({ item: technology, status: 'published' })}>Publish</Button> : null}
               {!archived ? <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: technology, status: 'archived' })}><Archive size={14} /> Archive</Button> : <Button variant="secondary" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => setStatusTarget({ item: technology, status: 'draft' })}><RotateCcw size={14} /> Restore</Button>}
-              {technology.status !== 'published' ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { setDeleteTarget(technology); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
+              {archived ? <Button variant="danger" className="min-h-9 gap-1.5 px-3 text-xs" onClick={() => { deleteTechnology.reset(); setDeleteTarget(technology); setDeleteConfirmation(''); }}><Trash2 size={14} /> Delete</Button> : null}
             </div>
           </Card>;
         }) : <div className="md:col-span-2 xl:col-span-3"><EmptyState title="No technologies found" description="Create the first technology or change the filters." /></div>}
@@ -82,30 +83,30 @@ export default function TechnologiesPage() {
         open={Boolean(statusTarget)}
         title={`${actionLabel} technology?`}
         description={statusTarget?.status === 'published'
-          ? 'Published technologies become available in learner discovery and published Course configuration.'
+          ? 'Published technologies become available in learner discovery and Course configuration.'
           : statusTarget?.status === 'draft'
-            ? 'Restoring returns this technology to Draft. Review it before publishing it again.'
-            : 'Archiving hides this technology from new catalog use. Existing dependent courses must be handled before permanent deletion.'}
+            ? 'Restore this Technology to Draft so it can be reviewed and published again.'
+            : 'Archive this Technology before permanent deletion. Courses, Learning Paths, and child Technologies are references, so they are not archived automatically and may block this action.'}
         confirmLabel={actionLabel}
         tone="primary"
         isLoading={updateStatus.isPending}
         onCancel={() => setStatusTarget(null)}
         onConfirm={() => updateStatus.mutate({ id: statusTarget.item._id, status: statusTarget.status, confirmPublish: statusTarget.status === 'published' }, { onSuccess: () => setStatusTarget(null) })}
-      ><ErrorMessage message={updateStatus.error?.message} /></ConfirmDialog>
+      ><LifecycleError error={updateStatus.error} /></ConfirmDialog>
 
       <ConfirmDialog
         open={Boolean(deleteTarget)}
-        title="Delete technology permanently?"
-        description={`Delete “${deleteTarget?.name || ''}”. The backend will refuse deletion while courses or learning paths still depend on it.`}
+        title="Delete archived technology permanently?"
+        description={`Permanently delete “${deleteTarget?.name || ''}”. Referencing Courses, Learning Paths, or child Technologies must be disconnected first. This cannot be undone.`}
         confirmLabel="Delete permanently"
         tone="danger"
         isLoading={deleteTechnology.isPending}
         confirmDisabled={deleteConfirmation !== 'DELETE'}
-        onCancel={() => setDeleteTarget(null)}
-        onConfirm={() => deleteTechnology.mutate(deleteTarget._id, { onSuccess: () => setDeleteTarget(null) })}
+        onCancel={() => { setDeleteTarget(null); setDeleteConfirmation(''); }}
+        onConfirm={() => deleteTechnology.mutate(deleteTarget._id, { onSuccess: () => { setDeleteTarget(null); setDeleteConfirmation(''); } })}
       >
         <Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} />
-        <ErrorMessage message={deleteTechnology.error?.message} />
+        <LifecycleError error={deleteTechnology.error} />
       </ConfirmDialog>
     </PageShell>
   );
