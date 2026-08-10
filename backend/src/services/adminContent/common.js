@@ -48,17 +48,12 @@ export const cleanTemplateModules = (modules = []) => modules.map((module, index
   quizTags: cleanStringArray(module.quizTags)
 }));
 
-export const assertCourseExists = async (courseId, { requirePublished = false } = {}) => {
+export const assertCourseExists = async (courseId) => {
   const course = await Course.findById(courseId).select('_id title slug status availableLevels technologies primaryTechnology').lean();
   if (!course || course.status === PUBLISHABLE_STATUS.ARCHIVED) {
     throw new ApiError(400, 'Selected course is unavailable', [
-      { field: 'course', message: 'Choose an available course' }
+      { field: 'course', message: 'Choose a Draft or Published course' }
     ], 'CONTENT_REFERENCE_INVALID');
-  }
-  if (requirePublished && course.status !== PUBLISHABLE_STATUS.PUBLISHED) {
-    throw new ApiError(400, 'Course must be published first', [
-      { field: 'course', message: 'Publish the course before publishing dependent learner content' }
-    ], 'CONTENT_NOT_READY');
   }
   return course;
 };
