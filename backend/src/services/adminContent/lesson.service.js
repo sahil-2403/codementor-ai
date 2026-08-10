@@ -24,6 +24,7 @@ import {
   cleanStringArray,
   ensureEditable,
   ensureFound,
+  requireArchivedForDelete,
   transitionStatus
 } from './common.js';
 
@@ -51,9 +52,9 @@ const assertNotUsedByTemplate = async (lessonId, { publishedOnly = false } = {})
     throw new ApiError(
       409,
       publishedOnly
-        ? 'This lesson is used by a published roadmap template. Update or archive the template first.'
-        : 'This lesson is still referenced by a roadmap template. Remove it from the template first.',
-      [{ field: 'template', message: template.title }],
+        ? 'This lesson is used by a published roadmap template.'
+        : 'This lesson is still referenced by a roadmap template.',
+      [{ field: 'template', message: `Open Roadmap Templates and archive or update “${template.title}” first. Remove this Lesson from the template before permanently deleting it.` }],
       'TEMPLATE_DEPENDENCY_EXISTS'
     );
   }
@@ -82,44 +83,26 @@ const archiveDependentContent = async ({ model, contentIds, lessonId, session })
   );
 };
 
-const restoreDependentContent = async ({ model, contentIds, lessonId, session }) => {
+const restoreDependentContent = async ({ model, contentIds, session, clearManualArchive = false }) => {
   if (!contentIds.length) return;
-  await model.updateMany(
-    { _id: { $in: contentIds } },
-    [
-      { $set: { archivedByLessons: { $setDifference: [{ $ifNull: ['$archivedByLessons', []] }, [lessonId]] } } },
-      {
-        $set: {
-          status: {
-            $cond: [
-              {
-                $and: [
-                  { $eq: [{ $size: { $ifNull: ['$archivedByLessons', []] } }, 0] },
-                  { $eq: [{ $size: { $ifNull: ['$archivedByTopics', []] } }, 0] },
-                  { $in: ['$statusBeforeCascadeArchive', ['draft', 'published']] }
-                ]
-              },
-              '$statusBeforeCascadeArchive',
-              '$status'
-            ]
-          },
-          statusBeforeCascadeArchive: {
-            $cond: [
-              {
-                $and: [
-                  { $eq: [{ $size: { $ifNull: ['$archivedByLessons', []] } }, 0] },
-                  { $eq: [{ $size: { $ifNull: ['$archivedByTopics', []] } }, 0] }
-                ]
-              },
-              null,
-              '$statusBeforeCascadeArchive'
-            ]
-          }
-        }
-      }
-    ],
-    operationOptions(session)
-  );
+  const reset = {
+    status: {
+      $cond: [
+        { $in: ['$statusBeforeCascadeArchive', ['draft', 'published']] },
+        '$statusBeforeCascadeArchive',
+        'draft'
+      ]
+    },
+    archivedByLessons: [],
+    archivedByTopics: [],
+    statusBeforeCascadeArchive: null,
+    statusBeforeTopicArchive: null
+  };
+  if (clearManualArchive) {
+    reset.manualArchive = false;
+    reset.statusBeforeManualArchive = null;
+  }
+  await model.updateMany({ _id: { $in: contentIds } }, [{ $set: reset }], operationOptions(session));
 };
 
 const assertLessonPublishable = async (lesson) => {
@@ -231,7 +214,7 @@ export const updateLesson = async ({ id, payload }) => {
     ...(payload.tags ? { tags: cleanStringArray(payload.tags) } : {})
   };
   delete normalized.course;
-  for (const field of ['status', 'manualArchive', 'archivedByTopics', 'statusBeforeCascadeArchive', 'statusBeforeTopicArchive']) delete normalized[field];
+  for (const field of ['status', 'manualArchive', 'archivedByTopics', 'statusBeforeCascadeArchive', 'statusBeforeTopicArchive', 'statusBeforeCourseArchive']) delete normalized[field];
   Object.assign(lesson, normalized);
   if (lesson.status === PUBLISHABLE_STATUS.PUBLISHED) await assertLessonPublishable(lesson);
   await lesson.save();
@@ -265,12 +248,9 @@ export const changeLessonStatus = async ({ id, status, confirmPublish = false })
     const topicBlockers = lesson.archivedByTopics || [];
 
     if (status === 'archived') {
-      if (lesson.status === PUBLISHABLE_STATUS.ARCHIVED) {
-        if (topicBlockers.length) throw new ApiError(409, 'This lesson is archived by its parent topic. Manage the topic lifecycle instead.', [], 'LESSON_ARCHIVED_BY_TOPIC');
-        return { lesson, counts: impact.counts };
-      }
+      if (lesson.status === PUBLISHABLE_STATUS.ARCHIVED) return { lesson, counts: impact.counts };
       await assertNotUsedByTemplate(lesson._id, { publishedOnly: true });
-      lesson.statusBeforeCascadeArchive = lesson.statusBeforeCascadeArchive || lesson.statusBeforeTopicArchive || lesson.status;
+      lesson.statusBeforeCascadeArchive = ['draft', 'published'].includes(lesson.status) ? lesson.status : PUBLISHABLE_STATUS.DRAFT;
       lesson.statusBeforeTopicArchive = null;
       lesson.manualArchive = true;
       lesson.status = PUBLISHABLE_STATUS.ARCHIVED;
@@ -281,16 +261,27 @@ export const changeLessonStatus = async ({ id, status, confirmPublish = false })
     }
 
     if (lesson.status !== PUBLISHABLE_STATUS.ARCHIVED) return { lesson, counts: impact.counts };
-    if (topicBlockers.length) throw new ApiError(409, 'Restore the parent topic before restoring this lesson.', [{ field: 'topic', message: 'The lesson is still archived by its parent topic' }], 'LESSON_ARCHIVED_BY_TOPIC');
+    if (lesson.course?.status === PUBLISHABLE_STATUS.ARCHIVED) {
+      throw new ApiError(409, 'This lesson cannot be restored while its Course is archived.', [
+        { field: 'course', message: 'Open Courses and restore the parent Course first. Restoring the Course will restore all of its curriculum.' }
+      ], 'PARENT_ARCHIVED');
+    }
+    if (topicBlockers.length || lesson.topic?.status === 'archived') {
+      throw new ApiError(409, 'This lesson cannot be restored while its Topic is archived.', [
+        { field: 'topic', message: 'Open Topics and restore the parent Topic first. Restoring the Topic will restore all of its child content.' }
+      ], 'PARENT_ARCHIVED');
+    }
 
     const previousStatus = lesson.statusBeforeCascadeArchive || lesson.statusBeforeTopicArchive || PUBLISHABLE_STATUS.DRAFT;
     lesson.manualArchive = false;
     lesson.status = ['draft', 'published'].includes(previousStatus) ? previousStatus : PUBLISHABLE_STATUS.DRAFT;
     lesson.statusBeforeCascadeArchive = null;
     lesson.statusBeforeTopicArchive = null;
+    lesson.statusBeforeCourseArchive = null;
+    lesson.archivedByTopics = [];
     await lesson.save(operationOptions(session));
-    await restoreDependentContent({ model: QuizQuestion, contentIds: impact.quizQuestionIds, lessonId: lesson._id, session });
-    await restoreDependentContent({ model: ProjectTask, contentIds: impact.projectTaskIds, lessonId: lesson._id, session });
+    await restoreDependentContent({ model: QuizQuestion, contentIds: impact.quizQuestionIds, session, clearManualArchive: true });
+    await restoreDependentContent({ model: ProjectTask, contentIds: impact.projectTaskIds, session });
     return { lesson, counts: impact.counts };
   });
 
@@ -302,11 +293,17 @@ export const deleteLesson = async (id) => {
   const result = await runLifecycleOperation(async (session) => {
     const impact = await resolveLessonImpact(id, { session });
     const { lesson, quizQuestionIds, projectTaskIds, counts } = impact;
+    requireArchivedForDelete(lesson, 'Lesson');
     await assertNotUsedByTemplate(lesson._id);
 
     const historicalUsage = counts.projectSubmissions + counts.quizAttempts + counts.affectedCoursePlans + counts.progressRecords + counts.revisionItems + counts.weeklyReports;
     if (historicalUsage > 0) {
-      throw new ApiError(409, 'This lesson already has learner history. Archive it instead of deleting it.', [], 'LEARNER_HISTORY_EXISTS');
+      throw new ApiError(
+        409,
+        'This lesson has learner history, so it cannot be permanently deleted.',
+        [{ field: 'learnerHistory', message: 'Keep the Lesson archived. Existing learner progress, attempts, revisions, reports, and roadmaps must remain valid.' }],
+        'LEARNER_HISTORY_EXISTS'
+      );
     }
 
     if (projectTaskIds.length) await ProjectTask.deleteMany({ _id: { $in: projectTaskIds } }, operationOptions(session));
