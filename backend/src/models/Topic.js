@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import { Course } from './Course.js';
 
+const referenceId = (value) => value?._id || value;
+
 const topicSchema = new mongoose.Schema(
   {
     course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true, index: true },
@@ -26,8 +28,9 @@ const topicSchema = new mongoose.Schema(
 );
 
 topicSchema.pre('validate', async function validateCourse() {
-  if (!this.course) return;
-  const course = await Course.findById(this.course).select('_id status').lean();
+  const courseId = referenceId(this.course);
+  if (!courseId) return;
+  const course = await Course.findById(courseId).select('_id status').lean();
   if (!course || course.status === 'archived') {
     this.invalidate('course', 'Topic must belong to an available course');
   }
