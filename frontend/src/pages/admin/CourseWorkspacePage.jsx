@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, BookOpen, ClipboardCheck, FileQuestion, Layers3, MessageSquareText, Pencil, Tags, Wrench } from 'lucide-react';
+import { ArrowLeft, BookOpen, ClipboardCheck, FileQuestion, Hammer, Layers3, MessageSquareText, Pencil, Tags } from 'lucide-react';
 import { adminCourseWorkspaceApi } from '../../api/adminCourseWorkspaceApi.js';
 import Card from '../../components/common/Card.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -16,6 +16,7 @@ const sections = [
   { key: 'quizQuestions', title: 'Quiz questions', icon: FileQuestion, path: '/admin/questions/quiz', detail: (item) => `${item.published || 0} published · ${item.draft || 0} draft` },
   { key: 'skillChecks', title: 'Skill checks', icon: ClipboardCheck, path: '/admin/questions/skill-checks', detail: (item) => `${item.published || 0} published · ${item.draft || 0} draft` },
   { key: 'interviewQuestions', title: 'Interview practice', icon: MessageSquareText, path: '/admin/questions/interview', detail: (item) => `${item.published || 0} published · ${item.draft || 0} draft` },
+  { key: 'projects', title: 'Project tasks', icon: Hammer, path: '/admin/project-tasks', detail: (item) => `${item.published || 0} published · ${item.draft || 0} draft` },
   { key: 'templates', title: 'Roadmap templates', icon: Layers3, path: '/admin/templates', detail: (item) => `${item.published || 0} published · ${item.draft || 0} draft` }
 ];
 
@@ -56,14 +57,10 @@ export default function CourseWorkspacePage() {
       </section>
 
       <Card className="shadow-sm">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">Learner levels</p><h2 className="mt-1 text-lg font-bold text-foreground">Roadmap template coverage</h2><p className="mt-1 text-sm text-muted-foreground">Only levels enabled on this Course appear here.</p></div><Link to={`/admin/templates/new?course=${course._id}`} className="text-sm font-semibold text-primary-strong">Create template →</Link></div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">Learner levels</p><h2 className="mt-1 text-lg font-bold text-foreground">Roadmap template coverage</h2><p className="mt-1 text-sm text-muted-foreground">Only levels enabled on this Course appear here. Every enabled level needs a published template before the Course can be published.</p></div><Link to={`/admin/templates/new?course=${course._id}`} className="text-sm font-semibold text-primary-strong">Create template →</Link></div>
         <div className="mt-5 grid gap-3 md:grid-cols-3">
           {Object.entries(coverage).map(([level, template]) => <div key={level} className="rounded-panel border border-border bg-surface-secondary/30 p-4"><div className="flex items-center justify-between gap-3"><p className="font-bold capitalize text-foreground">{level}</p><StatusPill status={template.status} /></div><p className="mt-2 text-xs leading-5 text-muted-foreground">{template.status === 'missing' ? 'No template configured for this Course level.' : `${template.modules || 0} modules · ${template.estimatedDurationDays || 0} days`}</p><div className="mt-4">{template.templateId ? <Link to={`/admin/templates/${template.templateId}/edit`} className="text-sm font-semibold text-primary-strong">Open template →</Link> : <Link to={`/admin/templates/new?course=${course._id}`} className="text-sm font-semibold text-primary-strong">Create template →</Link>}</div></div>)}
         </div>
-      </Card>
-
-      <Card className="border-border bg-surface-secondary/35 shadow-none">
-        <div className="flex items-start gap-3"><Wrench size={18} className="mt-0.5 shrink-0 text-muted-foreground" /><div><p className="font-bold text-foreground">Project tasks</p><p className="mt-1 text-sm leading-6 text-muted-foreground">This Course currently has {counts.projects?.total || 0} project task(s). Project-task authoring will use this same Course workspace and dependency model; learner project data is already Course-owned.</p></div></div>
       </Card>
     </PageShell>
   );
