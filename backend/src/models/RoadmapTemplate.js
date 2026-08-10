@@ -25,7 +25,8 @@ const roadmapTemplateSchema = new mongoose.Schema(
     description: { type: String, default: '', trim: true },
     modules: [templateModuleSchema],
     estimatedDurationDays: { type: Number, default: 90 },
-    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft', index: true }
+    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft', index: true },
+    statusBeforeCourseArchive: { type: String, enum: ['draft', 'published'], default: null }
   },
   { timestamps: true }
 );
