@@ -22,13 +22,14 @@ test('admin dashboard uses the dedicated content overview query', async () => {
   assert.doesNotMatch(page, /useAdminTopics|useAdminLessons|useAdminQuestions|useAdminTemplates/);
 });
 
-test('admin dashboard exposes real inventory, attention, coverage, actions, and recent content', async () => {
+test('admin dashboard exposes catalog inventory, curriculum, attention, coverage, actions, and recent content', async () => {
   const page = await readFrontend('src/pages/admin/AdminDashboardPage.jsx');
 
-  assert.match(page, /Available content/);
+  assert.match(page, /What learners can choose/);
+  assert.match(page, /Course-owned learning content/);
   assert.match(page, /Needs attention/);
+  assert.match(page, /Build top to bottom/);
   assert.match(page, /Roadmap coverage/);
-  assert.match(page, /Quick actions/);
   assert.match(page, /Question banks/);
   assert.match(page, /Recently updated/);
   assert.match(page, /publishedLessonsWithoutQuizCoverage/);
