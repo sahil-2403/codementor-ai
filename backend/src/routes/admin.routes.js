@@ -96,6 +96,7 @@ import {
   updateAdminProjectTaskStatus,
   deleteAdminProjectTask
 } from '../controllers/adminProject.controller.js';
+import { courseWorkspace } from '../controllers/courseWorkspace.controller.js';
 import { contentOverview } from '../controllers/adminOverview.controller.js';
 
 const router = Router();
@@ -112,6 +113,7 @@ router.delete('/technologies/:id', adminWriteLimiter, validate(idParamSchema), d
 
 router.get('/courses', listCourses);
 router.post('/courses', adminWriteLimiter, validate(courseSchema), createCourse);
+router.get('/courses/:id/workspace', validate(idParamSchema), courseWorkspace);
 router.get('/courses/:id', validate(idParamSchema), getCourse);
 router.patch('/courses/:id', adminWriteLimiter, validate(idParamSchema), validate(courseUpdateSchema), updateCourse);
 router.patch('/courses/:id/status', adminWriteLimiter, validate(idParamSchema), validate(catalogStatusUpdateSchema), updateCourseStatus);
