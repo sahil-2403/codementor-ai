@@ -19,6 +19,30 @@ test('archived publishable catalog entities restore only to draft', () => {
   assert.doesNotMatch(common, /PUBLISHABLE_STATUS\.ARCHIVED\]: new Set\(\[[^\]]*PUBLISHABLE_STATUS\.PUBLISHED/);
 });
 
+test('all permanent admin deletion requires archived state', () => {
+  const common = source('services/adminContent/common.js');
+  const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
+  const topic = source('services/adminContent/topic.service.js');
+  const lesson = source('services/adminContent/lesson.service.js');
+  const question = source('services/adminContent/question.service.js');
+  const interview = source('services/adminContent/interviewQuestion.service.js');
+  const project = source('services/adminContent/projectTask.service.js');
+  const template = source('services/adminContent/template.service.js');
+
+  assert.match(common, /export const requireArchivedForDelete/);
+  assert.match(common, /Archive this \$\{label\.toLowerCase\(\)\} before deleting it permanently/);
+  assert.match(common, /Choose Archive first/);
+  assert.match(lifecycle, /requireArchivedForDelete\(technology, 'Technology'\)/);
+  assert.match(lifecycle, /requireArchivedForDelete\(course, 'Course'\)/);
+  assert.match(lifecycle, /requireArchivedForDelete\(path, 'Learning path'\)/);
+  assert.match(topic, /requireArchivedForDelete\(topic, 'Topic'\)/);
+  assert.match(lesson, /requireArchivedForDelete\(lesson, 'Lesson'\)/);
+  assert.match(question, /requireArchivedForDelete\(question,/);
+  assert.match(interview, /requireArchivedForDelete\(impact\.question, 'Interview question'\)/);
+  assert.match(project, /requireArchivedForDelete\(project, 'Project task'\)/);
+  assert.match(template, /requireArchivedForDelete\(template, 'Roadmap template'\)/);
+});
+
 test('draft courses can stage curriculum while course publishing remains the final gate', () => {
   const common = source('services/adminContent/common.js');
   const catalog = source('services/adminContent/catalog.service.js');
@@ -50,17 +74,35 @@ test('project task history checks use the real projectTask submission reference'
   assert.doesNotMatch(service, /ProjectSubmission\.countDocuments\(\{ task:/);
 });
 
-test('catalog archives cannot break active dependency chains', () => {
+test('course lifecycle cascades down through owned curriculum only', () => {
+  const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
+
+  assert.match(lifecycle, /const archiveCourseOwnedContent/);
+  assert.match(lifecycle, /const restoreCourseOwnedContent/);
+  for (const model of ['Topic', 'Lesson', 'QuizQuestion', 'InterviewQuestion', 'ProjectTask', 'RoadmapTemplate']) {
+    assert.match(lifecycle, new RegExp(`${model}\\.updateMany\\(`));
+  }
+  assert.match(lifecycle, /await archiveCourseOwnedContent\(args\.id\)/);
+  assert.match(lifecycle, /await restoreCourseOwnedContent\(args\.id\)/);
+
+  // Learning paths and technologies are catalog references, not Course-owned children.
+  assert.doesNotMatch(lifecycle, /archiveCourseOwnedContent[\s\S]*LearningPath\.updateMany/);
+  assert.doesNotMatch(lifecycle, /archiveCourseOwnedContent[\s\S]*Technology\.updateMany/);
+});
+
+test('catalog archives protect external references and explain how to resolve blockers', () => {
   const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
   const catalogController = source('controllers/adminCatalog.controller.js');
   const contentController = source('controllers/admin.controller.js');
 
   assert.match(lifecycle, /assertTechnologyArchiveSafe/);
-  assert.match(lifecycle, /active course\(s\) use this technology/);
+  assert.match(lifecycle, /Open Courses and remove or replace this technology first/);
+  assert.match(lifecycle, /Open Learning Paths and remove this technology first/);
   assert.match(lifecycle, /assertCourseArchiveSafe/);
-  assert.match(lifecycle, /active learning path\(s\) include this course/);
+  assert.match(lifecycle, /Open Learning Paths and remove the course first/);
+  assert.match(lifecycle, /remove the prerequisite first/);
   assert.match(lifecycle, /assertTemplateCanLeavePublishedCoverage/);
-  assert.match(lifecycle, /Archive the Course first, then archive or delete this required roadmap template/);
+  assert.match(lifecycle, /Archive the Course first\. Course archiving will archive all of its templates and curriculum together/);
   assert.match(catalogController, /changeTechnologyStatusSafely/);
   assert.match(catalogController, /changeCourseStatusSafely/);
   assert.match(contentController, /changeTemplateStatusSafely/);
@@ -76,17 +118,18 @@ test('technology hierarchy cannot become circular', () => {
   assert.match(controller, /updateTechnologySafely/);
 });
 
-test('permanent catalog deletion protects deep content and learner history', () => {
+test('course permanent deletion cascades owned content but protects external references and history', () => {
   const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
   const catalogController = source('controllers/adminCatalog.controller.js');
 
-  assert.match(lifecycle, /Technology\.countDocuments\(\{ parentTechnology: id \}\)/);
-  assert.match(lifecycle, /Lesson\.countDocuments\(\{ course: id \}\)/);
-  assert.match(lifecycle, /QuizQuestion\.countDocuments\(\{ course: id \}\)/);
-  assert.match(lifecycle, /InterviewQuestion\.countDocuments\(\{ course: id \}\)/);
-  assert.match(lifecycle, /ProjectTask\.countDocuments\(\{ course: id \}\)/);
+  assert.match(lifecycle, /LearningPath\.countDocuments\(\{ 'courses\.course': id \}\)/);
+  assert.match(lifecycle, /Course\.countDocuments\(\{ recommendedPrerequisites: id \}\)/);
+  assert.match(lifecycle, /Enrollment\.countDocuments/);
   assert.match(lifecycle, /CoursePlan\.countDocuments\(\{ course: id \}\)/);
-  assert.match(lifecycle, /CoursePlan\.countDocuments\(\{ learningPath: id \}\)/);
+  for (const model of ['RoadmapTemplate', 'ProjectTask', 'InterviewQuestion', 'QuizQuestion', 'Lesson', 'Topic']) {
+    assert.match(lifecycle, new RegExp(`${model}\\.deleteMany\\(\\{ course: id \\}\\)`));
+  }
+  assert.match(lifecycle, /Learner enrollments or generated roadmaps already reference this Course/);
   assert.match(catalogController, /deleteTechnologySafely/);
   assert.match(catalogController, /deleteCourseSafely/);
   assert.match(catalogController, /deleteLearningPathSafely/);
