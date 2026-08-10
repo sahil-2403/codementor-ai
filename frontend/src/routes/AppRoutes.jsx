@@ -34,6 +34,13 @@ const ProjectsPage = lazy(() => import('../pages/learner/ProjectsPage.jsx'));
 const ProjectTaskPage = lazy(() => import('../pages/learner/ProjectTaskPage.jsx'));
 const InterviewPage = lazy(() => import('../pages/learner/InterviewPage.jsx'));
 const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage.jsx'));
+const AdminCatalogPage = lazy(() => import('../pages/admin/AdminCatalogPage.jsx'));
+const TechnologiesPage = lazy(() => import('../pages/admin/TechnologiesPage.jsx'));
+const TechnologyEditorPage = lazy(() => import('../pages/admin/TechnologyEditorPage.jsx'));
+const CoursesPage = lazy(() => import('../pages/admin/CoursesPage.jsx'));
+const CourseEditorPage = lazy(() => import('../pages/admin/CourseEditorPage.jsx'));
+const LearningPathsPage = lazy(() => import('../pages/admin/LearningPathsPage.jsx'));
+const LearningPathEditorPage = lazy(() => import('../pages/admin/LearningPathEditorPage.jsx'));
 const TopicsPage = lazy(() => import('../pages/admin/TopicsPage.jsx'));
 const TopicEditorPage = lazy(() => import('../pages/admin/TopicEditorPage.jsx'));
 const LessonsPage = lazy(() => import('../pages/admin/LessonsPage.jsx'));
@@ -90,6 +97,16 @@ export default function AppRoutes() {
         <Route element={<RoleRoute role="admin" />}>
           <Route element={<AdminLayout />}>
             <Route path="/admin" element={<AdminDashboardPage />} />
+            <Route path="/admin/catalog" element={<AdminCatalogPage />} />
+            <Route path="/admin/technologies" element={<TechnologiesPage />} />
+            <Route path="/admin/technologies/new" element={<TechnologyEditorPage />} />
+            <Route path="/admin/technologies/:technologyId/edit" element={<TechnologyEditorPage />} />
+            <Route path="/admin/courses" element={<CoursesPage />} />
+            <Route path="/admin/courses/new" element={<CourseEditorPage />} />
+            <Route path="/admin/courses/:courseId/edit" element={<CourseEditorPage />} />
+            <Route path="/admin/learning-paths" element={<LearningPathsPage />} />
+            <Route path="/admin/learning-paths/new" element={<LearningPathEditorPage />} />
+            <Route path="/admin/learning-paths/:pathId/edit" element={<LearningPathEditorPage />} />
             <Route path="/admin/topics" element={<TopicsPage />} />
             <Route path="/admin/topics/new" element={<TopicEditorPage />} />
             <Route path="/admin/topics/:topicId/edit" element={<TopicEditorPage />} />
