@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight, BookOpen, Layers3, Route, Search, Sparkles } from 'lucide-react';
 import Badge from '../../components/common/Badge.jsx';
 import Button from '../../components/common/Button.jsx';
@@ -12,7 +11,8 @@ import Loader from '../../components/common/Loader.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import { onboardingApi } from '../../api/onboardingApi.js';
-import { queryKeys } from '../../constants/queryKeys.js';
+import { useDataRefresh } from '../../context/DataRefreshContext.jsx';
+import { useAsyncData } from '../../hooks/useAsyncData.js';
 import { cn } from '../../utils/cn.js';
 
 const categoryLabels = {
@@ -100,14 +100,13 @@ function PathCard({ path, busyId, onSelect }) {
 
 export default function CatalogPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const { refreshData } = useDataRefresh();
   const [search, setSearch] = useState('');
   const [technologyFilter, setTechnologyFilter] = useState('');
   const [busyId, setBusyId] = useState('');
   const [error, setError] = useState('');
 
-  const catalogQuery = useQuery({ queryKey: queryKeys.catalog, queryFn: onboardingApi.catalog });
-
+  const catalogQuery = useAsyncData(onboardingApi.catalog);
   const catalog = catalogQuery.data || { technologies: [], courses: [], learningPaths: [] };
   const normalizedSearch = search.trim().toLowerCase();
 
@@ -138,7 +137,7 @@ export default function CatalogPage() {
       await onboardingApi.selectOffering(type === 'course'
         ? { type, courseId: id }
         : { type, learningPathId: id });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus });
+      refreshData();
       navigate('/onboarding/level');
     } catch (err) {
       setError(err?.message || 'Could not start this learning option.');
