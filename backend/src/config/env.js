@@ -20,7 +20,6 @@ const envBoolean = (defaultValue = false) =>
   }, z.boolean());
 
 const optionalString = z.preprocess(emptyToUndefined, z.string().min(1).optional());
-const optionalUrl = z.preprocess(emptyToUndefined, z.string().url().optional());
 const optionalEmail = z.preprocess(emptyToUndefined, z.string().email().optional());
 const optionalPort = z.preprocess(
   emptyToUndefined,
@@ -49,11 +48,8 @@ const envSchema = z.object({
   AI_ROUTE_RATE_LIMIT: z.coerce.number().int().positive().default(40),
   ADMIN_WRITE_RATE_LIMIT: z.coerce.number().int().positive().default(80),
   ENABLE_CACHE: envBoolean(true),
-  CACHE_DRIVER: z.enum(['memory', 'redis', 'disabled']).default('memory'),
   CACHE_DASHBOARD_TTL_SECONDS: z.coerce.number().int().positive().default(30),
   CACHE_CONTENT_TTL_SECONDS: z.coerce.number().int().positive().default(600),
-  ENABLE_QUEUE: envBoolean(false),
-  REDIS_URL: optionalUrl,
   ENABLE_AI: envBoolean(false),
   GEMINI_API_KEY: optionalString,
   GEMINI_MODEL: z.string().min(1).default('gemini-1.5-flash'),
@@ -98,11 +94,6 @@ const envSchema = z.object({
 
   if (values.COOKIE_SAME_SITE === 'none' && !values.COOKIE_SECURE) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['COOKIE_SECURE'], message: 'COOKIE_SECURE must be true when COOKIE_SAME_SITE is none' });
-  }
-
-  const redisCacheEnabled = values.ENABLE_CACHE && values.CACHE_DRIVER === 'redis';
-  if ((values.ENABLE_QUEUE || redisCacheEnabled) && !values.REDIS_URL) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['REDIS_URL'], message: 'REDIS_URL is required for Redis cache or queue mode' });
   }
 
   if (values.ENABLE_AI && !values.GEMINI_API_KEY) {
@@ -151,11 +142,8 @@ export const env = Object.freeze({
   trustProxy: parseTrustProxy(values.TRUST_PROXY),
   rateLimits: Object.freeze({ api: values.API_RATE_LIMIT, auth: values.AUTH_RATE_LIMIT, register: values.REGISTER_RATE_LIMIT, passwordReset: values.PASSWORD_RESET_RATE_LIMIT, aiRoute: values.AI_ROUTE_RATE_LIMIT, adminWrite: values.ADMIN_WRITE_RATE_LIMIT }),
   enableCache: values.ENABLE_CACHE,
-  cacheDriver: values.CACHE_DRIVER,
   cacheDashboardTtlSeconds: values.CACHE_DASHBOARD_TTL_SECONDS,
   cacheContentTtlSeconds: values.CACHE_CONTENT_TTL_SECONDS,
-  enableQueue: values.ENABLE_QUEUE,
-  redisUrl: values.REDIS_URL,
   enableAi: values.ENABLE_AI,
   geminiApiKey: values.GEMINI_API_KEY,
   geminiModel: values.GEMINI_MODEL,
@@ -177,7 +165,5 @@ export const env = Object.freeze({
   enableDemoMode: values.ENABLE_DEMO_MODE
 });
 
-export const isCacheEnabled = () => env.enableCache && env.cacheDriver !== 'disabled';
-export const isRedisCacheEnabled = () => isCacheEnabled() && env.cacheDriver === 'redis';
-export const isQueueEnabled = () => env.enableQueue && Boolean(env.redisUrl);
+export const isCacheEnabled = () => env.enableCache;
 export const isGeminiAvailable = () => env.enableAi && Boolean(env.geminiApiKey);
