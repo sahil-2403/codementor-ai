@@ -33,3 +33,14 @@ test('lesson mentor auto-send is claimed once before sending and cannot replay o
   // lessonId stays in cleanParams, preserving the current learning context.
   assert.doesNotMatch(mentorPage, /cleanParams\.delete\(["']lessonId["']\)/);
 });
+
+test('mentor quota refresh does not keep the send mutation pending after the answer arrives', async () => {
+  const queries = await readFrontend('src/queries/mentorQueries.js');
+
+  assert.match(queries, /onSettled:\s*\(\)\s*=>\s*\{/);
+  assert.match(queries, /void queryClient\.invalidateQueries\(\{ queryKey: queryKeys\.mentorAIStatus \}\)/);
+  assert.doesNotMatch(
+    queries,
+    /onSettled:\s*\(\)\s*=>\s*queryClient\.invalidateQueries\(\{ queryKey: queryKeys\.mentorAIStatus \}\)/
+  );
+});
