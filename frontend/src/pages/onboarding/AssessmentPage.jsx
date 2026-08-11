@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { assessmentApi } from '../../api/assessmentApi.js';
 import { onboardingApi } from '../../api/onboardingApi.js';
 import Button from '../../components/common/Button.jsx';
@@ -11,36 +10,49 @@ import EmptyState from '../../components/common/EmptyState.jsx';
 import QuizQuestionCard from '../../components/quiz/QuizQuestionCard.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
-import { queryKeys } from '../../constants/queryKeys.js';
+import { useAsyncData } from '../../hooks/useAsyncData.js';
 
 export default function AssessmentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isPersonalizeFlow = searchParams.get('personalize') === 'true';
   const personalizeQuery = isPersonalizeFlow ? '?personalize=true' : '';
-  const { data: statusData, isLoading: statusLoading, error: statusError } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status });
-  const enrollment = statusData?.currentEnrollment;
+  const statusQuery = useAsyncData(onboardingApi.status);
+  const enrollment = statusQuery.data?.currentEnrollment;
   const course = enrollment?.currentCourse || enrollment?.course;
   const level = enrollment?.level || 'intermediate';
   const enrollmentId = enrollment?._id;
-  const { data, isLoading, error: assessmentError } = useQuery({
-    queryKey: ['assessment', enrollmentId, level],
-    queryFn: () => assessmentApi.start({ level, enrollmentId }),
-    enabled: Boolean(enrollmentId) && !statusLoading && level !== 'beginner',
-    staleTime: 1000 * 60 * 20,
-    refetchOnWindowFocus: false,
-    retry: false
-  });
+  const assessmentRequestRef = useRef('');
+  const [assessmentData, setAssessmentData] = useState(null);
+  const [assessmentLoading, setAssessmentLoading] = useState(false);
+  const [assessmentError, setAssessmentError] = useState(null);
   const [answers, setAnswers] = useState({});
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const questions = data?.questions || [];
+  useEffect(() => {
+    if (!enrollmentId || statusQuery.isLoading || level === 'beginner') return;
+    const requestKey = `${enrollmentId}:${level}`;
+    if (assessmentRequestRef.current === requestKey) return;
+    assessmentRequestRef.current = requestKey;
+    setAssessmentLoading(true);
+    setAssessmentError(null);
+
+    assessmentApi.start({ level, enrollmentId })
+      .then((result) => setAssessmentData(result))
+      .catch((requestError) => {
+        setAssessmentError(requestError);
+        assessmentRequestRef.current = '';
+      })
+      .finally(() => setAssessmentLoading(false));
+  }, [enrollmentId, level, statusQuery.isLoading]);
+
+  const questions = assessmentData?.questions || [];
   const answeredCount = useMemo(() => questions.filter((question) => answers[question._id]).length, [answers, questions]);
   const completion = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
   const backTo = isPersonalizeFlow ? '/dashboard' : '/onboarding/assessment-intro';
 
-  if (statusLoading || isLoading) return <Loader label="Loading your skill check..." />;
+  if (statusQuery.isLoading || assessmentLoading) return <Loader label="Loading your skill check..." />;
 
   const submit = async () => {
     try {
@@ -50,7 +62,7 @@ export default function AssessmentPage() {
         .map((question) => ({ questionId: question._id, selectedAnswer: answers[question._id] || '' }))
         .filter((answer) => answer.selectedAnswer);
       if (payload.length !== questions.length) throw new Error('Please answer all questions before submitting.');
-      const result = await assessmentApi.submit({ enrollmentId, sessionId: data?.sessionId, answers: payload });
+      const result = await assessmentApi.submit({ enrollmentId, sessionId: assessmentData?.sessionId, answers: payload });
       navigate(`/onboarding/assessment-report/${result.assessment._id}${personalizeQuery}`);
     } catch (err) {
       setError(err?.message || 'Could not submit your answers.');
@@ -59,7 +71,7 @@ export default function AssessmentPage() {
     }
   };
 
-  if (statusError) return <EmptyState title="Your setup could not load" description={statusError.message} actionLabel="Back to dashboard" onAction={() => navigate('/dashboard')} />;
+  if (statusQuery.error) return <EmptyState title="Your setup could not load" description={statusQuery.error.message} actionLabel="Back to dashboard" onAction={() => navigate('/dashboard')} />;
   if (level === 'beginner') return <EmptyState title="No skill check is required" description="Beginner setup uses your learning preferences to create a foundation-first roadmap." actionLabel="Continue setup" onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : '/onboarding/preferences')} />;
   if (!enrollmentId || !course) return <EmptyState title="Course enrollment not found" description="Choose a course or learning path before starting a diagnostic." actionLabel={isPersonalizeFlow ? 'Back to dashboard' : 'Open learning catalog'} onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : '/onboarding/catalog')} />;
   if (assessmentError || !questions.length) return <EmptyState title="Skill check unavailable" description={assessmentError?.message || `No ${level} skill-check questions are available for ${course.title} yet.`} actionLabel="Back to options" onAction={() => navigate(backTo)} />;
