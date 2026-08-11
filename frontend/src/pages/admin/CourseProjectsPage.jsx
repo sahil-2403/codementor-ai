@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Archive, Hammer, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { adminProjectApi } from '../../api/adminProjectApi.js';
 import LifecycleError from '../../components/admin/LifecycleError.jsx';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
@@ -15,24 +13,23 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import Select from '../../components/common/Select.jsx';
 import StatusPill from '../../components/common/StatusPill.jsx';
-import { useAdminCourses } from '../../queries/adminQueries.js';
+import {
+  useAdminCourses,
+  useAdminProjectTasks,
+  useDeleteAdminProjectTask,
+  useUpdateAdminProjectTaskStatus
+} from '../../queries/adminQueries.js';
 
 export default function CourseProjectsPage() {
   const [searchParams] = useSearchParams();
-  const queryClient = useQueryClient();
   const [filters, setFilters] = useState({ page: 1, limit: 50, search: '', status: '', difficulty: '', course: searchParams.get('course') || '' });
   const [statusTarget, setStatusTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
-  const projectsQuery = useQuery({ queryKey: ['admin-project-tasks', filters], queryFn: () => adminProjectApi.list(filters) });
+  const projectsQuery = useAdminProjectTasks(filters);
   const coursesQuery = useAdminCourses({ limit: 100 });
-  const invalidate = async () => Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['admin-project-tasks'] }),
-    queryClient.invalidateQueries({ queryKey: ['admin-course-workspace'] }),
-    queryClient.invalidateQueries({ queryKey: ['admin-content-overview'] })
-  ]);
-  const statusMutation = useMutation({ mutationFn: adminProjectApi.updateStatus, onSuccess: async () => { await invalidate(); setStatusTarget(null); } });
-  const deleteMutation = useMutation({ mutationFn: adminProjectApi.delete, onSuccess: async () => { await invalidate(); setDeleteTarget(null); setDeleteConfirmation(''); } });
+  const statusMutation = useUpdateAdminProjectTaskStatus();
+  const deleteMutation = useDeleteAdminProjectTask();
 
   if (projectsQuery.isLoading || coursesQuery.isLoading) return <Loader label="Loading Course projects..." />;
   const projects = projectsQuery.data?.projectTasks || [];
@@ -94,7 +91,10 @@ export default function CourseProjectsPage() {
         tone="primary"
         isLoading={statusMutation.isPending}
         onCancel={() => setStatusTarget(null)}
-        onConfirm={() => statusMutation.mutate({ id: statusTarget.item._id, status: statusTarget.status, confirmPublish: statusTarget.status === 'published' })}
+        onConfirm={() => statusMutation.mutate(
+          { id: statusTarget.item._id, status: statusTarget.status, confirmPublish: statusTarget.status === 'published' },
+          { onSuccess: () => setStatusTarget(null) }
+        )}
       ><LifecycleError error={statusMutation.error} /></ConfirmDialog>
 
       <ConfirmDialog
@@ -106,7 +106,7 @@ export default function CourseProjectsPage() {
         isLoading={deleteMutation.isPending}
         confirmDisabled={deleteConfirmation !== 'DELETE'}
         onCancel={() => { setDeleteTarget(null); setDeleteConfirmation(''); }}
-        onConfirm={() => deleteMutation.mutate(deleteTarget._id)}
+        onConfirm={() => deleteMutation.mutate(deleteTarget._id, { onSuccess: () => { setDeleteTarget(null); setDeleteConfirmation(''); } })}
       ><Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /><LifecycleError error={deleteMutation.error} /></ConfirmDialog>
     </PageShell>
   );
