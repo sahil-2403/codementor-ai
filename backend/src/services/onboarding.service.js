@@ -3,7 +3,6 @@ import { Course } from '../models/Course.js';
 import { LearningPath } from '../models/LearningPath.js';
 import { CoursePlan } from '../models/CoursePlan.js';
 import { Assessment } from '../models/Assessment.js';
-import { AIJob } from '../models/AIJob.js';
 import { ONBOARDING_NEXT_PATH, ONBOARDING_STATES, isOnboardingState } from '../constants/onboardingStates.js';
 import { ApiError } from '../utils/ApiError.js';
 
@@ -14,7 +13,6 @@ const incompleteStates = [
   ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS,
   ONBOARDING_STATES.ASSESSMENT_COMPLETED,
   ONBOARDING_STATES.ROADMAP_PENDING,
-  ONBOARDING_STATES.ROADMAP_GENERATING,
   ONBOARDING_STATES.ROADMAP_FAILED
 ];
 
@@ -40,15 +38,10 @@ const requireCurrentEnrollment = async ({ userId, enrollmentId = null, allowActi
   return enrollment;
 };
 
-const deriveState = ({ enrollment, activeCourse, assessment, roadmapJob }) => {
+const deriveState = ({ enrollment, activeCourse, assessment }) => {
   if (!enrollment) return activeCourse ? ONBOARDING_STATES.COMPLETED : ONBOARDING_STATES.CATALOG_PENDING;
-
-  if (enrollment.onboardingState === ONBOARDING_STATES.ROADMAP_GENERATING) {
-    if (roadmapJob?.status === 'failed') return ONBOARDING_STATES.ROADMAP_FAILED;
-    if (roadmapJob?.status === 'completed' && activeCourse) return ONBOARDING_STATES.COMPLETED;
-    return ONBOARDING_STATES.ROADMAP_GENERATING;
-  }
   if (enrollment.onboardingState === ONBOARDING_STATES.ROADMAP_FAILED) return ONBOARDING_STATES.ROADMAP_FAILED;
+
   if (enrollment.onboardingState === ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS) {
     return assessment?.status === 'completed'
       ? ONBOARDING_STATES.ASSESSMENT_COMPLETED
@@ -59,8 +52,6 @@ const deriveState = ({ enrollment, activeCourse, assessment, roadmapJob }) => {
   if (activeCourse?.enrollment?.toString?.() === enrollment._id.toString() && enrollment.status === 'active') {
     return ONBOARDING_STATES.COMPLETED;
   }
-  if (roadmapJob?.status === 'queued' || roadmapJob?.status === 'processing') return ONBOARDING_STATES.ROADMAP_GENERATING;
-  if (roadmapJob?.status === 'failed') return ONBOARDING_STATES.ROADMAP_FAILED;
   if (assessment?.status === 'started') return ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS;
   if (assessment?.status === 'completed' && enrollment.assessmentPreference === 'take') return ONBOARDING_STATES.ASSESSMENT_COMPLETED;
   if (enrollment.onboardingState && isOnboardingState(enrollment.onboardingState)) return enrollment.onboardingState;
@@ -117,20 +108,13 @@ export const getOnboardingStatus = async (userId) => {
     currentEnrollment = await Enrollment.findOne({ user: userId, status: 'active' }).sort({ updatedAt: -1 });
   }
 
-  const [latestAssessment, roadmapJob] = currentEnrollment
-    ? await Promise.all([
-      Assessment.findOne({ user: userId, enrollment: currentEnrollment._id })
-        .select('_id status score completedAt level course enrollment')
-        .sort({ createdAt: -1 }),
-      AIJob.findOne({
-        user: userId,
-        type: 'roadmap_generation',
-        'input.enrollmentId': currentEnrollment._id
-      }).select('_id status error attempts completedAt createdAt').sort({ createdAt: -1 })
-    ])
-    : [null, null];
+  const latestAssessment = currentEnrollment
+    ? await Assessment.findOne({ user: userId, enrollment: currentEnrollment._id })
+      .select('_id status score completedAt level course enrollment')
+      .sort({ createdAt: -1 })
+    : null;
 
-  const state = deriveState({ enrollment: currentEnrollment, activeCourse, assessment: latestAssessment, roadmapJob });
+  const state = deriveState({ enrollment: currentEnrollment, activeCourse, assessment: latestAssessment });
   await persistDerivedState(currentEnrollment, state);
 
   let nextPath = ONBOARDING_NEXT_PATH[state];
@@ -150,12 +134,11 @@ export const getOnboardingStatus = async (userId) => {
     activeCourse,
     currentEnrollment,
     latestAssessment,
-    roadmapJob,
     canResume: Boolean(pendingEnrollment),
     error: state === ONBOARDING_STATES.ROADMAP_FAILED
       ? {
         code: currentEnrollment?.onboardingErrorCode || 'ROADMAP_GENERATION_FAILED',
-        message: currentEnrollment?.onboardingErrorMessage || roadmapJob?.error || 'Roadmap generation failed'
+        message: currentEnrollment?.onboardingErrorMessage || 'Roadmap generation failed'
       }
       : null
   };
@@ -187,7 +170,6 @@ export const selectEnrollmentTarget = async ({ userId, type, courseId = null, le
     enrollment.preferencesCompletedAt = null;
     enrollment.assessmentChoiceAt = null;
     enrollment.assessmentPreference = 'not_applicable';
-    enrollment.roadmapJob = null;
   }
 
   await enrollment.save();
@@ -277,17 +259,15 @@ export const setRoadmapOnboardingState = async ({
   userId,
   enrollmentId,
   state,
-  roadmapJobId = null,
   errorCode = '',
   errorMessage = ''
 }) => {
-  if (![ONBOARDING_STATES.ROADMAP_PENDING, ONBOARDING_STATES.ROADMAP_GENERATING, ONBOARDING_STATES.ROADMAP_FAILED, ONBOARDING_STATES.COMPLETED].includes(state)) {
+  if (![ONBOARDING_STATES.ROADMAP_PENDING, ONBOARDING_STATES.ROADMAP_FAILED, ONBOARDING_STATES.COMPLETED].includes(state)) {
     throw new ApiError(500, 'Invalid roadmap onboarding state', [], 'INVALID_ONBOARDING_STATE');
   }
 
   const enrollment = await requireCurrentEnrollment({ userId, enrollmentId, allowActive: true });
   enrollment.onboardingState = state;
-  enrollment.roadmapJob = roadmapJobId || enrollment.roadmapJob;
   enrollment.onboardingErrorCode = errorCode;
   enrollment.onboardingErrorMessage = errorMessage;
   if (state === ONBOARDING_STATES.COMPLETED) {
