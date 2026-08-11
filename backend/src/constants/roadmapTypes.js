@@ -5,8 +5,6 @@ export const ROADMAP_TYPES = {
 };
 
 export const COURSE_STATUS = {
-  GENERATING: 'generating',
   ACTIVE: 'active',
-  FAILED: 'failed',
   ARCHIVED: 'archived'
 };
