@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpenCheck, Gauge, GraduationCap } from 'lucide-react';
 import { onboardingApi } from '../../api/onboardingApi.js';
 import Button from '../../components/common/Button.jsx';
@@ -12,15 +11,16 @@ import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import { levels } from '../../constants/levels.js';
 import { onboardingCopyByLevel } from '../../constants/onboardingSteps.js';
-import { queryKeys } from '../../constants/queryKeys.js';
+import { useDataRefresh } from '../../context/DataRefreshContext.jsx';
+import { useAsyncData } from '../../hooks/useAsyncData.js';
 import { cn } from '../../utils/cn.js';
 
 const icons = { beginner: BookOpenCheck, intermediate: Gauge, advanced: GraduationCap };
 
 export default function LevelPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { data, isLoading, error: statusError, refetch } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status, retry: false });
+  const { refreshData } = useDataRefresh();
+  const { data, isLoading, error: statusError, refetch } = useAsyncData(onboardingApi.status);
   const enrollment = data?.currentEnrollment;
   const offering = enrollment?.type === 'learning_path' ? enrollment?.learningPath : enrollment?.course;
   const availableLevels = offering?.availableLevels || [];
@@ -42,7 +42,7 @@ export default function LevelPage() {
       setSaving(true);
       setError('');
       await onboardingApi.saveLevel({ enrollmentId: enrollment._id, level: selected });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus });
+      refreshData();
       navigate('/onboarding/preferences');
     } catch (err) {
       setError(err?.message || 'Could not save your level.');
