@@ -18,6 +18,7 @@ export default function GeneratingPage() {
   const isPersonalizeFlow = searchParams.get('personalize') === 'true';
   const onboardingQuery = useAsyncData(onboardingApi.status);
   const generateAction = useAsyncAction(roadmapApi.generateOrGet);
+  const generateRoadmap = generateAction.mutateAsync;
   const startedRef = useRef(false);
   const [localError, setLocalError] = useState('');
   const [showSlowHint, setShowSlowHint] = useState(false);
@@ -34,7 +35,7 @@ export default function GeneratingPage() {
     setShowSlowHint(false);
 
     try {
-      const result = await generateAction.mutateAsync();
+      const result = await generateRoadmap();
       if (result?.course) {
         navigate('/dashboard', { replace: true });
         return;
@@ -45,7 +46,7 @@ export default function GeneratingPage() {
       setLocalError(error?.message || 'Could not create your roadmap. Please try again.');
       startedRef.current = false;
     }
-  }, [generateAction, navigate]);
+  }, [generateRoadmap, navigate]);
 
   useEffect(() => {
     if (onboardingQuery.isLoading || !onboarding) return;
