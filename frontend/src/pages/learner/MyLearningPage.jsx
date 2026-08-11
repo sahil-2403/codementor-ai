@@ -1,5 +1,4 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BookOpenCheck, CheckCircle2, GraduationCap, Plus, Route } from 'lucide-react';
 import { myLearningApi } from '../../api/myLearningApi.js';
 import Button from '../../components/common/Button.jsx';
@@ -10,28 +9,16 @@ import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import StatusPill from '../../components/common/StatusPill.jsx';
-import { queryKeys } from '../../constants/queryKeys.js';
+import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { useAsyncData } from '../../hooks/useAsyncData.js';
 
 const sameId = (left, right) => Boolean(left && right && String(left) === String(right));
 
 export default function MyLearningPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const learningQuery = useQuery({ queryKey: ['my-learning'], queryFn: myLearningApi.list });
-  const selectMutation = useMutation({
-    mutationFn: myLearningApi.select,
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['my-learning'] }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.dashboard }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.roadmap }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.reports }),
-        queryClient.invalidateQueries({ queryKey: ['project-tasks'] }),
-        queryClient.invalidateQueries({ queryKey: ['interview-questions'] }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus })
-      ]);
-      navigate('/dashboard');
-    }
+  const learningQuery = useAsyncData(myLearningApi.list);
+  const selectMutation = useAsyncAction(myLearningApi.select, {
+    onSuccess: () => navigate('/dashboard')
   });
 
   if (learningQuery.isLoading) return <Loader label="Loading your courses..." />;
