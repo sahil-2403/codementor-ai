@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock, ListChecks, Target } from 'lucide-react';
 import { onboardingApi } from '../../api/onboardingApi.js';
 import Button from '../../components/common/Button.jsx';
@@ -15,7 +14,8 @@ import Select from '../../components/common/Select.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import { preferencesFormSchema } from '../../validations/onboarding.schema.js';
-import { queryKeys } from '../../constants/queryKeys.js';
+import { useDataRefresh } from '../../context/DataRefreshContext.jsx';
+import { useAsyncData } from '../../hooks/useAsyncData.js';
 
 const defaults = {
   dailyStudyTime: 120,
@@ -27,8 +27,8 @@ const defaults = {
 
 export default function PreferencesPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { data, isLoading, error: statusError, refetch } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status, retry: false });
+  const { refreshData } = useDataRefresh();
+  const { data, isLoading, error: statusError, refetch } = useAsyncData(onboardingApi.status);
   const enrollment = data?.currentEnrollment;
   const offering = enrollment?.type === 'learning_path' ? enrollment?.learningPath : enrollment?.course;
   const { register, handleSubmit, setError, watch, reset, formState: { errors, isSubmitting } } = useForm({
@@ -61,7 +61,7 @@ export default function PreferencesPage() {
         knownBasics: values.knownBasics.split(',').map((item) => item.trim()).filter(Boolean),
         mainFocus: values.mainFocus
       });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus });
+      refreshData();
       navigate(result?.enrollment?.onboardingState === 'roadmap_pending' ? '/onboarding/generating' : '/onboarding/assessment-intro');
     } catch (err) {
       setError('root', { message: err?.message || 'Could not save your preferences.' });
