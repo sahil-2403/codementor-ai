@@ -1,7 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, BookOpen, ClipboardCheck, FileQuestion, Hammer, Layers3, MessageSquareText, Pencil, Tags } from 'lucide-react';
-import { adminCourseWorkspaceApi } from '../../api/adminCourseWorkspaceApi.js';
 import Card from '../../components/common/Card.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
@@ -9,6 +7,7 @@ import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import StatusPill from '../../components/common/StatusPill.jsx';
+import { useAdminCourseWorkspace } from '../../queries/adminQueries.js';
 
 const sections = [
   { key: 'topics', title: 'Topics', icon: Tags, path: '/admin/topics', detail: (item) => `${item.active || 0} active · ${item.archived || 0} archived` },
@@ -22,7 +21,7 @@ const sections = [
 
 export default function CourseWorkspacePage() {
   const { courseId } = useParams();
-  const query = useQuery({ queryKey: ['admin-course-workspace', courseId], queryFn: () => adminCourseWorkspaceApi.get(courseId), enabled: Boolean(courseId) });
+  const query = useAdminCourseWorkspace(courseId);
   if (query.isLoading) return <Loader label="Loading course workspace..." />;
   if (query.error) return <PageShell><ErrorMessage message={query.error.message} /></PageShell>;
 
