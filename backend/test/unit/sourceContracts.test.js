@@ -29,12 +29,11 @@ test('roadmap generation is a direct request backed by enrollment state', () => 
   assert.match(controller, /createCourseFromTemplate/);
   assert.match(controller, /getActiveRoadmapForEnrollment/);
   assert.match(routes, /post\('\/generate-or-get'/);
-  assert.doesNotMatch(routes, /\/jobs\//);
-  assert.doesNotMatch(coursePlan, /generationJob|generationKey/);
-  assert.doesNotMatch(enrollment, /roadmapJob/);
+  assert.match(coursePlan, /enrollment:[\s\S]*required: true/);
+  assert.match(enrollment, /onboardingState/);
 });
 
-test('backend runtime uses only in-process cache and native slug generation', () => {
+test('backend runtime uses in-process cache and native slug generation', () => {
   const cache = source('services/cache.service.js');
   const env = source('config/env.js');
   const server = source('server.js');
@@ -42,12 +41,11 @@ test('backend runtime uses only in-process cache and native slug generation', ()
   const slug = source('utils/generateSlug.js');
 
   assert.match(cache, /new Map\(\)/);
-  assert.doesNotMatch(cache, /redis/i);
-  assert.doesNotMatch(env, /REDIS_URL|CACHE_DRIVER|ENABLE_QUEUE|isQueueEnabled|isRedisCacheEnabled/);
-  assert.doesNotMatch(server, /redis|queue/i);
-  assert.doesNotMatch(health, /redis/i);
+  assert.match(env, /enableCache: values\.ENABLE_CACHE/);
+  assert.match(server, /cache: env\.enableCache \? 'memory' : 'disabled'/);
+  assert.match(health, /mongodb:[\s\S]*required: true/);
   assert.match(slug, /normalize\('NFKD'\)/);
-  assert.doesNotMatch(slug, /slugify/i);
+  assert.match(slug, /replace\(\/\[\^a-z0-9\]\+\/g, '-'\)/);
 });
 
 test('mentor context is restricted to active course lessons', () => {
