@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, ArrowRight, BarChart3, CheckCircle2 } from 'lucide-react';
 import { assessmentApi } from '../../api/assessmentApi.js';
 import { roadmapApi } from '../../api/roadmapApi.js';
@@ -12,7 +11,8 @@ import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
-import { queryKeys } from '../../constants/queryKeys.js';
+import { useDataRefresh } from '../../context/DataRefreshContext.jsx';
+import { useAsyncData } from '../../hooks/useAsyncData.js';
 
 const roadmapRecommendationLabel = (value) => ({
   assessment_ai_personalized: 'Personalized roadmap',
@@ -27,38 +27,19 @@ const roadmapRecommendationLabel = (value) => ({
 export default function AssessmentReportPage() {
   const { assessmentId } = useParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
+  const { refreshData } = useDataRefresh();
   const [searchParams] = useSearchParams();
   const isPersonalizeFlow = searchParams.get('personalize') === 'true';
   const personalizeQuery = isPersonalizeFlow ? '?personalize=true' : '';
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
 
-  const { data, isLoading, error: reportError } = useQuery({
-    queryKey: ['assessment-report', assessmentId],
-    queryFn: () => assessmentApi.report(assessmentId),
-    enabled: Boolean(assessmentId),
-    retry: false
-  });
-
-  const report = data?.report;
-
-  const refreshLearningState = async (course = null) => {
-    if (course) {
-      queryClient.setQueryData(queryKeys.onboardingStatus, (current = {}) => ({
-        ...current,
-        hasActiveCourse: true,
-        activeCourse: course
-      }));
-      queryClient.setQueryData(queryKeys.roadmap, { course });
-    }
-
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.roadmap }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
-    ]);
-  };
+  const reportQuery = useAsyncData(
+    () => assessmentApi.report(assessmentId),
+    [assessmentId],
+    { enabled: Boolean(assessmentId) }
+  );
+  const report = reportQuery.data?.report;
 
   const generateRoadmap = async () => {
     if (creating) return;
@@ -79,20 +60,13 @@ export default function AssessmentReportPage() {
         forceNewVersion: isPersonalizeFlow
       });
 
-      if (result?.mode === 'queued' && result?.job?._id) {
-        await queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus });
-        navigate(`/onboarding/generating?jobId=${result.job._id}${isPersonalizeFlow ? '&personalize=true' : ''}`, { replace: true });
+      if (!result?.course) {
+        setError('The roadmap request finished, but no course roadmap was returned. Please try again.');
         return;
       }
 
-      if (result?.course || result?.mode === 'existing' || result?.mode === 'sync') {
-        await refreshLearningState(result?.course || null);
-        navigate('/dashboard', { replace: true });
-        return;
-      }
-
-      await refreshLearningState();
-      navigate('/onboarding/generating', { replace: true });
+      refreshData();
+      navigate('/dashboard', { replace: true });
     } catch (err) {
       setError(err?.message || 'Could not create your roadmap. Please try again.');
     } finally {
@@ -100,11 +74,11 @@ export default function AssessmentReportPage() {
     }
   };
 
-  if (isLoading) return <Loader label="Preparing your results..." />;
-  if (!assessmentId || reportError || !report) {
+  if (reportQuery.isLoading) return <Loader label="Preparing your results..." />;
+  if (!assessmentId || reportQuery.error || !report) {
     return <EmptyState
       title="Skill-check results unavailable"
-      description={reportError?.message || 'Your results could not be found. Take the skill check again or return to your dashboard.'}
+      description={reportQuery.error?.message || 'Your results could not be found. Take the skill check again or return to your dashboard.'}
       actionLabel={isPersonalizeFlow ? 'Back to dashboard' : 'Back to skill check'}
       onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : `/onboarding/assessment${personalizeQuery}`)}
     />;
