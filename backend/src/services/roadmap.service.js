@@ -21,21 +21,7 @@ const reasonByRoadmapType = {
   [ROADMAP_TYPES.ASSESSMENT_AI_PERSONALIZED]: 'assessment_personalized'
 };
 
-const generatedCourseFilter = ({ userId, generationJobId, generationKey }) => {
-  if (generationJobId) return { user: userId, generationJob: generationJobId };
-  if (generationKey) return { user: userId, generationKey };
-  return null;
-};
-
-const findGeneratedCourse = async ({ userId, generationJobId, generationKey, session = null }) => {
-  const filter = generatedCourseFilter({ userId, generationJobId, generationKey });
-  if (!filter) return null;
-  const query = CoursePlan.findOne(filter);
-  if (session) query.session(session);
-  return query;
-};
-
-const ensureGeneratedCourseReady = async ({ course, userId, session = null }) => {
+const ensureCourseReady = async ({ course, userId, session = null }) => {
   if (!course) return null;
   await createProgressForCourse({ userId, coursePlanId: course._id, session });
   return course;
@@ -93,18 +79,20 @@ const resolveEnrollmentCourse = async ({ userId, enrollmentId }) => {
   return { enrollment, course, level };
 };
 
+export const getActiveRoadmapForEnrollment = ({ userId, enrollmentId }) => CoursePlan.findOne({
+  user: userId,
+  enrollment: enrollmentId,
+  status: COURSE_STATUS.ACTIVE,
+  isActive: true
+}).sort({ updatedAt: -1 });
+
 export const createCourseFromTemplate = async ({
   userId,
   enrollmentId,
   roadmapType = ROADMAP_TYPES.TEMPLATE,
   assessmentId = null,
-  generatedReason = null,
-  generationJobId = null,
-  generationKey = null
+  generatedReason = null
 }) => {
-  const existingCourse = await findGeneratedCourse({ userId, generationJobId, generationKey });
-  if (existingCourse) return ensureGeneratedCourseReady({ course: existingCourse, userId });
-
   const { enrollment, course: catalogCourse, level } = await resolveEnrollmentCourse({ userId, enrollmentId });
   const template = await getPublishedTemplate({ courseId: catalogCourse._id, level });
   let roadmapTitle = template.title;
@@ -157,12 +145,6 @@ export const createCourseFromTemplate = async ({
   let coursePlan;
 
   const persistCourse = async (session = null) => {
-    const alreadyCreated = await findGeneratedCourse({ userId, generationJobId, generationKey, session });
-    if (alreadyCreated) {
-      coursePlan = await ensureGeneratedCourseReady({ course: alreadyCreated, userId, session });
-      return;
-    }
-
     const maybeSession = (query) => (session ? query.session(session) : query);
     const previousActive = await maybeSession(
       CoursePlan.findOne({ enrollment: enrollmentId, status: COURSE_STATUS.ACTIVE, isActive: true }).sort({ version: -1 })
@@ -192,8 +174,6 @@ export const createCourseFromTemplate = async ({
       aiGenerated,
       version: nextVersion,
       parentCoursePlan: previousActive?._id || null,
-      generationJob: generationJobId || undefined,
-      generationKey: generationKey || undefined,
       generatedReason: generatedReason || reasonByRoadmapType[roadmapType] || 'manual_regeneration',
       isActive: true
     };
@@ -221,9 +201,9 @@ export const createCourseFromTemplate = async ({
     }
   } catch (error) {
     if (error?.code !== 11000) throw error;
-    const recoveredCourse = await findGeneratedCourse({ userId, generationJobId, generationKey });
+    const recoveredCourse = await getActiveRoadmapForEnrollment({ userId, enrollmentId });
     if (!recoveredCourse) throw error;
-    coursePlan = await ensureGeneratedCourseReady({ course: recoveredCourse, userId });
+    coursePlan = await ensureCourseReady({ course: recoveredCourse, userId });
   }
 
   await setRoadmapOnboardingState({ userId, enrollmentId, state: ONBOARDING_STATES.COMPLETED });
@@ -239,8 +219,7 @@ export const createCourseFromTemplate = async ({
       courseId: catalogCourse._id.toString(),
       roadmapType: coursePlan.roadmapType,
       generatedReason: coursePlan.generatedReason,
-      aiGenerated: coursePlan.aiGenerated,
-      generationJobId: generationJobId?.toString?.() || null
+      aiGenerated: coursePlan.aiGenerated
     }
   });
   return coursePlan;
