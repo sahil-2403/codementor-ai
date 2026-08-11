@@ -43,8 +43,7 @@ const coursePlanSchema = new mongoose.Schema(
       enum: ['initial_template', 'assessment_personalized', 'weak_topic_update', 'manual_regeneration', 'preference_adjusted'],
       default: 'initial_template'
     },
-    isActive: { type: Boolean, default: true, index: true },
-    generationError: { type: String, default: '' }
+    isActive: { type: Boolean, default: true, index: true }
   },
   { timestamps: true }
 );
