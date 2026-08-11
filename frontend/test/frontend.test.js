@@ -4,8 +4,20 @@ import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { onboardingCopyByLevel, onboardingSteps } from '../src/constants/onboardingSteps.js';
-import { queryKeys } from '../src/constants/queryKeys.js';
-import { ASSESSMENT_STATUS, CONTENT_STATUS, COURSE_STATUS, formatDomainLabel, getStatusTone, JOB_STATUS, LEARNING_ITEM_STATUS, ONBOARDING_STATE, REVIEW_MODE, REVIEW_STATUS, REVISION_STATUS, ROADMAP_TYPE, SEVERITY } from '../src/constants/domainEnums.js';
+import {
+  ASSESSMENT_STATUS,
+  CONTENT_STATUS,
+  COURSE_STATUS,
+  formatDomainLabel,
+  getStatusTone,
+  LEARNING_ITEM_STATUS,
+  ONBOARDING_STATE,
+  REVIEW_MODE,
+  REVIEW_STATUS,
+  REVISION_STATUS,
+  ROADMAP_TYPE,
+  SEVERITY
+} from '../src/constants/domainEnums.js';
 import { cn } from '../src/utils/cn.js';
 import { formatDate } from '../src/utils/formatDate.js';
 
@@ -28,11 +40,22 @@ test('onboarding copy preserves catalog and optional-diagnostic paths', () => {
   assert.match(onboardingCopyByLevel.advanced.badge, /optional/i);
 });
 
-test('query keys separate learner and admin caches', () => {
-  assert.deepEqual(queryKeys.lesson('lesson-1'), ['lesson', 'lesson-1']);
-  assert.deepEqual(queryKeys.quizAttempt('attempt-1'), ['quiz-attempt', 'attempt-1']);
-  assert.deepEqual(queryKeys.interviewAttempts, ['interview-attempts']);
-  assert.deepEqual(queryKeys.adminInterviewQuestions({ status: 'draft' }), ['admin-interview-questions', { status: 'draft' }]);
+test('frontend data flow uses plain react hooks and axios domain APIs', async () => {
+  const [main, dataHook, actionHook, dashboardData, adminData] = await Promise.all([
+    readFrontend('src/main.jsx'),
+    readFrontend('src/hooks/useAsyncData.js'),
+    readFrontend('src/hooks/useAsyncAction.js'),
+    readFrontend('src/queries/dashboardQueries.js'),
+    readFrontend('src/queries/adminQueries.js')
+  ]);
+
+  assert.match(main, /DataRefreshProvider/);
+  assert.match(dataHook, /useEffect/);
+  assert.match(dataHook, /useState/);
+  assert.match(actionHook, /refreshData\(\)/);
+  assert.match(dashboardData, /useAsyncData\(progressApi\.dashboard\)/);
+  assert.match(adminData, /useAsyncData/);
+  assert.match(adminData, /useAsyncAction/);
 });
 
 test('auth transport keeps cookie, CSRF, refresh, and deployment contracts', async () => {
@@ -61,15 +84,17 @@ test('password recovery uses a generic non-enumerating success message', async (
 test('onboarding navigation is driven by server status', async () => {
   const source = await readFrontend('src/routes/OnboardingGuard.jsx');
   assert.match(source, /onboardingApi\.status/);
-  assert.match(source, /queryKeys\.onboardingStatus/);
+  assert.match(source, /useAsyncData/);
   assert.match(source, /data\?\.nextPath/);
 });
 
-test('quiz submission refreshes dashboard and roadmap state', async () => {
-  const source = await readFrontend('src/queries/quizQueries.js');
-  assert.match(source, /queryKeys\.dashboard/);
-  assert.match(source, /queryKeys\.roadmap/);
-  assert.match(source, /invalidateMany/);
+test('successful learner writes refresh mounted server data', async () => {
+  const [quizData, actionHook] = await Promise.all([
+    readFrontend('src/queries/quizQueries.js'),
+    readFrontend('src/hooks/useAsyncAction.js')
+  ]);
+  assert.match(quizData, /useSubmitQuiz = \(\) => useAsyncAction\(quizApi\.submit\)/);
+  assert.match(actionHook, /if \(refresh\) refreshData\(\)/);
 });
 
 test('fallback review states stay scoreless and progress-neutral', async () => {
@@ -161,23 +186,21 @@ test('roadmap template admin uses a structured editor and explicit deletion', as
   assert.doesNotMatch(api, /duplicateTemplate|archiveTemplate/);
 });
 
-test('frontend enum values match backend API contracts', async () => {
+test('frontend enum values match current backend contracts', async () => {
   assert.deepEqual(Object.values(CONTENT_STATUS), ['draft', 'published', 'archived']);
   assert.deepEqual(Object.values(REVIEW_STATUS), ['submitted', 'reviewing', 'reviewed', 'review_unavailable']);
   assert.deepEqual(Object.values(REVIEW_MODE), ['ai', 'fallback', 'none']);
-  assert.deepEqual(Object.values(JOB_STATUS), ['queued', 'processing', 'completed', 'failed']);
   assert.deepEqual(Object.values(REVISION_STATUS), ['pending', 'completed', 'skipped']);
   assert.deepEqual(Object.values(SEVERITY), ['low', 'medium', 'high', 'critical']);
   assert.deepEqual(Object.values(ROADMAP_TYPE), ['template', 'template_ai_adjusted', 'assessment_ai_personalized']);
-  assert.deepEqual(Object.values(COURSE_STATUS), ['generating', 'active', 'failed', 'archived']);
+  assert.deepEqual(Object.values(COURSE_STATUS), ['active', 'archived']);
   assert.deepEqual(Object.values(LEARNING_ITEM_STATUS), ['locked', 'available', 'in_progress', 'completed']);
   assert.deepEqual(Object.values(ASSESSMENT_STATUS), ['not_required', 'skipped', 'completed']);
-  assert.equal(Object.values(ONBOARDING_STATE).length, 10);
+  assert.equal(Object.values(ONBOARDING_STATE).length, 9);
 
   const sources = await Promise.all([
     readRepo('backend/src/models/ProjectSubmission.js'),
     readRepo('backend/src/models/InterviewAttempt.js'),
-    readRepo('backend/src/models/AIJob.js'),
     readRepo('backend/src/models/RevisionItem.js'),
     readRepo('backend/src/models/CoursePlan.js'),
     readRepo('backend/src/constants/onboardingStates.js'),
@@ -191,7 +214,6 @@ test('frontend enum values match backend API contracts', async () => {
     ...Object.values(LEARNING_ITEM_STATUS),
     ...Object.values(REVIEW_STATUS),
     ...Object.values(REVIEW_MODE),
-    ...Object.values(JOB_STATUS),
     ...Object.values(REVISION_STATUS),
     ...Object.values(SEVERITY),
     ...Object.values(ROADMAP_TYPE),
@@ -203,7 +225,6 @@ test('frontend enum values match backend API contracts', async () => {
 test('status presentation covers valid non-terminal API states', () => {
   assert.equal(getStatusTone('available'), 'info');
   assert.equal(getStatusTone('in_progress'), 'warning');
-  assert.equal(getStatusTone('generating'), 'info');
   assert.equal(getStatusTone('review_unavailable'), 'warning');
   assert.equal(getStatusTone('not_required'), 'neutral');
   assert.equal(formatDomainLabel('assessment_ai_personalized'), 'assessment ai personalized');
@@ -226,23 +247,24 @@ test('frontend has render recovery, lazy routes, and a real not-found page', asy
   assert.match(notFound, /Page not found/);
 });
 
-test('frontend API wrappers match active admin editor flows', async () => {
-  const [onboarding, authSchema, keys, projectQueries, projectApiSource, adminApiSource] = await Promise.all([
+test('frontend API wrappers match active learner and admin flows', async () => {
+  const [onboarding, authSchema, projectData, projectApiSource, adminApiSource, roadmapApiSource] = await Promise.all([
     readFrontend('src/constants/onboardingSteps.js'),
     readFrontend('src/validations/auth.schema.js'),
-    readFrontend('src/constants/queryKeys.js'),
     readFrontend('src/queries/projectQueries.js'),
     readFrontend('src/api/projectApi.js'),
-    readFrontend('src/api/adminApi.js')
+    readFrontend('src/api/adminApi.js'),
+    readFrontend('src/api/roadmapApi.js')
   ]);
   assert.doesNotMatch(onboarding, /accountJourneySteps/);
   assert.doesNotMatch(authSchema, /verifyEmailFormSchema/);
-  assert.doesNotMatch(keys, /auth:\s*\['auth'\]|projectSubmissions/);
-  assert.doesNotMatch(projectQueries, /useProjectSubmissions|queryKeys\.projectSubmissions/);
+  assert.doesNotMatch(projectData, /useProjectSubmissions/);
   assert.doesNotMatch(projectApiSource, /^\s*submissions:/m);
   assert.match(adminApiSource, /^\s*lesson:/m);
   assert.match(adminApiSource, /^\s*interviewQuestion:/m);
   assert.match(adminApiSource, /^\s*template:/m);
   assert.doesNotMatch(adminApiSource, /duplicateTemplate|archiveTemplate/);
-  assert.match(projectQueries, /\['project-tasks'\]/);
+  assert.match(projectData, /useAsyncData/);
+  assert.match(roadmapApiSource, /generateOrGet/);
+  assert.match(roadmapApiSource, /fromAssessment/);
 });
