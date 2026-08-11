@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const requiredFiles = [
-  'backend/package-lock.json',
-  'frontend/package-lock.json',
+  'backend/package.json',
+  'frontend/package.json',
   'backend/.env.example',
   'frontend/.env.example',
   'docs/RELEASE_CHECKLIST.md'
