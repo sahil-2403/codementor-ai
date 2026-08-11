@@ -7,19 +7,29 @@ import { fileURLToPath } from 'node:url';
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const readFrontend = (path) => readFile(resolve(frontendRoot, path), 'utf8');
 
-test('lesson mentor auto-send handoff is consumed before a browser refresh can resend it', async () => {
-  const [queries, mentorPage, lessonPage] = await Promise.all([
+test('lesson mentor auto-send is claimed once before sending and cannot replay on refresh', async () => {
+  const [queries, mentorPage, lessonPage, main] = await Promise.all([
     readFrontend('src/queries/mentorQueries.js'),
     readFrontend('src/pages/learner/MentorPage.jsx'),
-    readFrontend('src/pages/learner/LessonPage.jsx')
+    readFrontend('src/pages/learner/LessonPage.jsx'),
+    readFrontend('src/main.jsx')
   ]);
 
+  assert.match(main, /<React\.StrictMode>/);
   assert.match(lessonPage, /autoSend=true/);
-  assert.match(mentorPage, /params\.get\(["']autoSend["']\)\s*===\s*["']true["']/);
-  assert.match(queries, /consumeMentorAutoSendUrl/);
-  assert.match(queries, /params\.delete\(["']autoSend["']\)/);
-  assert.match(queries, /params\.delete\(["']promptType["']\)/);
-  assert.match(queries, /params\.get\(["']lessonId["']\)/);
-  assert.match(queries, /window\.history\.replaceState\(window\.history\.state/);
-  assert.doesNotMatch(queries, /params\.delete\(["']lessonId["']\)/);
+  assert.match(mentorPage, /const \[params, setParams\] = useSearchParams\(\)/);
+  assert.match(mentorPage, /const autoSentRef = useRef\(false\)/);
+  assert.match(mentorPage, /autoSentRef\.current/);
+  assert.match(mentorPage, /autoSentRef\.current = true/);
+  assert.match(mentorPage, /cleanParams\.delete\(["']autoSend["']\)/);
+  assert.match(mentorPage, /cleanParams\.delete\(["']promptType["']\)/);
+  assert.match(mentorPage, /setParams\(cleanParams, \{ replace: true \}\)/);
+  assert.match(mentorPage, /sendPayload\(\{ text: prompt\.text, type: prompt\.promptType \}\)/);
+  assert.doesNotMatch(mentorPage, /setAutoSent/);
+
+  // Mentor query hooks fetch data only; route-state consumption belongs to MentorPage.
+  assert.doesNotMatch(queries, /consumeMentorAutoSendUrl|history\.replaceState|URLSearchParams/);
+
+  // lessonId stays in cleanParams, preserving the current learning context.
+  assert.doesNotMatch(mentorPage, /cleanParams\.delete\(["']lessonId["']\)/);
 });
