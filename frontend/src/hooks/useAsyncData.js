@@ -23,7 +23,7 @@ export function useAsyncData(load, dependencies = [], { enabled = true } = {}) {
       return result;
     } catch (requestError) {
       if (requestId === requestRef.current) setError(requestError);
-      throw requestError;
+      return undefined;
     } finally {
       if (requestId === requestRef.current) setIsFetching(false);
     }
