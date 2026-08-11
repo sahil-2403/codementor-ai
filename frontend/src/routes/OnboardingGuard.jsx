@@ -1,19 +1,18 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import Loader from '../components/common/Loader.jsx';
 import { onboardingApi } from '../api/onboardingApi.js';
 import { ONBOARDING_STATE, ROADMAP_SETUP_STATES } from '../constants/domainEnums.js';
-import { queryKeys } from '../constants/queryKeys.js';
+import { useAsyncData } from '../hooks/useAsyncData.js';
 import { useAuth } from '../hooks/useAuth.js';
 
 export default function OnboardingGuard({ mode = 'needs-onboarding' }) {
   const location = useLocation();
   const { user } = useAuth();
-  const { data, isLoading } = useQuery({
-    queryKey: queryKeys.onboardingStatus,
-    queryFn: onboardingApi.status,
-    enabled: Boolean(user && user.role !== 'admin')
-  });
+  const { data, isLoading } = useAsyncData(
+    onboardingApi.status,
+    [user?._id, user?.role],
+    { enabled: Boolean(user && user.role !== 'admin') }
+  );
 
   if (user?.role === 'admin') return <Navigate to="/admin" replace />;
   if (isLoading) return <Loader label="Checking onboarding status..." />;
@@ -28,8 +27,6 @@ export default function OnboardingGuard({ mode = 'needs-onboarding' }) {
       return <Navigate to="/onboarding/catalog" replace />;
     }
 
-    // Catalog remains intentionally available even after the learner has an active
-    // course so they can start another independent course or learning path later.
     if (hasActiveCourse && !hasPendingEnrollment && !isCatalog && !isPersonalizeFlow) {
       return <Navigate to="/dashboard" replace />;
     }
