@@ -20,19 +20,34 @@ test('project and interview models declare atomic two-attempt indexes', () => {
   assert.match(interviews, /user:\s*1,\s*question:\s*1,\s*attemptNumber:\s*1/);
 });
 
-test('roadmap models declare job locks and output idempotency indexes', () => {
-  const jobs = source('models/AIJob.js');
-  const courses = source('models/CoursePlan.js');
-  assert.match(jobs, /ai_job_idempotency_unique/);
-  assert.match(jobs, /ai_job_active_lock_unique/);
-  assert.match(courses, /course_generation_job_unique/);
-  assert.match(courses, /course_generation_key_unique/);
+test('roadmap generation is a direct request backed by enrollment state', () => {
+  const controller = source('controllers/roadmap.controller.js');
+  const routes = source('routes/roadmap.routes.js');
+  const coursePlan = source('models/CoursePlan.js');
+  const enrollment = source('models/Enrollment.js');
+
+  assert.match(controller, /createCourseFromTemplate/);
+  assert.match(controller, /getActiveRoadmapForEnrollment/);
+  assert.match(routes, /post\('\/generate-or-get'/);
+  assert.doesNotMatch(routes, /\/jobs\//);
+  assert.doesNotMatch(coursePlan, /generationJob|generationKey/);
+  assert.doesNotMatch(enrollment, /roadmapJob/);
 });
 
-test('roadmap worker records the correct terminal timestamp field', () => {
-  const worker = source('workers/roadmap.worker.js');
-  assert.match(worker, /completedAt:\s*hasMoreBullAttempts\s*\?\s*null\s*:\s*new Date\(\)/);
-  assert.doesNotMatch(worker, /completdAt/);
+test('backend runtime uses only in-process cache and native slug generation', () => {
+  const cache = source('services/cache.service.js');
+  const env = source('config/env.js');
+  const server = source('server.js');
+  const health = source('services/health.service.js');
+  const slug = source('utils/generateSlug.js');
+
+  assert.match(cache, /new Map\(\)/);
+  assert.doesNotMatch(cache, /redis/i);
+  assert.doesNotMatch(env, /REDIS_URL|CACHE_DRIVER|ENABLE_QUEUE|isQueueEnabled|isRedisCacheEnabled/);
+  assert.doesNotMatch(server, /redis|queue/i);
+  assert.doesNotMatch(health, /redis/i);
+  assert.match(slug, /normalize\('NFKD'\)/);
+  assert.doesNotMatch(slug, /slugify/i);
 });
 
 test('mentor context is restricted to active course lessons', () => {
