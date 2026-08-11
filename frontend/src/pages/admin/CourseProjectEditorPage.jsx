@@ -1,10 +1,8 @@
 import { useEffect } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useWatch } from 'react-hook-form';
 import { ArrowLeft, Hammer } from 'lucide-react';
-import { adminProjectApi } from '../../api/adminProjectApi.js';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -15,7 +13,13 @@ import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import Select from '../../components/common/Select.jsx';
-import { useAdminCourses, useAdminLessons } from '../../queries/adminQueries.js';
+import {
+  useAdminCourses,
+  useAdminLessons,
+  useAdminProjectTask,
+  useCreateAdminProjectTask,
+  useUpdateAdminProjectTask
+} from '../../queries/adminQueries.js';
 import { parseProjectTaskForm, projectTaskFormSchema } from '../../validations/projectAdmin.schema.js';
 
 const defaults = {
@@ -31,22 +35,14 @@ export default function CourseProjectEditorPage() {
   const { projectId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const editing = Boolean(projectId);
-  const projectQuery = useQuery({ queryKey: ['admin-project-task', projectId], queryFn: () => adminProjectApi.get(projectId), enabled: editing });
+  const projectQuery = useAdminProjectTask(projectId);
   const coursesQuery = useAdminCourses({ limit: 100 });
   const { register, control, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(projectTaskFormSchema), defaultValues: { ...defaults, course: searchParams.get('course') || '' } });
   const courseId = useWatch({ control, name: 'course' }) || '';
   const lessonsQuery = useAdminLessons({ limit: 100, course: courseId }, Boolean(courseId));
-
-  const invalidate = async () => Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['admin-project-tasks'] }),
-    queryClient.invalidateQueries({ queryKey: ['admin-project-task'] }),
-    queryClient.invalidateQueries({ queryKey: ['admin-course-workspace'] }),
-    queryClient.invalidateQueries({ queryKey: ['admin-content-overview'] })
-  ]);
-  const createMutation = useMutation({ mutationFn: adminProjectApi.create, onSuccess: invalidate });
-  const updateMutation = useMutation({ mutationFn: adminProjectApi.update, onSuccess: invalidate });
+  const createMutation = useCreateAdminProjectTask();
+  const updateMutation = useUpdateAdminProjectTask();
   const mutation = editing ? updateMutation : createMutation;
 
   useEffect(() => {
