@@ -688,7 +688,7 @@ function MentorComposer({
 }
 
 export default function MentorPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const lessonId = params.get("lessonId");
   const autoSend = params.get("autoSend") === "true";
   const autoPromptType = params.get("promptType") || "simple_explanation";
@@ -700,7 +700,7 @@ export default function MentorPage() {
   const [activeQuestion, setActiveQuestion] = useState("");
   const [anchorVersion, setAnchorVersion] = useState(0);
   const [limitReachedOverride, setLimitReachedOverride] = useState(false);
-  const [autoSent, setAutoSent] = useState(false);
+  const autoSentRef = useRef(false);
   const [providerNotice, setProviderNotice] = useState("");
   const [fallbackQuestions, setFallbackQuestions] = useState([]);
   const {
@@ -895,13 +895,23 @@ export default function MentorPage() {
   useEffect(() => {
     if (
       !autoSend ||
-      autoSent ||
+      autoSentRef.current ||
       dailyLimitReached ||
       suggestionsQuery.isLoading ||
       (!suggestions.length && !savedQuestions.length)
     )
       return;
-    setAutoSent(true);
+
+    // Claim this one-time navigation side effect synchronously before any
+    // mutation or Router update. React Strict Mode may replay effects in
+    // development, but the ref survives that replay and blocks duplicates.
+    autoSentRef.current = true;
+
+    const cleanParams = new URLSearchParams(params);
+    cleanParams.delete("autoSend");
+    cleanParams.delete("promptType");
+    setParams(cleanParams, { replace: true });
+
     const prompt =
       suggestions.find((item) => item.promptType === autoPromptType) ||
       suggestions[0];
@@ -916,10 +926,11 @@ export default function MentorPage() {
     aiAvailable,
     autoPromptType,
     autoSend,
-    autoSent,
     dailyLimitReached,
+    params,
     savedQuestions,
     sendPayload,
+    setParams,
     suggestions,
     suggestionsQuery.isLoading,
   ]);
