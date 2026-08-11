@@ -36,6 +36,10 @@ export const useAskMentor = () => {
         );
       }
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey: queryKeys.mentorAIStatus })
+    onSettled: () => {
+      // Refresh quota/status without extending the send mutation's pending state.
+      // The response is already available to the learner at this point.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.mentorAIStatus });
+    }
   });
 };
