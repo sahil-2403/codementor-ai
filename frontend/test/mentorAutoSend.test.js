@@ -8,7 +8,7 @@ const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const readFrontend = (path) => readFile(resolve(frontendRoot, path), 'utf8');
 
 test('lesson mentor auto-send is claimed once before sending and cannot replay on refresh', async () => {
-  const [queries, mentorPage, lessonPage, main] = await Promise.all([
+  const [mentorData, mentorPage, lessonPage, main] = await Promise.all([
     readFrontend('src/queries/mentorQueries.js'),
     readFrontend('src/pages/learner/MentorPage.jsx'),
     readFrontend('src/pages/learner/LessonPage.jsx'),
@@ -27,20 +27,18 @@ test('lesson mentor auto-send is claimed once before sending and cannot replay o
   assert.match(mentorPage, /sendPayload\(\{ text: prompt\.text, type: prompt\.promptType \}\)/);
   assert.doesNotMatch(mentorPage, /setAutoSent/);
 
-  // Mentor query hooks fetch data only; route-state consumption belongs to MentorPage.
-  assert.doesNotMatch(queries, /consumeMentorAutoSendUrl|history\.replaceState|URLSearchParams/);
-
-  // lessonId stays in cleanParams, preserving the current learning context.
+  assert.doesNotMatch(mentorData, /consumeMentorAutoSendUrl|history\.replaceState|URLSearchParams/);
   assert.doesNotMatch(mentorPage, /cleanParams\.delete\(["']lessonId["']\)/);
 });
 
-test('mentor quota refresh does not keep the send mutation pending after the answer arrives', async () => {
-  const queries = await readFrontend('src/queries/mentorQueries.js');
+test('mentor pending state belongs only to the active request', async () => {
+  const [mentorData, actionHook] = await Promise.all([
+    readFrontend('src/queries/mentorQueries.js'),
+    readFrontend('src/hooks/useAsyncAction.js')
+  ]);
 
-  assert.match(queries, /onSettled:\s*\(\)\s*=>\s*\{/);
-  assert.match(queries, /void queryClient\.invalidateQueries\(\{ queryKey: queryKeys\.mentorAIStatus \}\)/);
-  assert.doesNotMatch(
-    queries,
-    /onSettled:\s*\(\)\s*=>\s*queryClient\.invalidateQueries\(\{ queryKey: queryKeys\.mentorAIStatus \}\)/
-  );
+  assert.match(mentorData, /useAskMentor = \(\) => useAsyncAction\(mentorApi\.ask\)/);
+  assert.match(actionHook, /setIsPending\(true\)/);
+  assert.match(actionHook, /finally\s*\{[\s\S]*setIsPending\(false\)/);
+  assert.match(actionHook, /if \(refresh\) refreshData\(\)/);
 });
