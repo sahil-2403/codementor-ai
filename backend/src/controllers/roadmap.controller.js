@@ -26,6 +26,12 @@ const markRoadmapFailed = async ({ userId, enrollmentId, error }) => {
   }
 };
 
+const markRoadmapCompleted = ({ userId, enrollmentId }) => setRoadmapOnboardingState({
+  userId,
+  enrollmentId,
+  state: ONBOARDING_STATES.COMPLETED
+});
+
 export const generateOrGetRoadmap = asyncHandler(async (req, res) => {
   const onboarding = await getOnboardingStatus(req.user._id);
   const enrollment = onboarding.currentEnrollment;
@@ -36,6 +42,7 @@ export const generateOrGetRoadmap = asyncHandler(async (req, res) => {
     enrollmentId: enrollment._id
   });
   if (existingCourse) {
+    await markRoadmapCompleted({ userId: req.user._id, enrollmentId: enrollment._id });
     return sendResponse(res, 200, 'Existing roadmap found', { course: existingCourse, mode: 'existing' });
   }
 
@@ -73,6 +80,7 @@ export const generateFromAssessment = asyncHandler(async (req, res) => {
   if (!forceNewVersion) {
     const existingCourse = await getActiveRoadmapForEnrollment({ userId: req.user._id, enrollmentId });
     if (existingCourse?.generatedReason === 'assessment_personalized') {
+      await markRoadmapCompleted({ userId: req.user._id, enrollmentId });
       return sendResponse(res, 200, 'Existing personalized roadmap found', { course: existingCourse, mode: 'existing' });
     }
   }
