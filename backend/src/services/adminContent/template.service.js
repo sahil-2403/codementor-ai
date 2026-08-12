@@ -4,7 +4,6 @@ import { QuizQuestion } from '../../models/QuizQuestion.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
-import { invalidateContentCache } from '../cacheInvalidation.service.js';
 import {
   PUBLISHABLE_STATUS,
   assertCourseExists,
@@ -151,7 +150,6 @@ export const createTemplate = async (payload) => {
     estimatedDurationDays: templateDurationDays(modules),
     status: PUBLISHABLE_STATUS.DRAFT
   });
-  await invalidateContentCache();
   return template.populate('course', 'title slug category status availableLevels');
 };
 
@@ -179,7 +177,6 @@ export const updateTemplate = async ({ id, payload }) => {
   Object.assign(template, normalized);
   if (template.status === PUBLISHABLE_STATUS.PUBLISHED) await assertTemplatePublishable(template);
   await template.save();
-  await invalidateContentCache();
   return template.populate('course', 'title slug category status availableLevels');
 };
 
@@ -195,6 +192,5 @@ export const deleteTemplate = async (id) => {
   const template = ensureFound(await RoadmapTemplate.findById(id), 'Roadmap template');
   requireArchivedForDelete(template, 'Roadmap template');
   await template.deleteOne();
-  await invalidateContentCache();
   return template;
 };
