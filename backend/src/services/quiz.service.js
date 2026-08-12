@@ -6,8 +6,8 @@ import { Progress } from '../models/Progress.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { mergeWeakTopics } from './progress.service.js';
 import { aiProvider } from '../ai/aiProvider.service.js';
-import { retrieveRelevantLearningContext } from '../ai/rag/rag.service.js';
-import { checkAIUsageLimit, createPromptFingerprint, logAIUsage } from './aiUsage.service.js';
+import { findRelevantLessons } from './learningContext.service.js';
+import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
 import { trimContextForAI } from './aiSafety.service.js';
 import { quizExplanationFallback } from './aiFallback.service.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -40,6 +40,7 @@ export const submitQuiz = async ({ userId, moduleId, answers }) => {
 
   const questions = await QuizQuestion.find({ _id: { $in: questionIds } }).populate('topic', 'title');
   if (questions.length !== questionIds.length) throw new ApiError(400, 'Some quiz questions were not found');
+
   const answerMap = new Map(answers.map((answer) => [answer.questionId.toString(), answer.selectedAnswer]));
   const checkedAnswers = questions.map((question) => {
     const selectedAnswer = answerMap.get(question._id.toString()) || '';
@@ -56,25 +57,43 @@ export const submitQuiz = async ({ userId, moduleId, answers }) => {
   const correctCount = checkedAnswers.filter((answer) => answer.isCorrect).length;
   const score = Math.round((correctCount / Math.max(checkedAnswers.length, 1)) * 100);
   const wrongByTopic = new Map();
-  checkedAnswers.filter((answer) => !answer.isCorrect).forEach((answer) => wrongByTopic.set(answer.topic, (wrongByTopic.get(answer.topic) || 0) + 1));
-  const weakTopicsDetected = Array.from(wrongByTopic.entries()).map(([topic, count]) => ({ topic, score: Math.max(0, 100 - count * 30) }));
-  const basicFeedback = weakTopicsDetected.length ? `Focus revision on: ${weakTopicsDetected.map((item) => item.topic).join(', ')}. Re-read related lessons and try another quiz.` : 'Good attempt. Continue to the next lesson and revise your notes once.';
+  checkedAnswers
+    .filter((answer) => !answer.isCorrect)
+    .forEach((answer) => wrongByTopic.set(answer.topic, (wrongByTopic.get(answer.topic) || 0) + 1));
+  const weakTopicsDetected = Array.from(wrongByTopic.entries()).map(([topic, count]) => ({
+    topic,
+    score: Math.max(0, 100 - count * 30)
+  }));
+  const basicFeedback = weakTopicsDetected.length
+    ? `Focus revision on: ${weakTopicsDetected.map((item) => item.topic).join(', ')}. Re-read related lessons and try another quiz.`
+    : 'Good attempt. Continue to the next lesson and revise your notes once.';
 
-  const attempt = await QuizAttempt.create({ user: userId, coursePlan: course._id, moduleId, answers: checkedAnswers, score, weakTopicsDetected, feedback: basicFeedback });
+  const attempt = await QuizAttempt.create({
+    user: userId,
+    coursePlan: course._id,
+    moduleId,
+    answers: checkedAnswers,
+    score,
+    weakTopicsDetected,
+    feedback: basicFeedback
+  });
+
   const progress = await Progress.findOne({ user: userId, coursePlan: course._id });
   if (progress) {
     const totalAttempts = progress.quizStats.totalAttempts + 1;
-    progress.quizStats.averageScore = Math.round(((progress.quizStats.averageScore * progress.quizStats.totalAttempts) + score) / totalAttempts);
+    progress.quizStats.averageScore = Math.round(
+      ((progress.quizStats.averageScore * progress.quizStats.totalAttempts) + score) / totalAttempts
+    );
     progress.quizStats.totalAttempts = totalAttempts;
     progress.quizStats.bestScore = Math.max(progress.quizStats.bestScore, score);
     await mergeWeakTopics({ progress, weakTopics: weakTopicsDetected, source: 'quiz' });
   }
+
   await invalidateUserLearningCache(userId);
   return attempt;
 };
 
 export const explainQuizAttempt = async ({ user, attemptId }) => {
-  const startedAt = Date.now();
   const attempt = await QuizAttempt.findOne({ _id: attemptId, user: user._id }).populate('answers.question');
   if (!attempt) throw new ApiError(404, 'Quiz attempt not found');
 
@@ -86,16 +105,29 @@ export const explainQuizAttempt = async ({ user, attemptId }) => {
   if (aiConfigured) await checkAIUsageLimit(user._id, AI_FEATURES.QUIZ_EXPLANATION);
 
   const course = await CoursePlan.findById(attempt.coursePlan);
-  const relatedContext = trimContextForAI(await retrieveRelevantLearningContext({ query: wrongAnswers.map((answer) => `${answer.topic} ${answer.explanation}`).join(' '), maxResults: 4 }));
-  const promptFingerprint = createPromptFingerprint(JSON.stringify({ attemptId, weakTopics: attempt.weakTopicsDetected, userId: user._id }));
+  const relatedContext = trimContextForAI(await findRelevantLessons({
+    query: wrongAnswers.map((answer) => `${answer.topic} ${answer.explanation}`).join(' '),
+    courseId: course?.course,
+    maxResults: 4
+  }));
 
   let aiResult;
   try {
     if (!aiConfigured) throw new Error('Gemini is not configured');
-    aiResult = await aiProvider.explainQuizMistakes({ weakTopics: attempt.weakTopicsDetected, wrongAnswers, relatedContext, userLevel: course?.level || 'learner' });
+    aiResult = await aiProvider.explainQuizMistakes({
+      weakTopics: attempt.weakTopicsDetected,
+      wrongAnswers,
+      relatedContext,
+      userLevel: course?.level || 'learner'
+    });
   } catch (error) {
     aiResult = { ...quizExplanationFallback({ attempt, relatedContext }), aiAvailable: false };
-    await logAIUsage({ user: user._id, feature: AI_FEATURES.QUIZ_EXPLANATION, status: 'failed', model: env.geminiModel, provider: 'gemini', latencyMs: Date.now() - startedAt, promptFingerprint, contextSources: relatedContext.map((item) => item.source).filter(Boolean), metadata: { attemptId, errorType: 'provider_failure' }, errorMessage: error.message });
+    await logAIUsage({
+      user: user._id,
+      feature: AI_FEATURES.QUIZ_EXPLANATION,
+      status: 'failed',
+      errorMessage: error.message
+    });
   }
 
   attempt.aiExplanation = {
@@ -108,7 +140,12 @@ export const explainQuizAttempt = async ({ user, attemptId }) => {
   await attempt.save();
 
   if (aiResult.aiAvailable !== false) {
-    await logAIUsage({ user: user._id, feature: AI_FEATURES.QUIZ_EXPLANATION, model: aiResult.model || env.geminiModel, provider: 'gemini', inputTokens: aiResult.inputTokens || 0, outputTokens: aiResult.outputTokens || 0, latencyMs: Date.now() - startedAt, promptFingerprint, contextSources: attempt.aiExplanation.sources, metadata: { attemptId, score: attempt.score, wrongAnswerCount: wrongAnswers.length } });
+    await logAIUsage({
+      user: user._id,
+      feature: AI_FEATURES.QUIZ_EXPLANATION,
+      model: aiResult.model || env.geminiModel
+    });
   }
+
   return attempt;
 };
