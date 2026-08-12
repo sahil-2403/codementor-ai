@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from "react-router-dom";
 import { Code2, FolderCode, LockKeyhole } from "lucide-react";
 import Loader from "../../components/common/Loader.jsx";
@@ -6,7 +7,7 @@ import Badge from "../../components/common/Badge.jsx";
 import PageShell from "../../components/common/PageShell.jsx";
 import PageHeader from "../../components/common/PageHeader.jsx";
 import EmptyState from "../../components/common/EmptyState.jsx";
-import { useProjectTasks } from "../../queries/projectQueries.js";
+import { projectApi } from '../../api/projectApi.js';
 
 const reviewLabel = (submission) => {
   if (!submission) return null;
@@ -26,7 +27,31 @@ const reviewLabel = (submission) => {
 };
 
 export default function ProjectsPage() {
-  const { data, isLoading, error, refetch } = useProjectTasks();
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+
+    projectApi.tasks()
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
 
   if (isLoading) return <Loader label="Loading project tasks..." />;
   if (error) {
@@ -35,7 +60,7 @@ export default function ProjectsPage() {
         title="Projects are unavailable"
         description={error.message}
         actionLabel="Try again"
-        onAction={() => refetch()}
+        onAction={() => setLoadAttempt((value) => value + 1)}
       />
     );
   }
