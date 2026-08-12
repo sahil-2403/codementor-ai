@@ -36,18 +36,20 @@ const scoreLesson = (lesson, keywords) => {
   }, 0);
 };
 
-export const findRelevantLessons = async ({ query, lessonId, maxResults = 3 }) => {
+export const findRelevantLessons = async ({ query, courseId, lessonId, maxResults = 3 }) => {
   const keywords = extractKeywords(query);
   const lessons = [];
 
   if (lessonId) {
-    const currentLesson = await Lesson.findById(lessonId).populate('topic', 'title slug category difficulty');
+    const currentLesson = await Lesson.findOne({ _id: lessonId, course: courseId, status: 'published' })
+      .populate('topic', 'title slug category difficulty');
     if (currentLesson) lessons.push(currentLesson);
   }
 
   if (keywords.length) {
     const regexes = keywords.map((word) => new RegExp(escapeRegex(word), 'i'));
     const matches = await Lesson.find({
+      course: courseId,
       status: 'published',
       $or: [
         { title: { $in: regexes } },
