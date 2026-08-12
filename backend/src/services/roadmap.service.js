@@ -137,16 +137,17 @@ export const createCourseFromTemplate = async ({
   }
 
   const modules = await resolveTemplateModules(templateForResolution);
+  const planFilter = { enrollment: enrollmentId, course: catalogCourse._id };
   const previousActive = await CoursePlan.findOne({
-    enrollment: enrollmentId,
+    ...planFilter,
     status: COURSE_STATUS.ACTIVE,
     isActive: true
   }).sort({ version: -1 });
-  const latestVersion = await CoursePlan.findOne({ enrollment: enrollmentId }).sort({ version: -1 }).select('version');
+  const latestVersion = await CoursePlan.findOne(planFilter).sort({ version: -1 }).select('version');
   const nextVersion = (latestVersion?.version || 0) + 1;
 
   await CoursePlan.updateMany(
-    { enrollment: enrollmentId, status: COURSE_STATUS.ACTIVE, isActive: true },
+    { ...planFilter, status: COURSE_STATUS.ACTIVE, isActive: true },
     { status: COURSE_STATUS.ARCHIVED, isActive: false }
   );
 
@@ -238,7 +239,9 @@ export const getCurrentCourse = async (userId) => {
 export const getRoadmapVersions = async (userId) => {
   const enrollment = await getCurrentEnrollmentForUser(userId);
   if (!enrollment) return [];
-  return CoursePlan.find({ user: userId, enrollment: enrollment._id })
+  const courseId = enrollment.currentCourse || enrollment.course;
+  if (!courseId) return [];
+  return CoursePlan.find({ user: userId, enrollment: enrollment._id, course: courseId })
     .select('_id enrollment course title level version roadmapType generatedReason status isActive aiGenerated createdAt')
     .populate('course', 'title slug')
     .sort({ createdAt: -1 });
