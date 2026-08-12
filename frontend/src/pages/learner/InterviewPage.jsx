@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -21,12 +21,7 @@ import PageShell from '../../components/common/PageShell.jsx';
 import FormTextarea from '../../components/form/FormTextarea.jsx';
 import InterviewAttemptFeedback from '../../components/interview/InterviewAttemptFeedback.jsx';
 import InterviewQuestionSelector from '../../components/interview/InterviewQuestionSelector.jsx';
-import {
-  useInterviewAttempts,
-  useInterviewQuestions,
-  useRetryInterviewReview,
-  useSubmitInterviewAnswer
-} from '../../queries/interviewQueries.js';
+import { interviewApi } from '../../api/interviewApi.js';
 import { interviewAnswerSchema } from '../../validations/interview.schema.js';
 
 const MAX_ATTEMPTS = 2;
@@ -38,10 +33,11 @@ export default function InterviewPage() {
   const [selectedQuestionId, setSelectedQuestionId] = useState('');
   const [notice, setNotice] = useState(null);
   const [retryingId, setRetryingId] = useState(null);
-  const questionsQuery = useInterviewQuestions();
-  const attemptsQuery = useInterviewAttempts();
-  const submitMutation = useSubmitInterviewAnswer();
-  const retryMutation = useRetryInterviewReview();
+  const [questions, setQuestions] = useState([]);
+  const [attempts, setAttempts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const {
     register,
     handleSubmit,
@@ -54,8 +50,29 @@ export default function InterviewPage() {
     defaultValues: { answer: '' }
   });
 
-  const questions = questionsQuery.data?.questions || [];
-  const attempts = attemptsQuery.data?.attempts || [];
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setLoadError(null);
+
+    Promise.all([interviewApi.questions(), interviewApi.attempts()])
+      .then(([questionsResult, attemptsResult]) => {
+        if (!active) return;
+        setQuestions(questionsResult?.questions || []);
+        setAttempts(attemptsResult?.attempts || []);
+      })
+      .catch((requestError) => {
+        if (active) setLoadError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
+
   const topics = useMemo(
     () =>
       Object.entries(
@@ -109,11 +126,12 @@ export default function InterviewPage() {
 
     try {
       setNotice(null);
-      const result = await submitMutation.mutateAsync({
+      const result = await interviewApi.submit({
         questionId: selectedQuestion._id,
         answer: values.answer
       });
       reset({ answer: '' });
+      setLoadAttempt((value) => value + 1);
       setNotice(
         result?.attempt?.status === 'reviewed'
           ? {
@@ -138,7 +156,8 @@ export default function InterviewPage() {
     try {
       setRetryingId(attemptId);
       setNotice(null);
-      const result = await retryMutation.mutateAsync(attemptId);
+      const result = await interviewApi.retryReview(attemptId);
+      setLoadAttempt((value) => value + 1);
       setNotice(
         result?.attempt?.status === 'reviewed'
           ? {
@@ -160,19 +179,17 @@ export default function InterviewPage() {
     }
   };
 
-  if (questionsQuery.isLoading || attemptsQuery.isLoading) {
+  if (isLoading) {
     return <Loader label="Loading interview practice..." />;
   }
 
-  if (questionsQuery.isError || attemptsQuery.isError) {
+  if (loadError) {
     return (
       <EmptyState
         title="Interview practice could not load"
-        description={
-          questionsQuery.error?.message ||
-          attemptsQuery.error?.message ||
-          'Try refreshing the page.'
-        }
+        description={loadError.message || 'Try refreshing the page.'}
+        actionLabel="Try again"
+        onAction={() => setLoadAttempt((value) => value + 1)}
       />
     );
   }
@@ -197,22 +214,13 @@ export default function InterviewPage() {
           <Card className="shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-3">
-                <span
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong"
-                  aria-hidden="true"
-                >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
                   <BookOpenCheck size={18} />
                 </span>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">
-                    Question bank
-                  </p>
-                  <h2 className="mt-1 text-xl font-bold text-foreground">
-                    Choose a topic and question
-                  </h2>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Select a topic, then choose the interview question you want to practise.
-                  </p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">Question bank</p>
+                  <h2 className="mt-1 text-xl font-bold text-foreground">Choose a topic and question</h2>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">Select a topic, then choose the interview question you want to practise.</p>
                 </div>
               </div>
               <Badge variant="neutral">{questions.length} questions</Badge>
@@ -232,59 +240,35 @@ export default function InterviewPage() {
             {selectedQuestion ? (
               <>
                 <div className="flex items-start gap-3">
-                  <span
-                    className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong"
-                    aria-hidden="true"
-                  >
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
                     <MessageSquareText size={18} />
                   </span>
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">
-                      Interview attempt
-                    </p>
-                    <h2 className="mt-1 text-xl font-bold text-foreground">
-                      Write your answer
-                    </h2>
-                    <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                      Structure your answer clearly, then submit it for review.
-                    </p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">Interview attempt</p>
+                    <h2 className="mt-1 text-xl font-bold text-foreground">Write your answer</h2>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">Structure your answer clearly, then submit it for review.</p>
                   </div>
                 </div>
 
                 <div className="mt-5 rounded-panel border border-primary/10 bg-white/70 p-4 sm:p-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge>{selectedQuestion.difficulty}</Badge>
-                    <Badge variant="neutral">
-                      {formatQuestionType(selectedQuestion.type)}
-                    </Badge>
-                    <Badge variant={canSubmit ? 'neutral' : 'warning'}>
-                      {attemptsUsed}/{MAX_ATTEMPTS} attempts
-                    </Badge>
+                    <Badge variant="neutral">{formatQuestionType(selectedQuestion.type)}</Badge>
+                    <Badge variant={canSubmit ? 'neutral' : 'warning'}>{attemptsUsed}/{MAX_ATTEMPTS} attempts</Badge>
                   </div>
-                  <h3 className="mt-3 text-lg font-bold leading-7 text-foreground sm:text-xl">
-                    {selectedQuestion.question}
-                  </h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Topic: {selectedQuestion.topic}
-                  </p>
+                  <h3 className="mt-3 text-lg font-bold leading-7 text-foreground sm:text-xl">{selectedQuestion.question}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">Topic: {selectedQuestion.topic}</p>
                 </div>
 
                 {notice ? (
-                  <InlineAlert
-                    className="mt-4"
-                    tone={notice.tone}
-                    title={notice.title}
-                  >
-                    {notice.message}
-                  </InlineAlert>
+                  <InlineAlert className="mt-4" tone={notice.tone} title={notice.title}>{notice.message}</InlineAlert>
                 ) : null}
                 <ErrorMessage message={errors.root?.message} />
 
                 <form onSubmit={handleSubmit(submit)} className="mt-5 space-y-4">
                   {!canSubmit ? (
                     <InlineAlert tone="warning" title="Attempt limit reached">
-                      You have used both attempts for this question. Review your
-                      saved feedback and the example answer below instead.
+                      You have used both attempts for this question. Review your saved feedback and the example answer below instead.
                     </InlineAlert>
                   ) : null}
 
@@ -298,13 +282,11 @@ export default function InterviewPage() {
                   />
 
                   <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Your answer is saved before the review begins.
-                    </p>
+                    <p className="text-sm text-muted-foreground">Your answer is saved before the review begins.</p>
                     <Button
                       type="submit"
                       disabled={!canSubmit || isSubmitting}
-                      isLoading={submitMutation.isPending}
+                      isLoading={isSubmitting}
                       loadingLabel="Saving and reviewing..."
                       className="shrink-0 gap-2"
                     >
@@ -315,58 +297,38 @@ export default function InterviewPage() {
                 </form>
               </>
             ) : (
-              <EmptyState
-                title="Choose a question"
-                description="Select a topic and question to begin interview practice."
-              />
+              <EmptyState title="Choose a question" description="Select a topic and question to begin interview practice." />
             )}
           </Card>
 
           <Card className="shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="flex items-start gap-3">
-                <span
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong"
-                  aria-hidden="true"
-                >
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
                   <History size={18} />
                 </span>
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">
-                    Practice history
-                  </p>
-                  <h2 className="mt-1 text-xl font-bold text-foreground">
-                    Saved attempts & review
-                  </h2>
-                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                    Compare your attempts, review feedback, and use the example answer to improve.
-                  </p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">Practice history</p>
+                  <h2 className="mt-1 text-xl font-bold text-foreground">Saved attempts & review</h2>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">Compare your attempts, review feedback, and use the example answer to improve.</p>
                 </div>
               </div>
-              <Badge variant="neutral">
-                {selectedAttempts.length}/{MAX_ATTEMPTS} attempts
-              </Badge>
+              <Badge variant="neutral">{selectedAttempts.length}/{MAX_ATTEMPTS} attempts</Badge>
             </div>
 
             {selectedAttempts.length ? (
               <>
                 <div className="mt-5 rounded-panel border border-primary/10 bg-primary-soft/35 p-4 sm:p-5">
                   <div className="flex items-start gap-3">
-                    <span
-                      className="grid h-9 w-9 shrink-0 place-items-center rounded-control bg-surface text-primary-strong shadow-sm"
-                      aria-hidden="true"
-                    >
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-control bg-surface text-primary-strong shadow-sm" aria-hidden="true">
                       <Sparkles size={16} />
                     </span>
                     <div>
                       <p className="font-bold text-foreground">Example answer</p>
                       <p className="mt-2 text-sm leading-7 text-muted-foreground">
-                        {expectedAnswer ||
-                          'The example answer is available in your saved feedback.'}
+                        {expectedAnswer || 'The example answer is available in your saved feedback.'}
                       </p>
-                      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-primary-strong">
-                        Unlocked after your first attempt
-                      </p>
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-primary-strong">Unlocked after your first attempt</p>
                     </div>
                   </div>
                 </div>
@@ -385,10 +347,7 @@ export default function InterviewPage() {
               </>
             ) : (
               <div className="mt-5">
-                <EmptyState
-                  title="No attempts yet"
-                  description="Write your first answer to unlock the example answer and feedback history."
-                />
+                <EmptyState title="No attempts yet" description="Write your first answer to unlock the example answer and feedback history." />
               </div>
             )}
           </Card>
