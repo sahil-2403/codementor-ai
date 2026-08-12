@@ -17,12 +17,7 @@ const interviewQuestionSchema = new mongoose.Schema(
     expectedAnswer: { type: String, required: true },
     answerChecklist: [{ type: String }],
     tags: [{ type: String }],
-    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft', index: true },
-    manualArchive: { type: Boolean, default: false },
-    statusBeforeManualArchive: { type: String, enum: ['draft', 'published'], default: null },
-    archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
-    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
-    statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null }
+    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft', index: true }
   },
   { timestamps: true }
 );
@@ -48,6 +43,5 @@ interviewQuestionSchema.pre('validate', async function validateOwnership() {
 interviewQuestionSchema.index({ course: 1, status: 1, difficulty: 1, topic: 1 });
 interviewQuestionSchema.index({ technologies: 1, status: 1 });
 interviewQuestionSchema.index({ question: 'text', topic: 'text', tags: 'text' });
-interviewQuestionSchema.index({ archivedByTopics: 1, status: 1 });
 
 export const InterviewQuestion = mongoose.model('InterviewQuestion', interviewQuestionSchema);
