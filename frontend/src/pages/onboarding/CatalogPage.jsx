@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, BookOpen, Layers3, Route, Search, Sparkles } from 'lucide-react';
 import Badge from '../../components/common/Badge.jsx';
@@ -11,8 +11,6 @@ import Loader from '../../components/common/Loader.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import { onboardingApi } from '../../api/onboardingApi.js';
-import { useDataRefresh } from '../../context/DataRefreshContext.jsx';
-import { useAsyncData } from '../../hooks/useAsyncData.js';
 import { cn } from '../../utils/cn.js';
 
 const categoryLabels = {
@@ -100,15 +98,36 @@ function PathCard({ path, busyId, onSelect }) {
 
 export default function CatalogPage() {
   const navigate = useNavigate();
-  const { refreshData } = useDataRefresh();
   const [search, setSearch] = useState('');
   const [technologyFilter, setTechnologyFilter] = useState('');
   const [busyId, setBusyId] = useState('');
   const [error, setError] = useState('');
-
-  const catalogQuery = useAsyncData(onboardingApi.catalog);
-  const catalog = catalogQuery.data || { technologies: [], courses: [], learningPaths: [] };
+  const [catalog, setCatalog] = useState({ technologies: [], courses: [], learningPaths: [] });
+  const [catalogLoading, setCatalogLoading] = useState(true);
+  const [catalogError, setCatalogError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const normalizedSearch = search.trim().toLowerCase();
+
+  useEffect(() => {
+    let active = true;
+    setCatalogLoading(true);
+    setCatalogError(null);
+
+    onboardingApi.catalog()
+      .then((result) => {
+        if (active) setCatalog(result || { technologies: [], courses: [], learningPaths: [] });
+      })
+      .catch((requestError) => {
+        if (active) setCatalogError(requestError);
+      })
+      .finally(() => {
+        if (active) setCatalogLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
 
   const visibleCourses = useMemo(() => catalog.courses.filter((course) => {
     const matchesTechnology = !technologyFilter || (course.technologies || []).some((technology) => technology._id === technologyFilter);
@@ -137,7 +156,6 @@ export default function CatalogPage() {
       await onboardingApi.selectOffering(type === 'course'
         ? { type, courseId: id }
         : { type, learningPathId: id });
-      refreshData();
       navigate('/onboarding/level');
     } catch (err) {
       setError(err?.message || 'Could not start this learning option.');
@@ -146,8 +164,8 @@ export default function CatalogPage() {
     }
   };
 
-  if (catalogQuery.isLoading) return <Loader label="Loading learning catalog..." />;
-  if (catalogQuery.error) return <EmptyState title="Learning catalog could not load" description={catalogQuery.error.message} actionLabel="Try again" onAction={() => catalogQuery.refetch()} />;
+  if (catalogLoading) return <Loader label="Loading learning catalog..." />;
+  if (catalogError) return <EmptyState title="Learning catalog could not load" description={catalogError.message} actionLabel="Try again" onAction={() => setLoadAttempt((value) => value + 1)} />;
 
   return (
     <OnboardingShell
