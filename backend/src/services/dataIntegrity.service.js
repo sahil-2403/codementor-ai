@@ -11,7 +11,7 @@ export const getCurrentEnrollmentForUser = async (userId) => {
     const selected = await Enrollment.findOne({
       _id: user.currentEnrollment,
       user: userId,
-      status: { $in: ['active', 'completed'] }
+      status: { $in: ['draft', 'active', 'completed'] }
     });
     if (selected) return selected;
   }
