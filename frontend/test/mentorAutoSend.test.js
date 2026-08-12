@@ -26,7 +26,6 @@ test('lesson mentor auto-send is claimed once before sending and cannot replay o
   assert.match(mentorPage, /setParams\(cleanParams, \{ replace: true \}\)/);
   assert.match(mentorPage, /sendPayload\(\{ text: prompt\.text, type: prompt\.promptType \}\)/);
   assert.doesNotMatch(mentorPage, /setAutoSent/);
-
   assert.doesNotMatch(mentorData, /consumeMentorAutoSendUrl|history\.replaceState|URLSearchParams/);
   assert.doesNotMatch(mentorPage, /cleanParams\.delete\(["']lessonId["']\)/);
 });
@@ -41,4 +40,12 @@ test('mentor pending state belongs only to the active request', async () => {
   assert.match(actionHook, /setIsPending\(true\)/);
   assert.match(actionHook, /finally\s*\{[\s\S]*setIsPending\(false\)/);
   assert.match(actionHook, /if \(refresh\) refreshData\(\)/);
+});
+
+test('mentor conversation uses simple react scrolling and plain text rendering', async () => {
+  const mentorPage = await readFrontend('src/pages/learner/MentorPage.jsx');
+
+  assert.match(mentorPage, /scrollIntoView/);
+  assert.match(mentorPage, /whitespace-pre-wrap/);
+  assert.doesNotMatch(mentorPage, /useLayoutEffect|requestAnimationFrame|StructuredText|InlineMarkdown/);
 });
