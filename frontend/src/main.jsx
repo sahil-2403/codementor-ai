@@ -5,6 +5,7 @@ import AppErrorBoundary from './components/common/AppErrorBoundary.jsx';
 import AppToaster from './components/feedback/AppToaster.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { DataRefreshProvider } from './context/DataRefreshContext.jsx';
+import AuthInterceptor from './features/auth/AuthInterceptor.jsx';
 import App from './App.jsx';
 import './index.css';
 
@@ -14,7 +15,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <DataRefreshProvider>
         <BrowserRouter>
           <AuthProvider>
-            <App />
+            <AuthInterceptor>
+              <App />
+            </AuthInterceptor>
           </AuthProvider>
           <AppToaster />
         </BrowserRouter>
