@@ -8,9 +8,6 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "seed": "node src/seed/runSeed.js",
-    "migrate:attempt-numbers": "node src/migrations/backfillAttemptNumbers.js",
-    "migrate:attempt-indexes": "node src/migrations/enforceAttemptIndexes.js",
-    "migrate:question-archive-indexes": "node src/migrations/fixQuestionArchiveIndexes.js",
     "test": "node --test --test-concurrency=1 ./test/unit/backend.test.js",
     "check:gemini": "node scripts/checkGemini.mjs"
   },
