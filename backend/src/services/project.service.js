@@ -10,7 +10,7 @@ import { projectReviewFallback } from './aiFallback.service.js';
 import { mergeWeakTopics } from './progress.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
-import { createInAvailableAttemptSlot } from './attemptSlot.service.js';
+import { createAttempt } from './attempt.service.js';
 import { assertReviewCanStart } from '../domain/reviewPolicy.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 
@@ -32,9 +32,16 @@ export const listProjectTasks = async ({ userId, difficulty, tag }) => {
 
   const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true }).lean();
   const userLevel = course?.level || 'beginner';
-  const tasks = await ProjectTask.find(filter).populate('relatedLessons', 'title slug difficulty').sort({ topicOrder: 1, difficulty: 1, createdAt: 1 }).lean();
-  const submissions = await ProjectSubmission.find({ user: userId, projectTask: { $in: tasks.map((task) => task._id) } }).sort({ createdAt: -1 }).lean();
+  const tasks = await ProjectTask.find(filter)
+    .populate('relatedLessons', 'title slug difficulty')
+    .sort({ topicOrder: 1, difficulty: 1, createdAt: 1 })
+    .lean();
+  const submissions = await ProjectSubmission.find({
+    user: userId,
+    projectTask: { $in: tasks.map((task) => task._id) }
+  }).sort({ createdAt: -1 }).lean();
   const byTask = new Map();
+
   submissions.forEach((submission) => {
     const key = submission.projectTask.toString();
     const list = byTask.get(key) || [];
@@ -51,7 +58,7 @@ export const listProjectTasks = async ({ userId, difficulty, tag }) => {
       ...task,
       isLocked,
       lockedReason: isLocked ? `Unlock this after reaching ${task.difficulty} level.` : '',
-      attemptsUsed: taskSubmissions.filter((submission) => [1, 2].includes(submission.attemptNumber)).length,
+      attemptsUsed: taskSubmissions.length,
       maxAttempts: 2,
       bestScore,
       latestSubmission: taskSubmissions[0] || null
@@ -60,26 +67,43 @@ export const listProjectTasks = async ({ userId, difficulty, tag }) => {
 };
 
 export const getProjectTask = async ({ taskId, userId }) => {
-  const task = await ProjectTask.findOne({ _id: taskId, status: 'published' }).populate('relatedLessons', 'title slug difficulty topic').lean();
+  const task = await ProjectTask.findOne({ _id: taskId, status: 'published' })
+    .populate('relatedLessons', 'title slug difficulty topic')
+    .lean();
   if (!task) throw new ApiError(404, 'Project task not found');
+
   const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true }).lean();
   const submissions = await ProjectSubmission.find({ user: userId, projectTask: taskId }).sort({ createdAt: -1 }).limit(5);
   const isLocked = !allowedByLevel(course?.level || 'beginner', task.difficulty);
-  const attemptsUsed = submissions.filter((submission) => [1, 2].includes(submission.attemptNumber)).length;
-  return { task: { ...task, isLocked, lockedReason: isLocked ? `Unlock this after reaching ${task.difficulty} level.` : '', maxAttempts: 2 }, submissions, attemptsUsed, maxAttempts: 2 };
+  return {
+    task: {
+      ...task,
+      isLocked,
+      lockedReason: isLocked ? `Unlock this after reaching ${task.difficulty} level.` : '',
+      maxAttempts: 2
+    },
+    submissions,
+    attemptsUsed: submissions.length,
+    maxAttempts: 2
+  };
 };
 
 export const submitProjectTask = async ({ userId, projectTaskId, taskId, submittedCode = '', submittedExplanation = '' }) => {
   const resolvedTaskId = projectTaskId || taskId;
   submittedCode = sanitizeCodeText(submittedCode, env.aiInputLimits.projectCodeChars);
   submittedExplanation = sanitizeCodeText(submittedExplanation, env.aiInputLimits.projectExplanationChars);
+
   const task = await ProjectTask.findOne({ _id: resolvedTaskId, status: 'published' });
   if (!task) throw new ApiError(404, 'Project task not found');
   const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true }).lean();
-  if (!allowedByLevel(course?.level || 'beginner', task.difficulty)) throw new ApiError(403, 'This project is locked for your current level', [], 'CONTENT_LOCKED');
-  if (!submittedCode.trim() && !submittedExplanation.trim()) throw new ApiError(400, 'Submit code or explanation for review');
+  if (!allowedByLevel(course?.level || 'beginner', task.difficulty)) {
+    throw new ApiError(403, 'This project is locked for your current level', [], 'CONTENT_LOCKED');
+  }
+  if (!submittedCode.trim() && !submittedExplanation.trim()) {
+    throw new ApiError(400, 'Submit code or explanation for review');
+  }
 
-  const submission = await createInAvailableAttemptSlot({
+  const submission = await createAttempt({
     model: ProjectSubmission,
     identityFilter: { user: userId, projectTask: task._id },
     payload: {
@@ -98,7 +122,6 @@ export const submitProjectTask = async ({ userId, projectTaskId, taskId, submitt
 };
 
 export const reviewProjectSubmission = async ({ user, submissionId }) => {
-  const startedAt = Date.now();
   const submission = await ProjectSubmission.findOne({ _id: submissionId, user: user._id }).populate('projectTask');
   if (!submission) throw new ApiError(404, 'Project submission not found');
   if (submission.status === 'reviewed') return submission;
@@ -114,16 +137,17 @@ export const reviewProjectSubmission = async ({ user, submissionId }) => {
   const course = await CoursePlan.findOne({ user: user._id, status: 'active', isActive: true });
   const progress = course ? await Progress.findOne({ user: user._id, coursePlan: course._id }) : null;
   const guardText = `${submission.projectTask?.title || ''} ${submission.submittedExplanation || ''} ${submission.submittedCode || ''}`;
-  let promptFingerprint = '';
   let aiResult = null;
   let reviewError = null;
 
   try {
     if (aiConfigured) await checkAIUsageLimit(user._id, AI_FEATURES.PROJECT_REVIEW);
-    const guarded = await guardAIRequest({ userId: user._id, feature: AI_FEATURES.PROJECT_REVIEW, text: guardText, maxChars: env.aiInputLimits.projectCodeChars + env.aiInputLimits.projectExplanationChars, metadata: { submissionId } });
-    promptFingerprint = guarded.promptFingerprint;
-
+    await guardAIRequest({
+      text: guardText,
+      maxChars: env.aiInputLimits.projectCodeChars + env.aiInputLimits.projectExplanationChars
+    });
     if (!aiConfigured) throw new Error('Gemini is not configured');
+
     aiResult = await aiProvider.reviewProjectSubmission({
       task: submission.projectTask,
       submission,
@@ -150,17 +174,10 @@ export const reviewProjectSubmission = async ({ user, submissionId }) => {
       generatedAt: new Date()
     };
     await submission.save();
-
-    await runBestEffort('Project review failure logging', () => logAIUsage({
+    await runBestEffort('Project review logging', () => logAIUsage({
       user: user._id,
       feature: AI_FEATURES.PROJECT_REVIEW,
       status: 'failed',
-      model: env.geminiModel,
-      provider: 'gemini',
-      latencyMs: Date.now() - startedAt,
-      promptFingerprint,
-      contextSources: [{ type: 'project_task', title: submission.projectTask?.title, refId: submission.projectTask?._id?.toString() }],
-      metadata: { submissionId, errorType: 'provider_failure' },
       errorMessage: reviewError.message
     }));
   } else {
@@ -180,25 +197,25 @@ export const reviewProjectSubmission = async ({ user, submissionId }) => {
     await submission.save();
 
     if (progress && submission.aiFeedback.weakTopicsDetected.length) {
-      await runBestEffort('Project weak-topic update', () => mergeWeakTopics({ progress, weakTopics: submission.aiFeedback.weakTopicsDetected, source: 'project_submission' }));
+      await runBestEffort('Project weak-topic update', () => mergeWeakTopics({
+        progress,
+        weakTopics: submission.aiFeedback.weakTopicsDetected,
+        source: 'project_submission'
+      }));
     }
 
-    await runBestEffort('Project review usage logging', () => logAIUsage({
+    await runBestEffort('Project review logging', () => logAIUsage({
       user: user._id,
       feature: AI_FEATURES.PROJECT_REVIEW,
-      model: aiResult.model || env.geminiModel,
-      provider: 'gemini',
-      inputTokens: aiResult.inputTokens || 0,
-      outputTokens: aiResult.outputTokens || 0,
-      latencyMs: Date.now() - startedAt,
-      promptFingerprint,
-      contextSources: [{ type: 'project_task', title: submission.projectTask?.title, refId: submission.projectTask?._id?.toString() }],
-      metadata: { submissionId, score: submission.score }
+      model: aiResult.model || env.geminiModel
     }));
   }
 
-  await runBestEffort('Project review cache invalidation', () => invalidateUserLearningCache(user._id));
+  await runBestEffort('Project cache refresh', () => invalidateUserLearningCache(user._id));
   return submission;
 };
 
-export const listMySubmissions = async ({ userId }) => ProjectSubmission.find({ user: userId }).populate('projectTask', 'title difficulty moduleTitle').sort({ createdAt: -1 }).limit(50);
+export const listMySubmissions = async ({ userId }) => ProjectSubmission.find({ user: userId })
+  .populate('projectTask', 'title difficulty moduleTitle')
+  .sort({ createdAt: -1 })
+  .limit(50);
