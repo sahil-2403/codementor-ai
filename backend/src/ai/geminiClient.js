@@ -2,8 +2,6 @@ import { env } from '../config/env.js';
 import { AI_ERROR_CODES, AIServiceError } from './aiErrors.js';
 import { parseAIJson, validateAIResponse } from './aiSchemas.js';
 
-const roughTokens = (text = '') => Math.ceil(String(text).split(/\s+/).filter(Boolean).length * 1.35);
-
 const extractText = (data) =>
   data?.candidates?.[0]?.content?.parts
     ?.map((part) => part?.text)
@@ -16,23 +14,20 @@ const mapProviderError = ({ response, data }) => {
   if (response.status === 429) {
     return new AIServiceError(AI_ERROR_CODES.RATE_LIMITED, 'Gemini is temporarily rate limited.', {
       statusCode: 429,
-      retryable: true,
-      providerStatus: response.status
+      retryable: true
     });
   }
 
   if (response.status === 400 && /safety|blocked/i.test(providerMessage)) {
     return new AIServiceError(AI_ERROR_CODES.SAFETY_REJECTION, 'Gemini could not process this request safely.', {
       statusCode: 422,
-      retryable: false,
-      providerStatus: response.status
+      retryable: false
     });
   }
 
   return new AIServiceError(AI_ERROR_CODES.PROVIDER_ERROR, 'Gemini is temporarily unavailable.', {
     statusCode: 502,
-    retryable: response.status >= 500,
-    providerStatus: response.status
+    retryable: response.status >= 500
   });
 };
 
@@ -53,27 +48,17 @@ export const createGeminiClient = ({
     schema,
     validationMessage,
     temperature = 0.3,
-    maxTokens = 900,
-    signal
+    maxTokens = 900
   }) => {
     if (!env.enableAi) {
       throw new AIServiceError(AI_ERROR_CODES.DISABLED, 'Gemini is disabled.', { retryable: false });
     }
-
     if (!apiKey) {
       throw new AIServiceError(AI_ERROR_CODES.NOT_CONFIGURED, 'Gemini is not configured.', { retryable: false });
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(new Error('Gemini request timed out')), timeoutMs);
-    const abortFromCaller = () => controller.abort(signal?.reason || new Error('Gemini request was cancelled'));
-
-    if (signal) {
-      if (signal.aborted) abortFromCaller();
-      else signal.addEventListener('abort', abortFromCaller, { once: true });
-    }
-
-    const startedAt = Date.now();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
@@ -97,12 +82,6 @@ export const createGeminiClient = ({
 
       const text = extractText(data);
       if (!text.trim()) {
-        const finishReason = data?.candidates?.[0]?.finishReason;
-        if (finishReason === 'SAFETY') {
-          throw new AIServiceError(AI_ERROR_CODES.SAFETY_REJECTION, 'Gemini could not process this request safely.', {
-            retryable: false
-          });
-        }
         throw new AIServiceError(AI_ERROR_CODES.INVALID_RESPONSE, 'Gemini returned an empty response.', {
           retryable: false
         });
@@ -122,45 +101,34 @@ export const createGeminiClient = ({
           try {
             validated = validateAIResponse(schema, parsed, validationMessage);
           } catch (error) {
-            throw new AIServiceError(AI_ERROR_CODES.INVALID_RESPONSE, validationMessage || 'Gemini response did not match the expected schema.', {
-              retryable: false,
-              cause: error,
-              details: error.validationIssues || null
-            });
+            throw new AIServiceError(
+              AI_ERROR_CODES.INVALID_RESPONSE,
+              validationMessage || 'Gemini response did not match the expected schema.',
+              { retryable: false, cause: error }
+            );
           }
         }
       }
 
-      const usage = data?.usageMetadata || {};
       return {
         text,
-        parsed,
         data: validated ?? parsed ?? text,
-        model,
-        provider: 'gemini',
-        inputTokens: usage.promptTokenCount || roughTokens(`${system}\n${user}`),
-        outputTokens: usage.candidatesTokenCount || roughTokens(text),
-        latencyMs: Date.now() - startedAt
+        model
       };
     } catch (error) {
       if (error instanceof AIServiceError) throw error;
-
       if (controller.signal.aborted) {
-        const callerAborted = Boolean(signal?.aborted);
-        throw new AIServiceError(
-          callerAborted ? AI_ERROR_CODES.REQUEST_ABORTED : AI_ERROR_CODES.TIMEOUT,
-          callerAborted ? 'Gemini request was cancelled.' : 'Gemini request timed out.',
-          { retryable: !callerAborted, cause: error }
-        );
+        throw new AIServiceError(AI_ERROR_CODES.TIMEOUT, 'Gemini request timed out.', {
+          retryable: true,
+          cause: error
+        });
       }
-
       throw new AIServiceError(AI_ERROR_CODES.PROVIDER_ERROR, 'Gemini is temporarily unavailable.', {
         retryable: true,
         cause: error
       });
     } finally {
       clearTimeout(timeout);
-      signal?.removeEventListener('abort', abortFromCaller);
     }
   };
 
