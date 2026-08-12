@@ -32,7 +32,7 @@ const buildCurrentProgressPayload = async (userId) => {
     Progress.findOne({ user: userId, coursePlan: course._id }).lean(),
     getDueRevisions({ userId, coursePlanId: course._id }),
     getRevisionStats({ userId, coursePlanId: course._id }),
-    CoursePlan.find({ user: userId, enrollment: course.enrollment })
+    CoursePlan.find({ user: userId, enrollment: course.enrollment, course: course.course })
       .select('_id title version roadmapType generatedReason status isActive createdAt')
       .sort({ version: -1 })
       .lean()
