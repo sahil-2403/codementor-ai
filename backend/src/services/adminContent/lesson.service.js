@@ -13,7 +13,6 @@ import { ApiError } from '../../utils/ApiError.js';
 import { generateSlug } from '../../utils/generateSlug.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
-import { invalidateContentCache } from '../cacheInvalidation.service.js';
 import {
   PUBLISHABLE_STATUS,
   assertCourseExists,
@@ -143,7 +142,6 @@ export const createLesson = async (payload) => {
     tags: cleanStringArray(payload.tags),
     status: PUBLISHABLE_STATUS.DRAFT
   });
-  await invalidateContentCache();
   return lesson.populate([
     { path: 'course', select: 'title slug status' },
     { path: 'topic', select: 'title status course' }
@@ -172,7 +170,6 @@ export const updateLesson = async ({ id, payload }) => {
   Object.assign(lesson, normalized);
   if (lesson.status === PUBLISHABLE_STATUS.PUBLISHED) await assertLessonPublishable(lesson);
   await lesson.save();
-  await invalidateContentCache();
   return lesson.populate([
     { path: 'course', select: 'title slug status' },
     { path: 'topic', select: 'title status course' }
@@ -232,7 +229,6 @@ export const changeLessonStatus = async ({ id, status, confirmPublish = false })
     ]);
   }
 
-  await invalidateContentCache();
   return { lesson, counts: impact.counts };
 };
 
@@ -258,6 +254,5 @@ export const deleteLesson = async (id) => {
     QuizQuestion.deleteMany({ _id: { $in: quizQuestionIds } })
   ]);
   await Lesson.deleteOne({ _id: lesson._id });
-  await invalidateContentCache();
   return { lesson, counts };
 };
