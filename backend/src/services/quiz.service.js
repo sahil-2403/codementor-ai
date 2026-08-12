@@ -10,7 +10,6 @@ import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
 import { trimContextForAI } from './aiSafety.service.js';
 import { quizExplanationFallback } from './aiFallback.service.js';
 import { ApiError } from '../utils/ApiError.js';
-import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 
 export const getQuizForModule = async ({ userId, moduleId }) => {
@@ -88,7 +87,6 @@ export const submitQuiz = async ({ userId, moduleId, answers }) => {
     await mergeWeakTopics({ progress, weakTopics: weakTopicsDetected, source: 'quiz' });
   }
 
-  await invalidateUserLearningCache(userId);
   return attempt;
 };
 
