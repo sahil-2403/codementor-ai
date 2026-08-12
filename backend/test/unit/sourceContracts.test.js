@@ -37,17 +37,19 @@ test('roadmap generation uses direct sequential mongoose operations', () => {
   assert.doesNotMatch(service, /startSession|withTransaction|session\(/);
 });
 
-test('backend runtime uses in-process cache and native slug generation', () => {
-  const cache = source('services/cache.service.js');
+test('backend runtime queries Mongo directly and keeps one simple health endpoint', () => {
   const env = source('config/env.js');
+  const app = source('app.js');
   const server = source('server.js');
-  const health = source('services/health.service.js');
   const slug = source('utils/generateSlug.js');
+  const lessons = source('services/lesson.service.js');
 
-  assert.match(cache, /new Map\(\)/);
-  assert.match(env, /enableCache: values\.ENABLE_CACHE/);
-  assert.match(server, /cache: env\.enableCache \? 'memory' : 'disabled'/);
-  assert.match(health, /mongodb:[\s\S]*required: true/);
+  assert.doesNotMatch(env, /ENABLE_CACHE|enableCache|CACHE_/);
+  assert.doesNotMatch(server, /cache/i);
+  assert.match(app, /app\.get\('\/health'/);
+  assert.doesNotMatch(app, /health\/ready|getReadiness/);
+  assert.match(lessons, /Lesson\.findOne/);
+  assert.doesNotMatch(lessons, /getOrSetCache|cacheKey/);
   assert.match(slug, /normalize\('NFKD'\)/);
   assert.match(slug, /replace\(\/\[\^a-z0-9\]\+\/g, '-'\)/);
 });
@@ -74,15 +76,15 @@ test('AI request validation stays simple and bounded', () => {
   assert.doesNotMatch(usage, /inputTokens|outputTokens|latencyMs|estimatedCost|promptFingerprint/);
 });
 
-test('auth and csrf cookies use one configured policy', () => {
+test('auth and csrf cookies use the simple shared cookie policy', () => {
   const tokenService = source('services/token.service.js');
   const csrf = source('middlewares/csrf.middleware.js');
   const cookies = source('config/cookies.js');
   assert.match(tokenService, /accessCookieOptions/);
   assert.match(tokenService, /refreshCookieOptions/);
   assert.match(csrf, /csrfCookieOptions/);
-  assert.match(csrf, /csrfHashCookieOptions/);
-  assert.doesNotMatch(csrf, /process\.env/);
+  assert.match(csrf, /csrfCookie !== csrfHeader/);
+  assert.doesNotMatch(csrf, /csrfHash|process\.env/);
   assert.match(cookies, /env\.cookieSameSite/);
   assert.match(cookies, /env\.cookieDomain/);
   assert.match(cookies, /durationToMs\(env\.jwtAccessExpiresIn/);
