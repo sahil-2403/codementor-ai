@@ -117,10 +117,7 @@ export const createCourseFromTemplate = async ({
         await logAIUsage({
           user: userId,
           feature: AI_FEATURES.ROADMAP_GENERATION,
-          model: aiRoadmap.model || env.geminiModel,
-          provider: 'gemini',
-          inputTokens: aiRoadmap.inputTokens || 0,
-          outputTokens: aiRoadmap.outputTokens || 0
+          model: aiRoadmap.model || env.geminiModel
         });
       }
     } catch (error) {
@@ -129,7 +126,6 @@ export const createCourseFromTemplate = async ({
         feature: AI_FEATURES.ROADMAP_GENERATION,
         status: 'failed',
         model: env.geminiModel,
-        provider: 'gemini',
         errorMessage: error.message
       });
     }
