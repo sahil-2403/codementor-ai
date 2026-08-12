@@ -8,18 +8,16 @@ import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import QuizQuestionCard from '../../components/quiz/QuizQuestionCard.jsx';
 import QuizProgress from '../../components/quiz/QuizProgress.jsx';
-import { useModuleQuiz, useSubmitQuiz } from '../../queries/quizQueries.js';
+import { quizApi } from '../../api/quizApi.js';
 
 export default function QuizPage() {
   const { moduleId } = useParams();
   const navigate = useNavigate();
-  const {
-    data,
-    isLoading,
-    error: quizError,
-    refetch
-  } = useModuleQuiz(moduleId);
-  const submitQuiz = useSubmitQuiz();
+  const [data, setData] = useState(null);
+  const [quizError, setQuizError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const draftKey = useMemo(
     () =>
       data?.quiz?.courseId && moduleId
@@ -30,6 +28,28 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState({});
   const [draftReady, setDraftReady] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!moduleId) return undefined;
+    let active = true;
+    setIsLoading(true);
+    setQuizError(null);
+
+    quizApi.moduleQuiz(moduleId)
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setQuizError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [moduleId, loadAttempt]);
 
   const quiz = data?.quiz;
   const questions = quiz?.questions || [];
@@ -92,12 +112,13 @@ export default function QuizPage() {
         title="No quiz available"
         description="This module does not have a quiz yet."
         actionLabel="Try again"
-        onAction={() => refetch()}
+        onAction={() => setLoadAttempt((value) => value + 1)}
       />
     );
   }
 
   const submit = async () => {
+    setIsSubmitting(true);
     try {
       setError('');
       const payload = questions
@@ -111,7 +132,7 @@ export default function QuizPage() {
         throw new Error('Please answer every question before submitting.');
       }
 
-      const result = await submitQuiz.mutateAsync({ moduleId, answers: payload });
+      const result = await quizApi.submit({ moduleId, answers: payload });
 
       if (draftKey) {
         try {
@@ -124,6 +145,8 @@ export default function QuizPage() {
       navigate(`/quizzes/result/${result.attempt._id}`);
     } catch (err) {
       setError(err?.message || 'Could not submit the quiz.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -176,7 +199,7 @@ export default function QuizPage() {
         )}
       </Card>
 
-      <ErrorMessage message={error || submitQuiz.error?.message} />
+      <ErrorMessage message={error} />
 
       {questions.map((question, index) => (
         <QuizQuestionCard
@@ -210,7 +233,7 @@ export default function QuizPage() {
             className="shrink-0 px-6"
             onClick={submit}
             disabled={answeredCount !== questions.length}
-            isLoading={submitQuiz.isPending}
+            isLoading={isSubmitting}
             loadingLabel="Submitting quiz..."
           >
             Submit quiz
