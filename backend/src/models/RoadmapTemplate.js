@@ -25,8 +25,7 @@ const roadmapTemplateSchema = new mongoose.Schema(
     description: { type: String, default: '', trim: true },
     modules: [templateModuleSchema],
     estimatedDurationDays: { type: Number, default: 90 },
-    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft', index: true },
-    statusBeforeCourseArchive: { type: String, enum: ['draft', 'published'], default: null }
+    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft', index: true }
   },
   { timestamps: true }
 );
@@ -34,6 +33,7 @@ const roadmapTemplateSchema = new mongoose.Schema(
 roadmapTemplateSchema.pre('validate', async function validateOwnership() {
   const courseId = referenceId(this.course);
   if (!courseId) return;
+
   const course = await Course.findById(courseId).select('_id status availableLevels').lean();
   if (!course || course.status === 'archived') {
     this.invalidate('course', 'Roadmap template must belong to an available course');
@@ -45,6 +45,7 @@ roadmapTemplateSchema.pre('validate', async function validateOwnership() {
 
   const lessonIds = (this.modules || []).flatMap((module) => (module.lessons || []).map(referenceId)).filter(Boolean);
   if (!lessonIds.length) return;
+
   const lessons = await Lesson.find({ _id: { $in: lessonIds } }).select('_id course').lean();
   const uniqueLessonIds = new Set(lessonIds.map(String));
   if (lessons.length !== uniqueLessonIds.size) {
