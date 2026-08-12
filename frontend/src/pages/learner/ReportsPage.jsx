@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { CalendarDays, CheckCircle2, ChevronDown, FileText, History } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import Button from '../../components/common/Button.jsx';
@@ -8,8 +9,7 @@ import PageShell from '../../components/common/PageShell.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import Badge from '../../components/common/Badge.jsx';
 import { formatDate } from '../../utils/formatDate.js';
-import { useGenerateReport, useReports } from '../../queries/reportQueries.js';
-import { useState } from 'react';
+import { reportApi } from '../../api/reportApi.js';
 
 const getUtcWeekStart = (value = new Date()) => {
   const date = new Date(value);
@@ -113,8 +113,46 @@ function ReportHistoryCard({ report }) {
 }
 
 export default function ReportsPage() {
-  const { data, isLoading, error, refetch } = useReports();
-  const generate = useGenerateReport();
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+
+    reportApi.list()
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
+
+  const generateReport = async () => {
+    setIsGenerating(true);
+    setGenerateError(null);
+    try {
+      await reportApi.generate();
+      setLoadAttempt((value) => value + 1);
+    } catch (requestError) {
+      setGenerateError(requestError);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   if (isLoading) return <Loader label="Loading reports..." />;
 
@@ -124,7 +162,7 @@ export default function ReportsPage() {
         title="Weekly reports are unavailable"
         description={error.message}
         actionLabel="Try again"
-        onAction={() => refetch()}
+        onAction={() => setLoadAttempt((value) => value + 1)}
       />
     );
   }
@@ -140,8 +178,8 @@ export default function ReportsPage() {
 
   const createAction = (
     <Button
-      onClick={() => generate.mutate()}
-      isLoading={generate.isPending}
+      onClick={generateReport}
+      isLoading={isGenerating}
       loadingLabel="Creating report..."
       disabled={reportAlreadyCreated}
       variant={reportAlreadyCreated ? 'secondary' : 'primary'}
@@ -172,7 +210,7 @@ export default function ReportsPage() {
         actions={createAction}
       />
 
-      <ErrorMessage message={generate.error?.message} />
+      <ErrorMessage message={generateError?.message} />
 
       {latestReport ? (
         <Card className="border-primary/10 bg-gradient-to-br from-surface via-surface to-primary-soft/25 shadow-sm">
