@@ -4,7 +4,7 @@ const interviewAttemptSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     question: { type: mongoose.Schema.Types.ObjectId, ref: 'InterviewQuestion', required: true, index: true },
-    attemptNumber: { type: Number, enum: [1, 2], default: null },
+    attemptNumber: { type: Number, enum: [1, 2], required: true },
     answer: { type: String, required: true },
     status: {
       type: String,
@@ -32,13 +32,5 @@ const interviewAttemptSchema = new mongoose.Schema(
 
 interviewAttemptSchema.index({ user: 1, createdAt: -1 });
 interviewAttemptSchema.index({ user: 1, question: 1, createdAt: -1 });
-interviewAttemptSchema.index(
-  { user: 1, question: 1, attemptNumber: 1 },
-  {
-    unique: true,
-    name: 'interview_attempt_slot_unique',
-    partialFilterExpression: { attemptNumber: { $type: 'number' } }
-  }
-);
 
 export const InterviewAttempt = mongoose.model('InterviewAttempt', interviewAttemptSchema);
