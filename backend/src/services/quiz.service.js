@@ -1,4 +1,3 @@
-import { CoursePlan } from '../models/CoursePlan.js';
 import { requireActiveCourseForUser, assertModuleBelongsToCourse, assertModuleUnlocked, assertQuestionsBelongToModule } from './dataIntegrity.service.js';
 import { QuizQuestion } from '../models/QuizQuestion.js';
 import { QuizAttempt } from '../models/QuizAttempt.js';
@@ -93,9 +92,25 @@ export const submitQuiz = async ({ userId, moduleId, answers }) => {
   return attempt;
 };
 
+export const getQuizAttempt = async ({ userId, attemptId }) => {
+  const course = await requireActiveCourseForUser({ userId });
+  const attempt = await QuizAttempt.findOne({
+    _id: attemptId,
+    user: userId,
+    coursePlan: course._id
+  }).populate('answers.question');
+  if (!attempt) throw new ApiError(404, 'Quiz attempt not found in your current course');
+  return attempt;
+};
+
 export const explainQuizAttempt = async ({ user, attemptId }) => {
-  const attempt = await QuizAttempt.findOne({ _id: attemptId, user: user._id }).populate('answers.question');
-  if (!attempt) throw new ApiError(404, 'Quiz attempt not found');
+  const course = await requireActiveCourseForUser({ userId: user._id });
+  const attempt = await QuizAttempt.findOne({
+    _id: attemptId,
+    user: user._id,
+    coursePlan: course._id
+  }).populate('answers.question');
+  if (!attempt) throw new ApiError(404, 'Quiz attempt not found in your current course');
 
   const wrongAnswers = (attempt.answers || []).filter((answer) => !answer.isCorrect);
   if (!wrongAnswers.length) throw new ApiError(400, 'This quiz has no incorrect answers to explain');
@@ -104,10 +119,9 @@ export const explainQuizAttempt = async ({ user, attemptId }) => {
   const aiConfigured = isGeminiAvailable();
   if (aiConfigured) await checkAIUsageLimit(user._id, AI_FEATURES.QUIZ_EXPLANATION);
 
-  const course = await CoursePlan.findById(attempt.coursePlan);
   const relatedContext = trimContextForAI(await findRelevantLessons({
     query: wrongAnswers.map((answer) => `${answer.topic} ${answer.explanation}`).join(' '),
-    courseId: course?.course,
+    courseId: course.course,
     maxResults: 4
   }));
 
@@ -118,7 +132,7 @@ export const explainQuizAttempt = async ({ user, attemptId }) => {
       weakTopics: attempt.weakTopicsDetected,
       wrongAnswers,
       relatedContext,
-      userLevel: course?.level || 'learner'
+      userLevel: course.level || 'learner'
     });
   } catch (error) {
     aiResult = { ...quizExplanationFallback({ attempt, relatedContext }), aiAvailable: false };
