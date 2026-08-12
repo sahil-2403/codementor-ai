@@ -46,9 +46,6 @@ const envSchema = z.object({
   PASSWORD_RESET_RATE_LIMIT: z.coerce.number().int().positive().default(5),
   AI_ROUTE_RATE_LIMIT: z.coerce.number().int().positive().default(40),
   ADMIN_WRITE_RATE_LIMIT: z.coerce.number().int().positive().default(80),
-  ENABLE_CACHE: envBoolean(true),
-  CACHE_DASHBOARD_TTL_SECONDS: z.coerce.number().int().positive().default(30),
-  CACHE_CONTENT_TTL_SECONDS: z.coerce.number().int().positive().default(600),
   ENABLE_AI: envBoolean(false),
   GEMINI_API_KEY: optionalString,
   GEMINI_MODEL: z.string().min(1).default('gemini-1.5-flash'),
@@ -136,9 +133,6 @@ export const env = Object.freeze({
   cookieDomain: values.COOKIE_DOMAIN,
   trustProxy: parseTrustProxy(values.TRUST_PROXY),
   rateLimits: Object.freeze({ api: values.API_RATE_LIMIT, auth: values.AUTH_RATE_LIMIT, register: values.REGISTER_RATE_LIMIT, passwordReset: values.PASSWORD_RESET_RATE_LIMIT, aiRoute: values.AI_ROUTE_RATE_LIMIT, adminWrite: values.ADMIN_WRITE_RATE_LIMIT }),
-  enableCache: values.ENABLE_CACHE,
-  cacheDashboardTtlSeconds: values.CACHE_DASHBOARD_TTL_SECONDS,
-  cacheContentTtlSeconds: values.CACHE_CONTENT_TTL_SECONDS,
   enableAi: values.ENABLE_AI,
   geminiApiKey: values.GEMINI_API_KEY,
   geminiModel: values.GEMINI_MODEL,
@@ -159,5 +153,4 @@ export const env = Object.freeze({
   enableDemoMode: values.ENABLE_DEMO_MODE
 });
 
-export const isCacheEnabled = () => env.enableCache;
 export const isGeminiAvailable = () => env.enableAi && Boolean(env.geminiApiKey);
