@@ -9,7 +9,7 @@ CodeMentor AI is a MERN learning platform for structured coding practice. Learne
 - **Technologies classify content.** A learner can start a Course directly without selecting a programming language first.
 - **Deterministic learning features do not require AI.** Authentication, onboarding, template roadmaps, lessons, quizzes, projects, interview attempts, progress, and admin content management remain available when Gemini is disabled.
 - **AI output is labelled honestly.** Provider failures fall back to stored course guidance without presenting fallback content as generated analysis.
-- **The codebase stays junior-friendly.** Data loading uses React hooks and Axios, backend workflows stay in Express services, and infrastructure is intentionally kept small.
+- **The codebase stays junior-friendly.** Data loading uses React hooks and Axios, backend workflows use straightforward Express services, and infrastructure is intentionally kept small.
 
 ## Main capabilities
 
@@ -23,7 +23,7 @@ CodeMentor AI is a MERN learning platform for structured coding practice. Learne
 - Ordered modules, lesson completion, and module quizzes
 - Weak-topic and revision tracking
 - Contextual Gemini Mentor with saved course explanations as fallback
-- Project tasks and interview practice with bounded attempts
+- Project tasks and interview practice with two attempts
 - Dashboard, progress, and weekly reports
 - Multiple independent enrollments with current-course switching
 
@@ -39,7 +39,7 @@ CodeMentor AI is a MERN learning platform for structured coding practice. Learne
 - Project Tasks
 - Roadmap Templates
 
-Admin content uses a consistent lifecycle: active/draft/published content is archived before permanent deletion, parent Course lifecycle actions cascade through Course-owned curriculum, and dependency blockers provide clear resolution instructions.
+Admin content uses a consistent lifecycle: active/draft/published content is archived before permanent deletion. Archiving a Course archives its owned curriculum; restoring it returns the Course and publishable child content to Draft while Topics become Active. External references can block archive or deletion and return clear resolution instructions.
 
 ## Technology
 
@@ -73,9 +73,9 @@ Admin content uses a consistent lifecycle: active/draft/published content is arc
 ```text
 backend/
   src/
-    ai/               Gemini integration and learning-context retrieval
+    ai/               Gemini client, response schemas, and prompt builders
     controllers/      HTTP request/response orchestration
-    services/         Domain workflows and data integrity
+    services/         Domain workflows and learning-context lookup
     models/           Mongoose schemas and indexes
     routes/           Authenticated and role-scoped routes
     validations/      Zod request validation
@@ -180,9 +180,9 @@ npm run check:gemini
 
 - Origins/proxy: `CLIENT_URL`, `ALLOWED_ORIGINS`, `TRUST_PROXY`
 - Authentication: JWT and cookie settings
-- Persistence: `MONGO_URI`, optional MongoDB transactions
+- Persistence: `MONGO_URI`
 - Cache: `ENABLE_CACHE` and cache TTL values
-- AI: Gemini configuration, limits, and timeouts
+- AI: Gemini configuration, daily limits, input limits, and timeout
 - Email: SMTP settings and sender addresses
 - Frontend API: optional `VITE_API_BASE_URL`
 
