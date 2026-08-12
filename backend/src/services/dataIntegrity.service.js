@@ -22,8 +22,7 @@ export const getCurrentEnrollmentForUser = async (userId) => {
   }).sort({ updatedAt: -1 });
 
   if (fallback) {
-    user.currentEnrollment = fallback._id;
-    await user.save();
+    await User.findByIdAndUpdate(userId, { currentEnrollment: fallback._id });
   }
 
   return fallback;
