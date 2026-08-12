@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertCircle, ArrowRight, BookOpen, CheckCircle2, Clock3, FileQuestion, GraduationCap, Layers3, Route, Tags, Boxes } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
@@ -7,7 +8,7 @@ import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import StatusPill from '../../components/common/StatusPill.jsx';
-import { useAdminContentOverview } from '../../queries/adminQueries.js';
+import { adminApi } from '../../api/adminApi.js';
 import { formatDate } from '../../utils/formatDate.js';
 
 const catalogCards = [
@@ -51,10 +52,34 @@ function Attention({ count, label, href }) {
 }
 
 export default function AdminDashboardPage() {
-  const query = useAdminContentOverview();
-  if (query.isLoading) return <Loader label="Loading content overview..." />;
-  if (query.error) return <PageShell><ErrorMessage message={query.error.message} /></PageShell>;
-  const overview = query.data;
+  const [overview, setOverview] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+
+    adminApi.contentOverview()
+      .then((result) => {
+        if (active) setOverview(result);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
+
+  if (isLoading) return <Loader label="Loading content overview..." />;
+  if (error) return <PageShell><ErrorMessage message={error.message} /><button type="button" className="ui-button ui-button--secondary mt-4" onClick={() => setLoadAttempt((value) => value + 1)}>Try again</button></PageShell>;
   if (!overview) return <EmptyState title="Content overview is unavailable" description="No overview data was returned." />;
 
   const catalog = overview.catalog || {};
