@@ -20,6 +20,8 @@ The project demonstrates:
 - MongoDB and Mongoose schemas, references, indexes, and straightforward CRUD rules
 - Cookie-based JWT authentication, refresh rotation, CSRF protection, CORS, rate limiting, email verification, and password recovery
 - Course/Learning Path onboarding, Roadmap Templates, CoursePlans, quiz scoring, revisions, projects, interviews, and reports
+- Multiple learner Enrollments with one explicit current Enrollment
+- Simple sequential Learning Path course advancement
 - Course-owned curriculum with backend ownership/dependency validation
 - Simple two-attempt limits for Projects and Interview practice
 - Optional Gemini features with daily/input limits, response schemas, and honest scoreless fallbacks
@@ -27,8 +29,8 @@ The project demonstrates:
 
 ## Reliability rules
 
-- Mentor Lesson context must belong to the authenticated learner's active CoursePlan.
-- Learner requests must resolve one explicit current Enrollment so Dashboard, Roadmap, Lessons, Projects, Interview, Reports, and Mentor stay on the same Course.
+- Mentor Lesson context must belong to the authenticated learner's current CoursePlan.
+- Learner requests must resolve one explicit current Enrollment so Dashboard, Roadmap, Lessons, Quizzes, Revisions, Projects, Interview, Reports, and Mentor stay on the same Course.
 - Projects and Interview questions must belong to the learner's current Course.
 - Learning Path completion must move the learner to the next configured Course with simple sequential state updates.
 - Authentication and CSRF cookies share the configured security policy.
@@ -41,6 +43,7 @@ The project demonstrates:
 - Admin permanent deletion always requires an Archived item first.
 - Parent Course lifecycle actions cascade downward only through Course-owned content.
 - A Course used by an active learner roadmap cannot be archived until that learner dependency is no longer active.
+- A Quiz Question used by an active learner roadmap cannot be archived independently.
 
 ## Intentional limitations
 
@@ -61,6 +64,8 @@ The following are outside the scope of this portfolio project:
 
 The simple two-attempt check can theoretically be exceeded by truly simultaneous requests. The frontend prevents normal double submissions, and production-grade distributed/transaction locking is intentionally outside this project's scope.
 
+Roadmap generation also uses a normal check-then-create request flow. It repairs an already-created roadmap if a normal retry occurs, but two truly simultaneous generation requests are not protected by distributed locks or database transactions. The UI prevents normal duplicate generation, and production-scale concurrency control is intentionally outside this project's scope.
+
 The current authentication model supports one active refresh-token chain per user. Logging in again may invalidate an earlier browser session. This is acceptable for the project scope and should be explained clearly during interviews.
 
 ## Before demonstrating or deploying
@@ -71,6 +76,6 @@ Install dependencies, then run:
 node scripts/release-check.mjs
 ```
 
-Manually verify registration, verification, login, onboarding resume, Course/Learning Path selection, roadmap creation, Lesson completion, Quiz scoring, Mentor handoff, Project/Interview attempts, AI-disabled fallbacks, reports, enrollment switching, admin lifecycle operations, and logout-all-devices.
+Manually verify registration, verification, login, onboarding resume, Course/Learning Path selection, roadmap creation, Lesson completion, Learning Path advancement, Quiz scoring, Mentor handoff, Project/Interview attempts, AI-disabled fallbacks, reports, enrollment switching, admin lifecycle operations, and logout-all-devices.
 
 The project should be evaluated by whether these flows are correct, understandable, and deployable—not by how much infrastructure it contains.
