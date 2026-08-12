@@ -8,5 +8,5 @@ export const taskIdParamSchema = z.object({ params: z.object({ taskId: objectIdS
 export const submissionIdParamSchema = z.object({ params: z.object({ submissionId: objectIdSchema }) });
 export const questionIdParamSchema = z.object({ params: z.object({ questionId: objectIdSchema }) });
 export const assessmentIdReportSchema = z.object({ params: z.object({ assessmentId: objectIdSchema }) });
-export const jobIdParamSchema = z.object({ params: z.object({ jobId: objectIdSchema }) });
+export const enrollmentIdParamSchema = z.object({ params: z.object({ enrollmentId: objectIdSchema }) });
 export const listQuerySchema = z.object({ query: paginationQuerySchema.optional().default({}) });
