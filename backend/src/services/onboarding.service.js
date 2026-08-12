@@ -5,6 +5,11 @@ import { CoursePlan } from '../models/CoursePlan.js';
 import { Assessment } from '../models/Assessment.js';
 import { ONBOARDING_NEXT_PATH, ONBOARDING_STATES, isOnboardingState } from '../constants/onboardingStates.js';
 import { ApiError } from '../utils/ApiError.js';
+import {
+  getActiveCourseForUser,
+  getCurrentEnrollmentForUser,
+  setCurrentEnrollmentForUser
+} from './dataIntegrity.service.js';
 
 const incompleteStates = [
   ONBOARDING_STATES.LEVEL_PENDING,
@@ -49,7 +54,7 @@ const deriveState = ({ enrollment, activeCourse, assessment }) => {
   }
   if (enrollment.onboardingState === ONBOARDING_STATES.ASSESSMENT_COMPLETED) return ONBOARDING_STATES.ASSESSMENT_COMPLETED;
 
-  if (activeCourse?.enrollment?.toString?.() === enrollment._id.toString() && enrollment.status === 'active') {
+  if (activeCourse?.enrollment?.toString?.() === enrollment._id.toString() && ['active', 'completed'].includes(enrollment.status)) {
     return ONBOARDING_STATES.COMPLETED;
   }
   if (assessment?.status === 'started') return ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS;
@@ -64,7 +69,7 @@ const deriveState = ({ enrollment, activeCourse, assessment }) => {
 const persistDerivedState = async (enrollment, state) => {
   if (!enrollment || enrollment.onboardingState === state) return;
   enrollment.onboardingState = state;
-  if (state === ONBOARDING_STATES.COMPLETED) {
+  if (state === ONBOARDING_STATES.COMPLETED && enrollment.status !== 'completed') {
     enrollment.status = 'active';
     enrollment.onboardingCompletedAt = enrollment.onboardingCompletedAt || new Date();
   }
@@ -95,9 +100,7 @@ const resolveSelection = async ({ type, courseId, learningPathId }) => {
 export const getOnboardingStatus = async (userId) => {
   const [pendingEnrollment, activeCourse] = await Promise.all([
     findPendingEnrollment(userId),
-    CoursePlan.findOne({ user: userId, status: 'active', isActive: true })
-      .select('_id title status version roadmapType aiGenerated enrollment course learningPath')
-      .sort({ updatedAt: -1 })
+    getActiveCourseForUser({ userId })
   ]);
 
   let currentEnrollment = pendingEnrollment;
@@ -105,7 +108,7 @@ export const getOnboardingStatus = async (userId) => {
     currentEnrollment = await Enrollment.findById(activeCourse.enrollment);
   }
   if (!currentEnrollment) {
-    currentEnrollment = await Enrollment.findOne({ user: userId, status: 'active' }).sort({ updatedAt: -1 });
+    currentEnrollment = await getCurrentEnrollmentForUser(userId);
   }
 
   const latestAssessment = currentEnrollment
@@ -142,6 +145,34 @@ export const getOnboardingStatus = async (userId) => {
       }
       : null
   };
+};
+
+export const listLearnerEnrollments = async (userId) => {
+  const currentEnrollment = await getCurrentEnrollmentForUser(userId);
+  const enrollments = await Enrollment.find({
+    user: userId,
+    status: { $in: ['active', 'completed'] }
+  }).populate(enrollmentPopulate).sort({ updatedAt: -1 });
+
+  const ids = enrollments.map((item) => item._id);
+  const plans = ids.length
+    ? await CoursePlan.find({ user: userId, enrollment: { $in: ids }, status: 'active', isActive: true })
+      .select('_id enrollment title level version course learningPath')
+      .lean()
+    : [];
+  const planByEnrollment = new Map(plans.map((plan) => [plan.enrollment.toString(), plan]));
+
+  return enrollments.map((enrollment) => ({
+    ...enrollment.toObject(),
+    isCurrent: currentEnrollment?._id?.toString() === enrollment._id.toString(),
+    roadmap: planByEnrollment.get(enrollment._id.toString()) || null
+  }));
+};
+
+export const switchLearnerEnrollment = async ({ userId, enrollmentId }) => {
+  const enrollment = await setCurrentEnrollmentForUser({ userId, enrollmentId });
+  await enrollment.populate(enrollmentPopulate);
+  return enrollment;
 };
 
 export const selectEnrollmentTarget = async ({ userId, type, courseId = null, learningPathId = null }) => {
@@ -270,7 +301,7 @@ export const setRoadmapOnboardingState = async ({
   enrollment.onboardingState = state;
   enrollment.onboardingErrorCode = errorCode;
   enrollment.onboardingErrorMessage = errorMessage;
-  if (state === ONBOARDING_STATES.COMPLETED) {
+  if (state === ONBOARDING_STATES.COMPLETED && enrollment.status !== 'completed') {
     enrollment.status = 'active';
     enrollment.onboardingCompletedAt = enrollment.onboardingCompletedAt || new Date();
   }
