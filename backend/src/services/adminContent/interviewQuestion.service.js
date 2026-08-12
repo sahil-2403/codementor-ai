@@ -5,7 +5,6 @@ import { Topic } from '../../models/Topic.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
-import { invalidateContentCache } from '../cacheInvalidation.service.js';
 import {
   PUBLISHABLE_STATUS,
   assertCourseExists,
@@ -119,7 +118,6 @@ export const createInterviewQuestion = async (payload) => {
     status: PUBLISHABLE_STATUS.DRAFT
   });
 
-  await invalidateContentCache();
   return question.populate([
     { path: 'course', select: 'title slug status' },
     { path: 'topicRef', select: 'title status course' }
@@ -150,7 +148,6 @@ export const updateInterviewQuestion = async ({ id, payload }) => {
   Object.assign(question, normalized);
   if (question.status === PUBLISHABLE_STATUS.PUBLISHED) await assertInterviewQuestionPublishable(question);
   await question.save();
-  await invalidateContentCache();
   return question.populate([
     { path: 'course', select: 'title slug status' },
     { path: 'topicRef', select: 'title status course' }
@@ -201,7 +198,6 @@ export const changeInterviewQuestionStatus = async ({ id, status, confirmPublish
     await question.save();
   }
 
-  await invalidateContentCache();
   return { question, counts: impact.counts };
 };
 
@@ -219,6 +215,5 @@ export const deleteInterviewQuestion = async (id) => {
   }
 
   await InterviewQuestion.deleteOne({ _id: impact.question._id });
-  await invalidateContentCache();
   return { question: impact.question, counts: impact.counts };
 };
