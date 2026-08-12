@@ -2,6 +2,14 @@
 
 CodeMentor AI is intentionally maintained as a strong junior-level MERN portfolio project. The goal is to demonstrate correct full-stack development, secure APIs, MongoDB data modelling, practical React state/data handling, optional Gemini integration, testing, and deployment without unnecessary infrastructure.
 
+## Project rule
+
+Every feature, bug fix, refactor, and new piece of code must stay explainable and believable for a junior MERN developer.
+
+Before implementing a requested change, first decide whether it can be solved within junior-level scope. If it can, use the simplest normal React, Express, Mongoose, MongoDB, and JavaScript solution that keeps the product correct. If the requested solution would require advanced engineering such as distributed locking, complex concurrency control, event-driven infrastructure, migrations/backfills, custom frameworks, or enterprise architecture, call that out before implementation instead of silently adding it.
+
+Prefer clear business rules and straightforward sequential code over perfect handling of rare production-scale edge cases that are outside this portfolio project's scope.
+
 ## Included engineering scope
 
 The project demonstrates:
@@ -20,6 +28,9 @@ The project demonstrates:
 ## Reliability rules
 
 - Mentor Lesson context must belong to the authenticated learner's active CoursePlan.
+- Learner requests must resolve one explicit current Enrollment so Dashboard, Roadmap, Lessons, Projects, Interview, Reports, and Mentor stay on the same Course.
+- Projects and Interview questions must belong to the learner's current Course.
+- Learning Path completion must move the learner to the next configured Course with simple sequential state updates.
 - Authentication and CSRF cookies share the configured security policy.
 - Cookie lifetimes follow configured JWT durations.
 - Successful AI review data is not replaced when later logging/progress work fails.
@@ -29,6 +40,7 @@ The project demonstrates:
 - Rendering failures show a recovery screen and unknown routes show a real not-found page.
 - Admin permanent deletion always requires an Archived item first.
 - Parent Course lifecycle actions cascade downward only through Course-owned content.
+- A Course used by an active learner roadmap cannot be archived until that learner dependency is no longer active.
 
 ## Intentional limitations
 
@@ -45,6 +57,9 @@ The following are outside the scope of this portfolio project:
 - Complex asynchronous processing infrastructure
 - Sophisticated frontend server-response caching
 - Migration/backfill infrastructure for disposable demo data
+- Distributed locks or transaction-heavy concurrency control for rare simultaneous requests
+
+The simple two-attempt check can theoretically be exceeded by truly simultaneous requests. The frontend prevents normal double submissions, and production-grade distributed/transaction locking is intentionally outside this project's scope.
 
 The current authentication model supports one active refresh-token chain per user. Logging in again may invalidate an earlier browser session. This is acceptable for the project scope and should be explained clearly during interviews.
 
