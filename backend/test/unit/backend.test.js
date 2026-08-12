@@ -1,4 +1,4 @@
-import './authPolicy.test.js';
+import './authArchitecture.test.js';
 import './attempt.test.js';
 import './quizPolicy.test.js';
 import './aiResponse.test.js';
