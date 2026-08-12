@@ -9,7 +9,6 @@ import { projectReviewFallback } from './aiFallback.service.js';
 import { mergeWeakTopics } from './progress.service.js';
 import { requireActiveCourseForUser } from './dataIntegrity.service.js';
 import { ApiError } from '../utils/ApiError.js';
-import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
 import { createAttempt } from './attempt.service.js';
 import { assertReviewCanStart } from '../domain/reviewPolicy.js';
 import { env, isGeminiAvailable } from '../config/env.js';
@@ -104,7 +103,7 @@ export const submitProjectTask = async ({ userId, projectTaskId, taskId, submitt
     throw new ApiError(400, 'Submit code or explanation for review');
   }
 
-  const submission = await createAttempt({
+  return createAttempt({
     model: ProjectSubmission,
     identityFilter: { user: userId, projectTask: task._id },
     payload: {
@@ -117,9 +116,6 @@ export const submitProjectTask = async ({ userId, projectTaskId, taskId, submitt
     },
     limitMessage: 'You have used both submissions for this project task'
   });
-
-  await invalidateUserLearningCache(userId);
-  return submission;
 };
 
 export const reviewProjectSubmission = async ({ user, submissionId }) => {
@@ -216,7 +212,6 @@ export const reviewProjectSubmission = async ({ user, submissionId }) => {
     }));
   }
 
-  await runBestEffort('Project cache refresh', () => invalidateUserLearningCache(user._id));
   return submission;
 };
 
