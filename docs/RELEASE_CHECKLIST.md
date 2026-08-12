@@ -43,22 +43,17 @@ npm run check:gemini
 
 ## 3. Database
 
-- [ ] Back up any target database that must be preserved
-- [ ] Confirm `MONGO_URI` points to the intended environment
-- [ ] Review Mongoose index changes
-- [ ] Run only currently documented migrations when needed
-- [ ] Do not run the development seed against data that must survive
+- [ ] Confirm `MONGO_URI` points to the intended development/demo database
+- [ ] Review intentional Mongoose schema/index changes
+- [ ] Clear and reseed the disposable development database when schema changes require fresh data
+- [ ] Never run the development seed against data that must survive
 
-Current migration commands:
+For the normal project workflow:
 
 ```bash
 cd backend
-npm run migrate:attempt-numbers
-npm run migrate:attempt-indexes
-npm run migrate:question-archive-indexes
+npm run seed
 ```
-
-For the normal development workflow, the database may instead be cleared and recreated with `npm run seed`.
 
 ## 4. Production configuration
 
@@ -88,19 +83,10 @@ For the normal development workflow, the database may instead be cleared and rec
 
 - [ ] `ENABLE_AI` reflects the intended release mode
 - [ ] API key/model configured when enabled
-- [ ] Provider timeout, daily limits, repeated-prompt limits, and input limits reviewed
+- [ ] Provider timeout, daily limits, and input limits reviewed
 - [ ] No Gemini credential is exposed to the frontend
 
-## 5. Deployment order
-
-1. [ ] Put database backup/rollback plan in place
-2. [ ] Run any required database maintenance
-3. [ ] Deploy the Express API
-4. [ ] Deploy the frontend
-5. [ ] Verify `/health` and `/health/ready`
-6. [ ] Complete smoke tests before announcing the release
-
-## 6. Critical smoke tests
+## 5. Critical smoke tests
 
 ### Public and authentication
 
@@ -114,37 +100,36 @@ For the normal development workflow, the database may instead be cleared and rec
 ### Onboarding and roadmaps
 
 - [ ] Catalog shows published Courses and Learning Paths
-- [ ] Learner can select a Course directly
-- [ ] Learner can select a Learning Path
+- [ ] Learner can select a Course or Learning Path
 - [ ] Level and preferences persist across refresh
 - [ ] Beginner setup creates a roadmap
 - [ ] Intermediate/advanced diagnostic skip path works
 - [ ] Diagnostic submission/report path works
-- [ ] Roadmap creation shows normal loading, success, failure, and explicit retry states
+- [ ] Roadmap creation shows normal loading, success, failure, and retry states
 - [ ] Template fallback remains usable when Gemini is disabled
 
 ### Learning and progress
 
 - [ ] Locked modules/Lessons are not interactive
 - [ ] Completing Lessons updates Progress correctly
-- [ ] Module Quiz accepts the exact server-provided question set
+- [ ] Module Quiz accepts the server-provided question set
 - [ ] Wrong answers update weak topics and revisions
 - [ ] Lesson → Mentor predefined prompt sends exactly once
 - [ ] Mentor pending indicator disappears when the answer returns
 - [ ] Dashboard, Progress, and Reports reflect persisted data after writes/refresh
 - [ ] Switching current enrollment updates learner pages
+- [ ] Projects and Interview questions allow two attempts and reject a third
 
 ### Gemini and fallback honesty
 
 Test once with Gemini enabled and once unavailable:
 
 - [ ] Mentor distinguishes live responses from saved explanations
-- [ ] Quiz explanation uses stored fallback content honestly
+- [ ] Quiz explanation uses fallback content honestly
 - [ ] Project submission is saved before review
 - [ ] Interview answer is saved before review
 - [ ] Successful reviews may show a score
 - [ ] Fallback reviews remain scoreless
-- [ ] Retrying a failed review reuses the saved attempt
 
 ### Admin CMS
 
@@ -153,25 +138,14 @@ Test once with Gemini enabled and once unavailable:
 - [ ] Course-owned Topics, Lessons, Questions, Projects, Interview Questions, and Templates can be managed
 - [ ] Publishing requires backend readiness validation
 - [ ] Archive is required before permanent deletion for every admin content type
-- [ ] Course archive/restore cascades through Course-owned curriculum
+- [ ] Course archive cascades through Course-owned curriculum
+- [ ] Course restore returns publishable children to Draft and Topics to Active
 - [ ] Lower-level lifecycle actions do not affect parents
 - [ ] Reference/dependency blockers show clear “How to resolve” instructions
 
-### Responsive and accessibility
+## 6. Responsive and accessibility
 
 - [ ] Keyboard navigation reaches forms, dialogs, navigation, and primary actions
 - [ ] Focus indicators are visible
-- [ ] Dialog focus is trapped/restored
 - [ ] Key pages work at mobile, tablet, and desktop widths
 - [ ] Loading, empty, error, locked, unavailable, and archived states are understandable without color alone
-
-## 7. Operations and rollback
-
-- [ ] API logs include request IDs
-- [ ] Error logs do not expose secrets/tokens
-- [ ] MongoDB/SMTP/Gemini failures produce the expected readiness or fallback behavior
-- [ ] Previous frontend/API revision is available for rollback
-- [ ] Database/index changes have an understood recovery plan
-- [ ] Rollback trigger and decision-maker are known
-
-If critical authentication, onboarding, data-integrity, or attempt-preservation checks fail, fix or roll back rather than hiding the failure behind UI fallbacks.
