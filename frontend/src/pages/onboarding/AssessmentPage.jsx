@@ -10,15 +10,16 @@ import EmptyState from '../../components/common/EmptyState.jsx';
 import QuizQuestionCard from '../../components/quiz/QuizQuestionCard.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
-import { useAsyncData } from '../../hooks/useAsyncData.js';
 
 export default function AssessmentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isPersonalizeFlow = searchParams.get('personalize') === 'true';
   const personalizeQuery = isPersonalizeFlow ? '?personalize=true' : '';
-  const statusQuery = useAsyncData(onboardingApi.status);
-  const enrollment = statusQuery.data?.currentEnrollment;
+  const [statusData, setStatusData] = useState(null);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [statusError, setStatusError] = useState(null);
+  const enrollment = statusData?.currentEnrollment;
   const course = enrollment?.currentCourse || enrollment?.course;
   const level = enrollment?.level || 'intermediate';
   const enrollmentId = enrollment?._id;
@@ -31,7 +32,28 @@ export default function AssessmentPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!enrollmentId || statusQuery.isLoading || level === 'beginner') return;
+    let active = true;
+    setStatusLoading(true);
+    setStatusError(null);
+
+    onboardingApi.status()
+      .then((result) => {
+        if (active) setStatusData(result);
+      })
+      .catch((requestError) => {
+        if (active) setStatusError(requestError);
+      })
+      .finally(() => {
+        if (active) setStatusLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!enrollmentId || statusLoading || level === 'beginner') return;
     const requestKey = `${enrollmentId}:${level}`;
     if (assessmentRequestRef.current === requestKey) return;
     assessmentRequestRef.current = requestKey;
@@ -45,14 +67,14 @@ export default function AssessmentPage() {
         assessmentRequestRef.current = '';
       })
       .finally(() => setAssessmentLoading(false));
-  }, [enrollmentId, level, statusQuery.isLoading]);
+  }, [enrollmentId, level, statusLoading]);
 
   const questions = assessmentData?.questions || [];
   const answeredCount = useMemo(() => questions.filter((question) => answers[question._id]).length, [answers, questions]);
   const completion = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
   const backTo = isPersonalizeFlow ? '/dashboard' : '/onboarding/assessment-intro';
 
-  if (statusQuery.isLoading || assessmentLoading) return <Loader label="Loading your skill check..." />;
+  if (statusLoading || assessmentLoading) return <Loader label="Loading your skill check..." />;
 
   const submit = async () => {
     try {
@@ -71,7 +93,7 @@ export default function AssessmentPage() {
     }
   };
 
-  if (statusQuery.error) return <EmptyState title="Your setup could not load" description={statusQuery.error.message} actionLabel="Back to dashboard" onAction={() => navigate('/dashboard')} />;
+  if (statusError) return <EmptyState title="Your setup could not load" description={statusError.message} actionLabel="Back to dashboard" onAction={() => navigate('/dashboard')} />;
   if (level === 'beginner') return <EmptyState title="No skill check is required" description="Beginner setup uses your learning preferences to create a foundation-first roadmap." actionLabel="Continue setup" onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : '/onboarding/preferences')} />;
   if (!enrollmentId || !course) return <EmptyState title="Course enrollment not found" description="Choose a course or learning path before starting a diagnostic." actionLabel={isPersonalizeFlow ? 'Back to dashboard' : 'Open learning catalog'} onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : '/onboarding/catalog')} />;
   if (assessmentError || !questions.length) return <EmptyState title="Skill check unavailable" description={assessmentError?.message || `No ${level} skill-check questions are available for ${course.title} yet.`} actionLabel="Back to options" onAction={() => navigate(backTo)} />;
