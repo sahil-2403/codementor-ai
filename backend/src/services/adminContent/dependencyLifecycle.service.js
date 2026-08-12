@@ -48,6 +48,16 @@ const assertTechnologyParentValid = async ({ id, parentTechnology }) => {
       instruction('parentTechnology', 'Choose a top-level technology as the parent.')
     ], 'CONTENT_REFERENCE_INVALID');
   }
+
+  const childCount = await Technology.countDocuments({
+    parentTechnology: id,
+    status: activeCatalogFilter
+  });
+  if (childCount) {
+    throw new ApiError(400, 'A technology with child technologies must stay top-level.', [
+      instruction('parentTechnology', 'Reassign its child technologies before choosing a parent.')
+    ], 'CONTENT_REFERENCE_INVALID');
+  }
 };
 
 const assertTechnologyArchiveSafe = async (technologyId) => {
