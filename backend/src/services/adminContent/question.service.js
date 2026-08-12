@@ -7,7 +7,6 @@ import { RoadmapTemplate } from '../../models/RoadmapTemplate.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
-import { invalidateContentCache } from '../cacheInvalidation.service.js';
 import {
   PUBLISHABLE_STATUS,
   assertCourseExists,
@@ -197,7 +196,6 @@ export const createQuestion = async (payload) => {
     status: PUBLISHABLE_STATUS.DRAFT
   });
 
-  await invalidateContentCache();
   return question.populate([
     { path: 'course', select: 'title slug status' },
     { path: 'topic', select: 'title status course' }
@@ -237,7 +235,6 @@ export const updateQuestion = async ({ id, payload }) => {
   Object.assign(question, normalized);
   if (question.status === PUBLISHABLE_STATUS.PUBLISHED) await assertQuestionPublishable(question);
   await question.save();
-  await invalidateContentCache();
   return question.populate([
     { path: 'course', select: 'title slug status' },
     { path: 'topic', select: 'title status course' }
@@ -296,7 +293,6 @@ export const changeQuestionStatus = async ({ id, status, confirmPublish = false 
     await question.save();
   }
 
-  await invalidateContentCache();
   return { question, counts: impact.counts };
 };
 
@@ -317,6 +313,5 @@ export const deleteQuestion = async (id) => {
   }
 
   await QuizQuestion.deleteOne({ _id: question._id });
-  await invalidateContentCache();
   return { question, counts: impact.counts };
 };
