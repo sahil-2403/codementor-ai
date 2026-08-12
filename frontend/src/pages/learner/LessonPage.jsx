@@ -51,6 +51,15 @@ export default function LessonPage() {
       `/mentor?lessonId=${lesson._id}&promptType=${promptType}&autoSend=true`,
     );
 
+  const completeLesson = async () => {
+    try {
+      const result = await completeMutation.mutateAsync(lesson._id);
+      if (result?.nextPath) navigate(result.nextPath);
+    } catch {
+      // The mutation already exposes the error below the header actions.
+    }
+  };
+
   const mentorPromptClass =
     "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/35 hover:text-foreground";
 
@@ -86,7 +95,7 @@ export default function LessonPage() {
             ) : (
               <Button
                 className="min-h-9 px-3.5 text-xs sm:text-sm"
-                onClick={() => completeMutation.mutate(lesson._id)}
+                onClick={completeLesson}
                 isLoading={completeMutation.isPending}
                 loadingLabel="Saving completion..."
               >
