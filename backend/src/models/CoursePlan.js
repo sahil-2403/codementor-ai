@@ -50,13 +50,5 @@ const coursePlanSchema = new mongoose.Schema(
 
 coursePlanSchema.index({ user: 1, status: 1, createdAt: -1 });
 coursePlanSchema.index({ enrollment: 1, status: 1, isActive: 1, createdAt: -1 });
-coursePlanSchema.index(
-  { enrollment: 1, isActive: 1 },
-  {
-    unique: true,
-    name: 'enrollment_active_course_unique',
-    partialFilterExpression: { isActive: true }
-  }
-);
 
 export const CoursePlan = mongoose.model('CoursePlan', coursePlanSchema);
