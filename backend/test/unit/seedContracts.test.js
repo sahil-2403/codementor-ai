@@ -4,12 +4,12 @@ import { readFileSync } from 'node:fs';
 
 const read = (relativePath) => readFileSync(new URL(relativePath, import.meta.url), 'utf8');
 
-test('development seed reconciles stale parallel-array indexes before inserting', () => {
+test('development seed expects a fresh database and runs directly', () => {
   const packageJson = JSON.parse(read('../../package.json'));
-  const runner = read('../../src/seed/runSeed.js');
+  const seed = read('../../src/seed/seed.js');
 
-  assert.equal(packageJson.scripts.seed, 'node src/seed/runSeed.js');
-  assert.match(runner, /QuizQuestion\.syncIndexes\(\)/);
-  assert.match(runner, /ProjectTask\.syncIndexes\(\)/);
-  assert.match(runner, /await import\('\.\/seed\.js'\)/);
+  assert.equal(packageJson.scripts.seed, 'node src/seed/seed.js');
+  assert.match(seed, /ensureFreshDatabase/);
+  assert.match(seed, /Seed expects a fresh development database/);
+  assert.doesNotMatch(seed, /syncIndexes|dropIndex|migration/i);
 });
