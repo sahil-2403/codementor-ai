@@ -2,7 +2,6 @@ import { Course } from '../../models/Course.js';
 import { Topic } from '../../models/Topic.js';
 import { Lesson } from '../../models/Lesson.js';
 import { ApiError } from '../../utils/ApiError.js';
-import { invalidateContentCache } from '../cacheInvalidation.service.js';
 
 export const PUBLISHABLE_STATUS = Object.freeze({
   DRAFT: 'draft',
@@ -133,6 +132,5 @@ export const transitionStatus = async ({ model, id, label, status, confirmPublis
   document.status = status;
   await document.save();
   for (const path of populate) await document.populate(path);
-  await invalidateContentCache();
   return document;
 };
