@@ -1,11 +1,15 @@
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
-import { createAccessToken, createRefreshToken, hashToken, verifyRefreshToken } from './token.service.js';
+import { createAccessToken, createRefreshToken, verifyRefreshToken } from './token.service.js';
 import { randomToken, sha256 } from '../utils/hash.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from './email.service.js';
-import { assertEmailVerified, assertResetTokenUsable, assertVerificationTokenUsable, normalizeEmail } from '../domain/authPolicy.js';
 
-const cleanUserById = (id) => User.findById(id).select('-password -refreshTokenHash -emailVerificationToken -emailVerificationExpires -passwordResetToken -passwordResetExpires');
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+
+const cleanUserById = (id) => User.findById(id).select(
+  '-password -tokenVersion -emailVerificationToken -emailVerificationExpires -passwordResetToken -passwordResetExpires'
+);
+
 const createEmailVerificationToken = async (user) => {
   const verificationToken = randomToken(24);
   user.emailVerificationToken = sha256(verificationToken);
@@ -29,7 +33,13 @@ export const registerUser = async ({ name, email, password }) => {
   const existing = await User.findOne({ email: normalizedEmail });
   if (existing) throw new ApiError(409, 'Email already registered', [], 'EMAIL_ALREADY_REGISTERED');
 
-  const user = await User.create({ name, email: normalizedEmail, password, isEmailVerified: false });
+  const user = await User.create({
+    name,
+    email: normalizedEmail,
+    password,
+    isEmailVerified: false
+  });
+
   const verificationToken = await createEmailVerificationToken(user);
   const delivery = await sendVerificationEmail({
     email: user.email,
@@ -52,7 +62,12 @@ export const verifyEmailWithToken = async ({ token }) => {
   const user = await User.findOne({ emailVerificationToken: hashed })
     .select('+emailVerificationToken +emailVerificationExpires');
 
-  assertVerificationTokenUsable(user);
+  if (!user) {
+    throw new ApiError(400, 'Invalid verification link', [], 'VERIFICATION_TOKEN_INVALID');
+  }
+  if (!user.emailVerificationExpires || user.emailVerificationExpires <= new Date()) {
+    throw new ApiError(400, 'Verification link has expired', [], 'VERIFICATION_TOKEN_EXPIRED');
+  }
 
   user.isEmailVerified = true;
   user.emailVerificationToken = '';
@@ -62,7 +77,9 @@ export const verifyEmailWithToken = async ({ token }) => {
 };
 
 export const resendEmailVerification = async ({ email }) => {
-  const user = await User.findOne({ email: normalizeEmail(email) }).select('+emailVerificationToken +emailVerificationExpires');
+  const user = await User.findOne({ email: normalizeEmail(email) })
+    .select('+emailVerificationToken +emailVerificationExpires');
+
   if (!user || user.isEmailVerified) {
     return { message: 'If the account exists and needs verification, a verification email has been requested.' };
   }
@@ -73,60 +90,58 @@ export const resendEmailVerification = async ({ email }) => {
 };
 
 export const loginUser = async ({ email, password }) => {
-  const user = await User.findOne({ email: normalizeEmail(email) }).select('+password +refreshTokenHash +refreshTokenVersion');
+  const user = await User.findOne({ email: normalizeEmail(email) }).select('+password +tokenVersion');
   if (!user) throw new ApiError(401, 'Invalid credentials');
 
   const isMatch = await user.comparePassword(password);
   if (!isMatch) throw new ApiError(401, 'Invalid credentials');
-  assertEmailVerified(user);
+  if (!user.isEmailVerified) {
+    throw new ApiError(403, 'Please verify your email before logging in', [], 'EMAIL_NOT_VERIFIED');
+  }
 
-  user.refreshTokenVersion = (user.refreshTokenVersion || 0) + 1;
-  const accessToken = createAccessToken(user);
-  const refreshToken = createRefreshToken(user);
-  user.refreshTokenHash = hashToken(refreshToken);
   user.lastLoginAt = new Date();
   await user.save();
 
+  const accessToken = createAccessToken(user);
+  const refreshToken = createRefreshToken(user);
   const cleanUser = await cleanUserById(user._id);
+
   return { user: cleanUser, accessToken, refreshToken };
 };
 
 export const refreshAuthTokens = async (refreshToken) => {
   if (!refreshToken) throw new ApiError(401, 'Refresh token required');
-  const decoded = verifyRefreshToken(refreshToken);
-  const user = await User.findById(decoded.id).select('+refreshTokenHash +refreshTokenVersion');
 
-  if (!user) throw new ApiError(401, 'Invalid refresh token');
-  const versionMatches = (user.refreshTokenVersion || 0) === (decoded.version || 0);
-  const hashMatches = user.refreshTokenHash && user.refreshTokenHash === hashToken(refreshToken);
-
-  if (!versionMatches || !hashMatches) {
-    user.refreshTokenHash = null;
-    user.refreshTokenVersion = (user.refreshTokenVersion || 0) + 1;
-    await user.save();
-    throw new ApiError(401, 'Invalid refresh token');
+  let decoded;
+  try {
+    decoded = verifyRefreshToken(refreshToken);
+  } catch {
+    throw new ApiError(401, 'Invalid or expired refresh token');
   }
 
-  user.refreshTokenVersion = (user.refreshTokenVersion || 0) + 1;
-  const accessToken = createAccessToken(user);
-  const nextRefreshToken = createRefreshToken(user);
-  user.refreshTokenHash = hashToken(nextRefreshToken);
-  await user.save();
-  const cleanUser = await cleanUserById(user._id);
-  return { user: cleanUser, accessToken, refreshToken: nextRefreshToken };
+  const user = await User.findById(decoded.id).select('+tokenVersion');
+  if (!user) throw new ApiError(401, 'Invalid refresh token');
+  if ((user.tokenVersion || 0) !== (decoded.tokenVersion || 0)) {
+    throw new ApiError(401, 'This session has been revoked');
+  }
+  if (!user.isEmailVerified) {
+    throw new ApiError(403, 'Email verification required', [], 'EMAIL_NOT_VERIFIED');
+  }
+
+  return { accessToken: createAccessToken(user) };
 };
 
 export const logoutAllDevices = async (userId) => {
-  const user = await User.findById(userId).select('+refreshTokenVersion +refreshTokenHash');
+  const user = await User.findById(userId).select('+tokenVersion');
   if (!user) throw new ApiError(404, 'User not found');
-  user.refreshTokenHash = null;
-  user.refreshTokenVersion = (user.refreshTokenVersion || 0) + 1;
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
   await user.save();
 };
 
 export const requestPasswordReset = async (email) => {
   const genericMessage = 'If the email exists, a password reset link has been requested.';
-  const user = await User.findOne({ email: normalizeEmail(email) }).select('+passwordResetToken +passwordResetExpires');
+  const user = await User.findOne({ email: normalizeEmail(email) })
+    .select('+passwordResetToken +passwordResetExpires');
   if (!user) return { message: genericMessage };
 
   const resetToken = randomToken(24);
@@ -140,12 +155,15 @@ export const requestPasswordReset = async (email) => {
 export const resetPasswordWithToken = async ({ token, password }) => {
   const hashed = sha256(token);
   const user = await User.findOne({ passwordResetToken: hashed })
-    .select('+passwordResetToken +passwordResetExpires +refreshTokenVersion +refreshTokenHash');
-  assertResetTokenUsable(user);
+    .select('+passwordResetToken +passwordResetExpires +tokenVersion');
+
+  if (!user || !user.passwordResetExpires || user.passwordResetExpires <= new Date()) {
+    throw new ApiError(400, 'Invalid or expired reset token', [], 'RESET_TOKEN_INVALID');
+  }
+
   user.password = password;
   user.passwordResetToken = '';
   user.passwordResetExpires = null;
-  user.refreshTokenHash = null;
-  user.refreshTokenVersion = (user.refreshTokenVersion || 0) + 1;
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
   await user.save();
 };
