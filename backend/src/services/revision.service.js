@@ -1,4 +1,5 @@
 import { RevisionItem } from '../models/RevisionItem.js';
+import { getActiveCourseForUser } from './dataIntegrity.service.js';
 
 const addDays = (date, days) => {
   const next = new Date(date);
@@ -71,7 +72,14 @@ export const getRevisionStats = async ({ userId, coursePlanId }) => {
 };
 
 export const updateRevisionStatus = async ({ userId, revisionId, status }) => {
-  const revision = await RevisionItem.findOne({ _id: revisionId, user: userId });
+  const course = await getActiveCourseForUser({ userId });
+  if (!course) return null;
+
+  const revision = await RevisionItem.findOne({
+    _id: revisionId,
+    user: userId,
+    coursePlan: course._id
+  });
   if (!revision) return null;
   revision.status = status;
   await revision.save();
