@@ -2,23 +2,51 @@
 
 CodeMentor AI is intentionally maintained as a strong junior-level MERN portfolio project. The goal is to demonstrate correct full-stack development, secure APIs, MongoDB data modelling, practical React state/data handling, optional Gemini integration, testing, and deployment without unnecessary infrastructure.
 
-## Project rule
+## Final project rule
 
-Every feature, bug fix, refactor, and new piece of code must stay explainable and believable for a junior MERN developer.
+**Hireflow (`sahil-2403/Hireflow`, current `main`) is the architecture and complexity ceiling for CodeMentor AI.**
 
-Before implementing a requested change, first decide whether it can be solved within junior-level scope. If it can, use the simplest normal React, Express, Mongoose, MongoDB, and JavaScript solution that keeps the product correct. If the requested solution would require advanced engineering such as distributed locking, complex concurrency control, event-driven infrastructure, migrations/backfills, custom frameworks, or enterprise architecture, call that out before implementation instead of silently adding it.
+CodeMentor may use simpler code than Hireflow, but it must not introduce architecture, infrastructure, abstractions, security flows, state-management patterns, or backend concepts that are more advanced than the patterns already used in Hireflow unless the project scope is explicitly changed by the user.
+
+Before implementing any requested feature, bug fix, or refactor:
+
+1. First decide whether the change can be implemented within the current junior/Hireflow scope.
+2. If it can, use the simplest normal React, Axios, Express, Mongoose, MongoDB, and JavaScript solution that keeps the feature correct.
+3. If it would require architecture beyond Hireflow, explain that before implementation and do not add the advanced solution unless the user explicitly chooses to raise the project scope.
 
 Prefer clear business rules and straightforward sequential code over perfect handling of rare production-scale edge cases that are outside this portfolio project's scope.
+
+## Reference architecture
+
+The preferred request flow follows the same foundation as Hireflow:
+
+```text
+Frontend
+Page / Component
+  -> local useState + useEffect
+  -> API wrapper
+  -> Axios
+  -> Express
+
+Backend
+Route
+  -> validation / authentication / role middleware
+  -> Controller
+  -> Service
+  -> Mongoose Model
+```
+
+Feature-owned code should stay easy to trace. Shared middleware and utilities are used only when they are genuinely reusable. Avoid adding abstraction layers only to make the project look more production-like.
 
 ## Included engineering scope
 
 The project demonstrates:
 
 - React, React Router, Axios, forms, validation, loading, error, locked, and fallback states
-- Plain React hooks for server-data loading and mutation state
+- Page-local React state/effects for API loading and mutation state
 - Express routes, controllers, services, middleware, and centralized errors
 - MongoDB and Mongoose schemas, references, indexes, and straightforward CRUD rules
-- Cookie-based JWT authentication, refresh rotation, CSRF protection, CORS, rate limiting, email verification, and password recovery
+- Cookie-based access/refresh JWT authentication with one token version, CSRF protection, CORS, rate limiting, email verification, and password recovery
 - Course/Learning Path onboarding, Roadmap Templates, CoursePlans, quiz scoring, revisions, projects, interviews, and reports
 - Multiple learner Enrollments with one explicit current Enrollment
 - Simple sequential Learning Path course advancement
@@ -26,6 +54,46 @@ The project demonstrates:
 - Simple two-attempt limits for Projects and Interview practice
 - Optional Gemini features with daily/input limits, response schemas, and honest scoreless fallbacks
 - Focused unit/source-contract tests and a repeatable release-check command
+
+## Authentication boundary
+
+Authentication should stay at the Hireflow level:
+
+- short-lived access JWT in an HttpOnly cookie
+- longer-lived refresh JWT in an HttpOnly cookie
+- one `tokenVersion` on the User
+- refresh verifies the refresh token and token version, then issues a new access token
+- refresh tokens are not stored as hashes and are not rotated on every refresh
+- logout clears browser cookies
+- logout-all and password reset increment `tokenVersion` to invalidate existing sessions
+- frontend session restoration uses `me -> refresh -> me`
+- one Axios response interceptor retries a failed authenticated request once after refresh
+- CSRF uses a simple token cookie/header comparison
+
+Do not add refresh-token families, refresh-token databases, token reuse detection, device-session tables, distributed session stores, or similar systems unless the project scope is explicitly raised.
+
+## Frontend data boundary
+
+Normal feature data should follow the Hireflow pattern:
+
+- API functions live in small API wrapper files
+- pages/components use normal `useState`, `useEffect`, and event handlers
+- mutations explicitly update local state or reload the data they need
+- authentication may use AuthContext because it is shared application state
+
+Do not add a custom server-state framework, global refresh bus, query-key system, application data cache, optimistic cache layer, or third-party server-state library.
+
+## Backend boundary
+
+Backend request handling should stay easy to trace:
+
+- routes define middleware and controller
+- controllers handle request/response work
+- services contain feature business logic
+- Mongoose models handle persistence
+- small reusable helpers are acceptable where they remove real duplication
+
+Do not add application caching, queues/workers, transaction-heavy flows, repository layers, event buses, command/query buses, dependency-injection frameworks, distributed locks, or migration/backfill infrastructure for this disposable demo database.
 
 ## Reliability rules
 
@@ -66,8 +134,6 @@ The simple two-attempt check can theoretically be exceeded by truly simultaneous
 
 Roadmap generation also uses a normal check-then-create request flow. It repairs an already-created roadmap if a normal retry occurs, but two truly simultaneous generation requests are not protected by distributed locks or database transactions. The UI prevents normal duplicate generation, and production-scale concurrency control is intentionally outside this project's scope.
 
-The current authentication model supports one active refresh-token chain per user. Logging in again may invalidate an earlier browser session. This is acceptable for the project scope and should be explained clearly during interviews.
-
 ## Before demonstrating or deploying
 
 Install dependencies, then run:
@@ -76,6 +142,6 @@ Install dependencies, then run:
 node scripts/release-check.mjs
 ```
 
-Manually verify registration, verification, login, onboarding resume, Course/Learning Path selection, roadmap creation, Lesson completion, Learning Path advancement, Quiz scoring, Mentor handoff, Project/Interview attempts, AI-disabled fallbacks, reports, enrollment switching, admin lifecycle operations, and logout-all-devices.
+Manually verify registration, verification, login, onboarding resume, Course/Learning Path selection, roadmap creation, Lesson completion, Learning Path advancement, Quiz scoring, Mentor handoff, Project/Interview attempts, AI-disabled fallbacks, reports, enrollment switching, admin lifecycle operations, refresh recovery, logout, and logout-all-devices.
 
 The project should be evaluated by whether these flows are correct, understandable, and deployable—not by how much infrastructure it contains.
