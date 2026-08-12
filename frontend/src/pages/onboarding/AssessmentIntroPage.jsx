@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BrainCircuit, ClipboardCheck, FastForward, ShieldCheck } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
@@ -10,18 +10,40 @@ import { onboardingApi } from '../../api/onboardingApi.js';
 import { onboardingCopyByLevel } from '../../constants/onboardingSteps.js';
 import Loader from '../../components/common/Loader.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
-import { useDataRefresh } from '../../context/DataRefreshContext.jsx';
-import { useAsyncData } from '../../hooks/useAsyncData.js';
 
 export default function AssessmentIntroPage() {
   const navigate = useNavigate();
-  const { refreshData } = useDataRefresh();
-  const { data, isLoading, error: statusError, refetch } = useAsyncData(onboardingApi.status);
+  const [data, setData] = useState(null);
+  const [statusError, setStatusError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [error, setError] = useState('');
+  const [skipping, setSkipping] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setStatusError(null);
+
+    onboardingApi.status()
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setStatusError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
+
   const enrollment = data?.currentEnrollment;
   const course = enrollment?.currentCourse || enrollment?.course;
   const level = enrollment?.level || 'intermediate';
-  const [error, setError] = useState('');
-  const [skipping, setSkipping] = useState(false);
   const copy = onboardingCopyByLevel[level] || onboardingCopyByLevel.intermediate;
 
   const skip = async () => {
@@ -30,7 +52,6 @@ export default function AssessmentIntroPage() {
       setSkipping(true);
       setError('');
       await onboardingApi.skipAssessment({ enrollmentId: enrollment._id });
-      refreshData();
       navigate('/onboarding/generating');
     } catch (err) {
       setError(err?.message || 'Could not save your choice.');
@@ -40,7 +61,7 @@ export default function AssessmentIntroPage() {
   };
 
   if (isLoading) return <Loader label="Loading your options..." />;
-  if (statusError) return <EmptyState title="Your options could not load" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
+  if (statusError) return <EmptyState title="Your options could not load" description={statusError.message} actionLabel="Try again" onAction={() => setLoadAttempt((value) => value + 1)} />;
   if (!enrollment || !course) return <EmptyState title="Your course selection is missing" description="Choose a course or learning path before starting a diagnostic." actionLabel="Open learning catalog" onAction={() => navigate('/onboarding/catalog')} />;
   if (level === 'beginner') return <EmptyState title="A diagnostic is not required" description="Beginner learners start from the course foundations." actionLabel="Create roadmap" onAction={() => navigate('/onboarding/generating')} />;
 
