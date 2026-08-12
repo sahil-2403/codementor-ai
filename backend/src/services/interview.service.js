@@ -10,9 +10,6 @@ import { mergeWeakTopics } from './progress.service.js';
 import { requireActiveCourseForUser } from './dataIntegrity.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { escapeRegex } from '../utils/regex.js';
-import { CACHE_TTL, getOrSetCache } from './cache.service.js';
-import { cacheKeys } from './cacheKeys.service.js';
-import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
 import { createAttempt } from './attempt.service.js';
 import { assertReviewCanStart } from '../domain/reviewPolicy.js';
 import { env, isGeminiAvailable } from '../config/env.js';
@@ -34,15 +31,11 @@ export const listInterviewQuestions = async ({ userId, topic, difficulty, type }
   if (difficulty) filter.difficulty = difficulty;
   if (type) filter.type = type;
 
-  return getOrSetCache(
-    cacheKeys.interviewQuestions(filter),
-    () => InterviewQuestion.find(filter)
-      .select(publicQuestionProjection)
-      .sort({ topic: 1, difficulty: 1, createdAt: 1 })
-      .limit(100)
-      .lean(),
-    CACHE_TTL.MEDIUM
-  );
+  return InterviewQuestion.find(filter)
+    .select(publicQuestionProjection)
+    .sort({ topic: 1, difficulty: 1, createdAt: 1 })
+    .limit(100)
+    .lean();
 };
 
 export const getInterviewQuestion = async ({ questionId, userId }) => {
@@ -69,7 +62,7 @@ export const saveInterviewAnswer = async ({ user, questionId, answer }) => {
     maxChars: env.aiInputLimits.interviewAnswerChars
   });
 
-  const attempt = await createAttempt({
+  return createAttempt({
     model: InterviewAttempt,
     identityFilter: { user: user._id, question: question._id },
     payload: {
@@ -81,9 +74,6 @@ export const saveInterviewAnswer = async ({ user, questionId, answer }) => {
     },
     limitMessage: 'You have used both attempts for this interview question'
   });
-
-  await invalidateUserLearningCache(user._id);
-  return attempt;
 };
 
 export const reviewInterviewAttempt = async ({ user, attemptId }) => {
@@ -175,7 +165,6 @@ export const reviewInterviewAttempt = async ({ user, attemptId }) => {
     }));
   }
 
-  await runBestEffort('Interview cache refresh', () => invalidateUserLearningCache(user._id));
   return attempt;
 };
 
