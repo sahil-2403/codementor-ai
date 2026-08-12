@@ -1,9 +1,9 @@
 import { WeeklyReport } from '../models/WeeklyReport.js';
-import { CoursePlan } from '../models/CoursePlan.js';
 import { Progress } from '../models/Progress.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { aiProvider } from '../ai/aiProvider.service.js';
 import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
+import { getActiveCourseForUser } from './dataIntegrity.service.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 import { getUtcWeekStart } from '../utils/week.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -41,7 +41,7 @@ const saveUsage = async (payload) => {
 };
 
 export const generateWeeklyReportForUser = async (userId) => {
-  const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true });
+  const course = await getActiveCourseForUser({ userId });
   if (!course) return null;
   const progress = await Progress.findOne({ user: userId, coursePlan: course._id });
   if (!progress) return null;
@@ -90,6 +90,10 @@ export const generateWeeklyReportForUser = async (userId) => {
   });
 };
 
-export const getReports = async (userId, limit = 20) => WeeklyReport.find({ user: userId })
-  .sort({ createdAt: -1 })
-  .limit(Math.min(Math.max(Number(limit) || 20, 1), 50));
+export const getReports = async (userId, limit = 20) => {
+  const course = await getActiveCourseForUser({ userId });
+  if (!course) return [];
+  return WeeklyReport.find({ user: userId, coursePlan: course._id })
+    .sort({ createdAt: -1 })
+    .limit(Math.min(Math.max(Number(limit) || 20, 1), 50));
+};
