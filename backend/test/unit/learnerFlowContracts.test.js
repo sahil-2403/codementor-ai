@@ -11,19 +11,25 @@ test('learner requests resolve one explicit current enrollment', () => {
 
   assert.match(user, /currentEnrollment/);
   assert.match(integrity, /getCurrentEnrollmentForUser/);
+  assert.match(integrity, /status: 'active'/);
+  assert.match(integrity, /status: 'completed'/);
   assert.match(integrity, /enrollment:\s*enrollment\._id/);
   assert.match(onboarding, /get\('\/enrollments'/);
   assert.match(onboarding, /post\('\/enrollments\/:enrollmentId\/current'/);
 });
 
-test('projects and interview practice stay inside the current course', () => {
+test('projects interview quizzes and revisions stay inside the current course', () => {
   const projects = source('services/project.service.js');
   const interview = source('services/interview.service.js');
+  const quiz = source('services/quiz.service.js');
+  const revision = source('services/revision.service.js');
 
   assert.match(projects, /course:\s*course\.course/);
   assert.match(projects, /belongs to a different course/);
   assert.match(interview, /course:\s*course\.course/);
   assert.match(interview, /belongs to a different course/);
+  assert.match(quiz, /coursePlan:\s*course\._id/);
+  assert.match(revision, /coursePlan:\s*course\._id/);
 });
 
 test('learning path completion advances with simple sequential enrollment updates', () => {
@@ -38,19 +44,26 @@ test('learning path completion advances with simple sequential enrollment update
 test('roadmap retry repairs progress and fallback is not labelled personalized', () => {
   const controller = source('controllers/roadmap.controller.js');
   const roadmap = source('services/roadmap.service.js');
+  const dashboard = source('controllers/progress.controller.js');
 
   assert.match(controller, /repairExistingRoadmap/);
   assert.match(controller, /createProgressForCourse/);
   assert.match(roadmap, /const finalReason = aiGenerated \|\| roadmapType === ROADMAP_TYPES\.TEMPLATE/);
   assert.match(roadmap, /: 'initial_template'/);
+  assert.match(dashboard, /assessmentPreference === 'take'/);
+  assert.match(dashboard, /canPersonalizeLater/);
 });
 
-test('admin course archive blocks active learner roadmaps and catalog levels stay compatible', () => {
+test('admin lifecycle protects active learners and simple catalog rules', () => {
   const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
   const catalog = source('services/adminContent/catalog.service.js');
+  const questions = source('services/adminContent/question.service.js');
 
   assert.match(lifecycle, /activeLearnerPlans/);
   assert.match(lifecycle, /active learner roadmap/);
+  assert.match(lifecycle, /A technology with child technologies must stay top-level/);
   assert.match(catalog, /assertCourseFitsPublishedPaths/);
-  assert.match(catalog, /supports only one parent level|Choose a top-level technology as the parent/);
+  assert.match(catalog, /Choose a top-level technology as the parent/);
+  assert.match(questions, /assertQuestionNotInActiveRoadmap/);
+  assert.match(questions, /used by an active learner roadmap/);
 });
