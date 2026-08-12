@@ -63,15 +63,7 @@ export const errorHandler = (error, req, res, next) => {
   const isServerError = normalized.statusCode >= 500;
 
   if (!env.isTest) {
-    console.error('Request failed.', {
-      requestId: req.requestId,
-      method: req.method,
-      path: req.originalUrl,
-      code: normalized.code,
-      statusCode: normalized.statusCode,
-      message: normalized.message,
-      stack: env.isDevelopment ? error.stack : undefined
-    });
+    console.error('Request failed:', normalized.message);
   }
 
   res.status(normalized.statusCode).json({
@@ -79,7 +71,6 @@ export const errorHandler = (error, req, res, next) => {
     code: normalized.code,
     message: env.isProduction && isServerError ? 'Internal server error' : normalized.message,
     errors: normalized.errors,
-    requestId: req.requestId,
     stack: env.isDevelopment ? error.stack : undefined
   });
 };
