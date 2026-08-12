@@ -7,8 +7,8 @@ export const isReviewStale = (reviewRequestedAt, now = Date.now()) => {
   return !requestedAt || now - requestedAt >= REVIEW_STALE_MS;
 };
 
-export const assertReviewCanStart = ({ status, reviewRequestedAt, label }) => {
-  if (status === 'reviewing' && !isReviewStale(reviewRequestedAt)) {
+export const assertReviewCanStart = ({ status, reviewRequestedAt, label, now = Date.now() }) => {
+  if (status === 'reviewing' && !isReviewStale(reviewRequestedAt, now)) {
     throw new ApiError(409, `${label} is already being reviewed`, [], 'REVIEW_IN_PROGRESS');
   }
   return true;
