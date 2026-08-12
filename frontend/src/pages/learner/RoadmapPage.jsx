@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -5,7 +6,7 @@ import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import ModuleCard from '../../components/roadmap/ModuleCard.jsx';
-import { useRoadmap } from '../../queries/roadmapQueries.js';
+import { roadmapApi } from '../../api/roadmapApi.js';
 
 function findDefaultExpandedModule(modules = []) {
   if (!modules.length) return -1;
@@ -36,7 +37,31 @@ function findDefaultExpandedModule(modules = []) {
 
 export default function RoadmapPage() {
   const navigate = useNavigate();
-  const { data, isLoading, error, refetch } = useRoadmap();
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+
+    roadmapApi.current()
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
 
   if (isLoading) return <Loader label="Loading roadmap..." />;
   if (error) {
@@ -45,7 +70,7 @@ export default function RoadmapPage() {
         title="Roadmap is unavailable"
         description={error.message}
         actionLabel="Try again"
-        onAction={() => refetch()}
+        onAction={() => setLoadAttempt((value) => value + 1)}
       />
     );
   }
