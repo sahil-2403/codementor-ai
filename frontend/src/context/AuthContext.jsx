@@ -1,57 +1,93 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { authApi } from '../api/authApi.js';
 
 const AuthContext = createContext(null);
-const SESSION_EXPIRED_EVENT = 'auth:session-expired';
+
+const getSessionUser = async () => {
+  try {
+    const data = await authApi.me();
+    return data.user;
+  } catch (error) {
+    const requestUrl = error?.config?.url || '';
+    if (error?.config?._authRetry || requestUrl.includes('/auth/refresh-token')) return null;
+
+    try {
+      await authApi.refresh();
+      const data = await authApi.me();
+      return data.user;
+    } catch {
+      return null;
+    }
+  }
+};
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadUser = async () => {
-    try {
-      await authApi.csrf();
-      const data = await authApi.me();
-      setUser(data.user);
-    } catch {
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => { loadUser(); }, []);
-
-  useEffect(() => {
-    const clearExpiredSession = () => setUser(null);
-    window.addEventListener(SESSION_EXPIRED_EVENT, clearExpiredSession);
-    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, clearExpiredSession);
+  const restoreSession = useCallback(async () => {
+    setIsLoading(true);
+    const sessionUser = await getSessionUser();
+    setUser(sessionUser);
+    setIsLoading(false);
+    return sessionUser;
   }, []);
 
-  const login = async (payload) => {
+  useEffect(() => {
+    let shouldIgnore = false;
+
+    const initialize = async () => {
+      const sessionUser = await getSessionUser();
+      if (shouldIgnore) return;
+      setUser(sessionUser);
+      setIsLoading(false);
+    };
+
+    initialize();
+    return () => {
+      shouldIgnore = true;
+    };
+  }, []);
+
+  const login = useCallback(async (payload) => {
     const data = await authApi.login(payload);
     setUser(data.user);
     return data.user;
-  };
+  }, []);
 
-  const register = async (payload) => {
+  const register = useCallback(async (payload) => {
     const data = await authApi.register(payload);
     setUser(null);
     return data;
-  };
+  }, []);
 
-  const verifyEmail = async (payload) => authApi.verifyEmail(payload);
-  const resendVerification = async (payload) => authApi.resendVerification(payload);
-
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await authApi.logout();
     } finally {
       setUser(null);
     }
-  };
+  }, []);
 
-  const value = useMemo(() => ({ user, isLoading, isAuthenticated: Boolean(user), login, register, verifyEmail, resendVerification, logout, reloadUser: loadUser }), [user, isLoading]);
+  const signOut = useCallback(() => setUser(null), []);
+  const updateUser = useCallback((userData) => {
+    setUser((current) => (current ? { ...current, ...userData } : current));
+  }, []);
+
+  const value = useMemo(() => ({
+    user,
+    isLoading,
+    isAuthenticated: Boolean(user),
+    login,
+    register,
+    verifyEmail: authApi.verifyEmail,
+    resendVerification: authApi.resendVerification,
+    logout,
+    signOut,
+    updateUser,
+    reloadUser: restoreSession
+  }), [user, isLoading, login, register, logout, signOut, updateUser, restoreSession]);
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
