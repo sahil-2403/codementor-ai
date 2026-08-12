@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,8 +14,6 @@ import Select from '../../components/common/Select.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import { preferencesFormSchema } from '../../validations/onboarding.schema.js';
-import { useDataRefresh } from '../../context/DataRefreshContext.jsx';
-import { useAsyncData } from '../../hooks/useAsyncData.js';
 
 const defaults = {
   dailyStudyTime: 120,
@@ -27,14 +25,37 @@ const defaults = {
 
 export default function PreferencesPage() {
   const navigate = useNavigate();
-  const { refreshData } = useDataRefresh();
-  const { data, isLoading, error: statusError, refetch } = useAsyncData(onboardingApi.status);
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusError, setStatusError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const enrollment = data?.currentEnrollment;
   const offering = enrollment?.type === 'learning_path' ? enrollment?.learningPath : enrollment?.course;
   const { register, handleSubmit, setError, watch, reset, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(preferencesFormSchema),
     defaultValues: defaults
   });
+
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setStatusError(null);
+
+    onboardingApi.status()
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setStatusError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
 
   useEffect(() => {
     if (!enrollment) return;
@@ -61,7 +82,6 @@ export default function PreferencesPage() {
         knownBasics: values.knownBasics.split(',').map((item) => item.trim()).filter(Boolean),
         mainFocus: values.mainFocus
       });
-      refreshData();
       navigate(result?.enrollment?.onboardingState === 'roadmap_pending' ? '/onboarding/generating' : '/onboarding/assessment-intro');
     } catch (err) {
       setError('root', { message: err?.message || 'Could not save your preferences.' });
@@ -69,7 +89,7 @@ export default function PreferencesPage() {
   };
 
   if (isLoading) return <Loader label="Loading your learning preferences..." />;
-  if (statusError) return <EmptyState title="Your preferences could not load" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
+  if (statusError) return <EmptyState title="Your preferences could not load" description={statusError.message} actionLabel="Try again" onAction={() => setLoadAttempt((value) => value + 1)} />;
   if (!enrollment || !offering) return <EmptyState title="Your course selection is missing" description="Choose a course or learning path before setting preferences." actionLabel="Open learning catalog" onAction={() => navigate('/onboarding/catalog')} />;
 
   const assessmentOptional = enrollment.level !== 'beginner';
