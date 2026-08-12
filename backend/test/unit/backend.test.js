@@ -1,5 +1,5 @@
 import './authPolicy.test.js';
-import './attemptSlot.test.js';
+import './attempt.test.js';
 import './quizPolicy.test.js';
 import './aiResponse.test.js';
 import './aiFallback.test.js';
