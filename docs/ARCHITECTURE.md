@@ -7,15 +7,15 @@ CodeMentor AI is a React single-page application backed by an Express API and Mo
 ```text
 Browser
   └─ React Router pages
-      └─ React domain data hooks
+      └─ React data hooks
           └─ Axios
-              └─ Express routes and middleware
+              └─ Express routes
                   └─ Controllers
-                      └─ Domain services
+                      └─ Services
                           ├─ MongoDB / Mongoose
                           ├─ In-process memory cache
                           ├─ SMTP delivery (optional)
-                          └─ Gemini + learning context (optional)
+                          └─ Gemini (optional)
 ```
 
 ## Product hierarchy
@@ -42,122 +42,67 @@ Enrollment
 CoursePlan / Progress
 ```
 
-Technology is catalog classification. Course is the central learning unit. Learning Paths reference ordered Courses without owning them. Learner runtime state belongs to Enrollment and CoursePlan.
+Technology classifies Courses. Course is the central learning unit. Learning Paths reference ordered Courses without owning them. Learner state belongs to Enrollment and CoursePlan.
 
-## Frontend architecture
+## Frontend
 
-### Routing and access control
+- `src/api/` contains Axios wrappers grouped by domain.
+- Domain data hooks load API data with normal React state/effects.
+- `useAsyncData` exposes data, loading, error, and refetch state.
+- `useAsyncAction` runs writes and refreshes mounted data after success.
+- React Router handles public, onboarding, learner, and admin routes.
+- React Hook Form and Zod handle forms and validation.
+- Loading, empty, error, unavailable, locked, and archived states are shown explicitly.
 
-- Public routes contain landing, authentication, verification, and recovery screens.
-- Protected learner routes require authentication.
-- `OnboardingGuard` loads server onboarding status before allowing setup or course routes.
-- Admin routes require the `admin` role and use a separate content-management layout.
+The Mentor page renders messages as normal pre-wrapped text and uses one effect to scroll to the latest message.
 
-The browser does not decide whether onboarding is complete, whether a module is locked, or whether an attempt is available. It renders server-owned state.
+## Backend
 
-### Data access
+Express routes apply authentication, role checks, rate limits, request validation, and controllers. Controllers call service functions for domain work.
 
-- `src/api/` contains small Axios wrappers grouped by domain.
-- `src/queries/` contains domain hooks implemented with normal React hooks.
-- `useAsyncData` loads server data and exposes loading/error/refetch state.
-- `useAsyncAction` runs writes and triggers a simple refresh signal after success.
-- `DataRefreshContext` tells currently mounted data hooks to reload after successful writes.
-- There is no frontend server-response cache. Pages load current server data when mounted or refreshed.
-- The Axios instance sends credentialed cookies, obtains CSRF tokens for protected writes, performs the application refresh-token flow, and normalizes API errors.
+Services handle:
 
-### UI and domain contracts
+- Authentication and password/email flows
+- Course and Learning Path onboarding
+- Assessment grading
+- Roadmap creation
+- Lesson completion and quizzes
+- Progress and revisions
+- Two-attempt project/interview practice
+- Mentor context lookup
+- Admin content lifecycle rules
 
-- Shared components use semantic design tokens.
-- Loading, empty, error, unavailable, locked, and archived states are explicit.
-- Expected interview answers are gated until an attempt is saved.
-- Fallback project/interview reviews remain scoreless.
-
-## Backend architecture
-
-### Request pipeline
-
-The Express application applies security, CORS, parsing, request logging, rate limiting, CSRF protection, domain routes, not-found handling, and centralized error handling.
-
-Routes compose authentication, role checks, rate limits, validation, and controllers. Controllers delegate domain behavior to services.
-
-### Service layer
-
-Services own:
-
-- Authentication and token rotation
-- Course/Learning Path onboarding
-- Assessment grading and reports
-- Roadmap creation and versioning
-- Lesson completion and module unlocking
-- Quiz scoring and weak-topic merging
-- Revision scheduling
-- Project/interview attempt limits and reviews
-- Mentor context assembly
-- Admin content lifecycle validation
-- Cache invalidation
-
-### Persistence
-
-MongoDB stores users, catalog entities, course-owned curriculum, enrollments, course plans, progress, attempts, revisions, chats, reports, and AI usage records.
-
-Important integrity rules include:
-
-- One active CoursePlan per Enrollment
-- Course-scoped curriculum references
-- Unique project/interview attempt slots
-- Published-content validation before learner exposure
-- Archive-before-delete lifecycle rules
-- Parent Course lifecycle cascading only through Course-owned content
+MongoDB stores users, catalog entities, curriculum, enrollments, CoursePlans, progress, attempts, revisions, chats, reports, and basic AI usage records.
 
 ## Core flows
 
-### Authentication
+### Roadmap generation
 
-1. Registration creates an unverified user and verification token.
-2. Email delivery uses SMTP or development log mode.
-3. Login requires verified credentials.
-4. Access and refresh tokens are stored in HTTP-only cookies.
-5. Protected writes require CSRF validation.
-6. Refresh rotates session state; logout-all invalidates sessions.
+1. Load the learner's current Enrollment.
+2. Load the published Course + level Roadmap Template.
+3. Optionally ask Gemini to adjust module wording/order.
+4. Archive the previous active CoursePlan if one exists.
+5. Create the new CoursePlan and Progress record.
+6. Mark onboarding complete and return the roadmap.
 
-### Onboarding and roadmap generation
+The flow uses normal sequential Mongoose operations.
 
-1. Learner chooses a Course or Learning Path.
-2. Learner chooses an available level and preferences.
-3. Intermediate/advanced learners may take or skip a Course-specific diagnostic.
-4. The server persists onboarding state and returns the next route.
-5. Roadmap creation happens directly in the request using the published Course + level template and optional Gemini adjustment.
-6. The new CoursePlan is persisted, Progress is created, and the learner is redirected to the Dashboard.
-7. A later diagnostic can create a new active roadmap version while retaining earlier versions.
+### Project and interview attempts
 
-### Lessons, quizzes, and progress
+Each task/question allows two attempts:
 
-1. Only Lessons in the active CoursePlan can be opened.
-2. Completing module Lessons unlocks later work according to the roadmap rules.
-3. Module quizzes use the server-provided question set.
-4. Scoring is deterministic from stored answers.
-5. Wrong answers update quiz statistics, weak topics, and revision items.
-6. Dashboard and Progress pages read persisted CoursePlan/Progress state.
+1. Count the learner's existing attempts.
+2. Reject the request when two attempts already exist.
+3. Otherwise create attempt 1 or attempt 2.
+4. Save Gemini review when available, or scoreless fallback guidance when unavailable.
 
-### Projects and interview practice
+### Mentor context
 
-- Each task/question has bounded atomic attempt slots.
-- The learner answer/submission is saved before review.
-- Successful Gemini review may save a score and weak-topic signals.
-- Provider failure stores scoreless fallback guidance.
-- Retrying review reuses the saved attempt.
-
-### Mentor and retrieval
-
-The Mentor builds bounded context from the active CoursePlan, current Lesson, weak topics, quiz history, and matching published Lesson content. When Gemini is unavailable, saved explanations remain available instead of fabricating live AI output.
-
-## Cache behavior
-
-The cache is a small in-process JavaScript `Map` used for short-lived dashboard/content reads. Writes invalidate affected cache prefixes. The application remains correct with caching disabled.
+The Mentor uses the active CoursePlan, current Lesson, recent quiz mistakes, weak topics, and simple keyword matching against published Lessons from the same Course. This is normal MongoDB content lookup, not a separate retrieval infrastructure.
 
 ## Admin lifecycle
 
-All admin content follows the same deletion rule:
+All admin content follows:
 
 ```text
 Draft / Published / Active
@@ -169,10 +114,26 @@ Draft / Published / Active
    Restore    Delete
 ```
 
-Course lifecycle actions cascade downward through Course-owned content. Lower-level content actions do not change parents. Technology, Learning Path, and prerequisite references do not cascade and may block an operation with a clear resolution message.
+- Permanent deletion requires Archived state.
+- Archiving a Course archives its owned Topics, Lessons, Questions, Projects, Interview Questions, and Roadmap Templates.
+- Restoring a Course returns the Course and publishable children to Draft; Topics become Active.
+- Lower-level actions never change their parent.
+- Technology, Learning Path, and prerequisite references do not cascade and may block an action.
+- Blocked actions return a clear reason and a simple resolution instruction.
 
-## Operational health
+## Gemini
+
+Gemini integration keeps only the application-level behavior needed by learners:
+
+- daily per-feature limits
+- maximum input lengths
+- response validation where structured JSON is required
+- simple success/failure usage records
+- deterministic/stored fallback content when Gemini is unavailable
+
+## Cache and health
+
+The cache is a small in-process JavaScript `Map` for short-lived reads. The application remains correct with caching disabled.
 
 - `/health` reports process liveness.
-- `/health/ready` reports required MongoDB readiness and optional email/Gemini configuration.
-- The API handles termination signals and closes the HTTP server and MongoDB connection cleanly.
+- `/health/ready` checks MongoDB and configured optional services.
