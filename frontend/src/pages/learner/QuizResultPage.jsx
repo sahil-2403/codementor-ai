@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -15,7 +15,7 @@ import Badge from '../../components/common/Badge.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import QuizResultSummary from '../../components/quiz/QuizResultSummary.jsx';
-import { useExplainQuizAttempt, useQuizAttempt } from '../../queries/quizQueries.js';
+import { quizApi } from '../../api/quizApi.js';
 
 const sourceLabel = (source) =>
   source?.title ||
@@ -74,14 +74,34 @@ function FormattedExplanation({ text }) {
 export default function QuizResultPage() {
   const { attemptId } = useParams();
   const navigate = useNavigate();
-  const {
-    data,
-    isLoading,
-    error: attemptError,
-    refetch
-  } = useQuizAttempt(attemptId);
-  const explainMutation = useExplainQuizAttempt(attemptId);
+  const [data, setData] = useState(null);
+  const [attemptError, setAttemptError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [isExplaining, setIsExplaining] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!attemptId) return undefined;
+    let active = true;
+    setIsLoading(true);
+    setAttemptError(null);
+
+    quizApi.attempt(attemptId)
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setAttemptError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [attemptId, loadAttempt]);
 
   if (isLoading) return <Loader label="Loading quiz result..." />;
 
@@ -104,7 +124,7 @@ export default function QuizResultPage() {
         title="Quiz attempt not found"
         description="This result is not available for your account."
         actionLabel="Try again"
-        onAction={() => refetch()}
+        onAction={() => setLoadAttempt((value) => value + 1)}
       />
     );
   }
@@ -116,11 +136,15 @@ export default function QuizResultPage() {
   const explainMistakes = async () => {
     if (!hasMistakes) return;
 
+    setIsExplaining(true);
     try {
       setError('');
-      await explainMutation.mutateAsync();
+      await quizApi.explainAttempt(attemptId);
+      setLoadAttempt((value) => value + 1);
     } catch (err) {
       setError(err?.message || 'Could not prepare the explanation.');
+    } finally {
+      setIsExplaining(false);
     }
   };
 
@@ -128,7 +152,7 @@ export default function QuizResultPage() {
     <PageShell className="space-y-5 pb-6">
       <div className="mx-auto max-w-5xl space-y-5">
         <QuizResultSummary attempt={attempt} />
-        <ErrorMessage message={error || explainMutation.error?.message} />
+        <ErrorMessage message={error} />
 
         <Card
           className={`shadow-sm ${
@@ -193,7 +217,7 @@ export default function QuizResultPage() {
             ) : (
               <Button
                 onClick={explainMistakes}
-                isLoading={explainMutation.isPending}
+                isLoading={isExplaining}
                 loadingLabel="Preparing explanation..."
                 className="shrink-0 gap-2"
               >
