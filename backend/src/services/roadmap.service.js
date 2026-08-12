@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import { CoursePlan } from '../models/CoursePlan.js';
 import { Enrollment } from '../models/Enrollment.js';
 import { Assessment } from '../models/Assessment.js';
@@ -19,12 +18,6 @@ const reasonByRoadmapType = {
   [ROADMAP_TYPES.TEMPLATE]: 'initial_template',
   [ROADMAP_TYPES.TEMPLATE_AI_ADJUSTED]: 'preference_adjusted',
   [ROADMAP_TYPES.ASSESSMENT_AI_PERSONALIZED]: 'assessment_personalized'
-};
-
-const ensureCourseReady = async ({ course, userId, session = null }) => {
-  if (!course) return null;
-  await createProgressForCourse({ userId, coursePlanId: course._id, session });
-  return course;
 };
 
 const mergeAiModules = (templateModules = [], aiModules = []) => {
@@ -114,6 +107,7 @@ export const createCourseFromTemplate = async ({
         assessment
       });
       const personalizedModules = mergeAiModules(template.modules || [], aiRoadmap?.modules || []);
+
       if (personalizedModules) {
         roadmapTitle = aiRoadmap.title || template.title;
         roadmapDescription = aiRoadmap.description || template.description;
@@ -142,70 +136,41 @@ export const createCourseFromTemplate = async ({
   }
 
   const modules = await resolveTemplateModules(templateForResolution);
-  let coursePlan;
+  const previousActive = await CoursePlan.findOne({
+    enrollment: enrollmentId,
+    status: COURSE_STATUS.ACTIVE,
+    isActive: true
+  }).sort({ version: -1 });
+  const latestVersion = await CoursePlan.findOne({ enrollment: enrollmentId }).sort({ version: -1 }).select('version');
+  const nextVersion = (latestVersion?.version || 0) + 1;
 
-  const persistCourse = async (session = null) => {
-    const maybeSession = (query) => (session ? query.session(session) : query);
-    const previousActive = await maybeSession(
-      CoursePlan.findOne({ enrollment: enrollmentId, status: COURSE_STATUS.ACTIVE, isActive: true }).sort({ version: -1 })
-    );
-    const latestVersion = await maybeSession(
-      CoursePlan.findOne({ enrollment: enrollmentId }).sort({ version: -1 }).select('version')
-    );
-    const nextVersion = (latestVersion?.version || 0) + 1;
+  await CoursePlan.updateMany(
+    { enrollment: enrollmentId, status: COURSE_STATUS.ACTIVE, isActive: true },
+    { status: COURSE_STATUS.ARCHIVED, isActive: false }
+  );
 
-    await CoursePlan.updateMany(
-      { enrollment: enrollmentId, status: COURSE_STATUS.ACTIVE, isActive: true },
-      { status: COURSE_STATUS.ARCHIVED, isActive: false },
-      session ? { session } : undefined
-    );
+  const coursePlan = await CoursePlan.create({
+    user: userId,
+    enrollment: enrollmentId,
+    course: catalogCourse._id,
+    learningPath: enrollment.learningPath?._id || enrollment.learningPath || null,
+    title: roadmapTitle,
+    description: roadmapDescription,
+    level,
+    roadmapType: aiGenerated ? roadmapType : ROADMAP_TYPES.TEMPLATE,
+    modules,
+    status: COURSE_STATUS.ACTIVE,
+    aiGenerated,
+    version: nextVersion,
+    parentCoursePlan: previousActive?._id || null,
+    generatedReason: generatedReason || reasonByRoadmapType[roadmapType] || 'manual_regeneration',
+    isActive: true
+  });
 
-    const createPayload = {
-      user: userId,
-      enrollment: enrollmentId,
-      course: catalogCourse._id,
-      learningPath: enrollment.learningPath?._id || enrollment.learningPath || null,
-      title: roadmapTitle,
-      description: roadmapDescription,
-      level,
-      roadmapType: aiGenerated ? roadmapType : ROADMAP_TYPES.TEMPLATE,
-      modules,
-      status: COURSE_STATUS.ACTIVE,
-      aiGenerated,
-      version: nextVersion,
-      parentCoursePlan: previousActive?._id || null,
-      generatedReason: generatedReason || reasonByRoadmapType[roadmapType] || 'manual_regeneration',
-      isActive: true
-    };
-
-    const createdCourses = await CoursePlan.create([createPayload], session ? { session } : undefined);
-    const createdCourse = createdCourses[0];
-
-    enrollment.status = 'active';
-    enrollment.currentCourse = catalogCourse._id;
-    await enrollment.save(session ? { session } : undefined);
-    await createProgressForCourse({ userId, coursePlanId: createdCourse._id, session });
-    coursePlan = createdCourse;
-  };
-
-  try {
-    if (env.enableMongoTransactions) {
-      const session = await mongoose.startSession();
-      try {
-        await session.withTransaction(() => persistCourse(session));
-      } finally {
-        await session.endSession();
-      }
-    } else {
-      await persistCourse();
-    }
-  } catch (error) {
-    if (error?.code !== 11000) throw error;
-    const recoveredCourse = await getActiveRoadmapForEnrollment({ userId, enrollmentId });
-    if (!recoveredCourse) throw error;
-    coursePlan = await ensureCourseReady({ course: recoveredCourse, userId });
-  }
-
+  enrollment.status = 'active';
+  enrollment.currentCourse = catalogCourse._id;
+  await enrollment.save();
+  await createProgressForCourse({ userId, coursePlanId: coursePlan._id });
   await setRoadmapOnboardingState({ userId, enrollmentId, state: ONBOARDING_STATES.COMPLETED });
   await invalidateUserLearningCache(userId);
   await logActivity({
@@ -222,6 +187,7 @@ export const createCourseFromTemplate = async ({
       aiGenerated: coursePlan.aiGenerated
     }
   });
+
   return coursePlan;
 };
 
