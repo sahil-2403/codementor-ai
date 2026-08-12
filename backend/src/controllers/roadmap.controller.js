@@ -7,7 +7,8 @@ import {
   getRoadmapVersions,
   personalizeCurrentRoadmapLater
 } from '../services/roadmap.service.js';
-import { getActiveCourseForUser } from '../services/dataIntegrity.service.js';
+import { createProgressForCourse } from '../services/progress.service.js';
+import { getActiveCourseForUser, setCurrentEnrollmentForUser } from '../services/dataIntegrity.service.js';
 import { getOnboardingStatus, setRoadmapOnboardingState } from '../services/onboarding.service.js';
 import { ROADMAP_TYPES } from '../constants/roadmapTypes.js';
 import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
@@ -32,6 +33,12 @@ const markRoadmapCompleted = ({ userId, enrollmentId }) => setRoadmapOnboardingS
   state: ONBOARDING_STATES.COMPLETED
 });
 
+const repairExistingRoadmap = async ({ userId, enrollmentId, course }) => {
+  await createProgressForCourse({ userId, coursePlanId: course._id });
+  await markRoadmapCompleted({ userId, enrollmentId });
+  await setCurrentEnrollmentForUser({ userId, enrollmentId });
+};
+
 export const generateOrGetRoadmap = asyncHandler(async (req, res) => {
   const onboarding = await getOnboardingStatus(req.user._id);
   const enrollment = onboarding.currentEnrollment;
@@ -42,7 +49,7 @@ export const generateOrGetRoadmap = asyncHandler(async (req, res) => {
     enrollmentId: enrollment._id
   });
   if (existingCourse) {
-    await markRoadmapCompleted({ userId: req.user._id, enrollmentId: enrollment._id });
+    await repairExistingRoadmap({ userId: req.user._id, enrollmentId: enrollment._id, course: existingCourse });
     return sendResponse(res, 200, 'Existing roadmap found', { course: existingCourse, mode: 'existing' });
   }
 
@@ -80,7 +87,7 @@ export const generateFromAssessment = asyncHandler(async (req, res) => {
   if (!forceNewVersion) {
     const existingCourse = await getActiveRoadmapForEnrollment({ userId: req.user._id, enrollmentId });
     if (existingCourse?.generatedReason === 'assessment_personalized') {
-      await markRoadmapCompleted({ userId: req.user._id, enrollmentId });
+      await repairExistingRoadmap({ userId: req.user._id, enrollmentId, course: existingCourse });
       return sendResponse(res, 200, 'Existing personalized roadmap found', { course: existingCourse, mode: 'existing' });
     }
   }
