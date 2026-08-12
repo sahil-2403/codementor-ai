@@ -1,6 +1,5 @@
 import { InterviewQuestion } from '../models/InterviewQuestion.js';
 import { InterviewAttempt } from '../models/InterviewAttempt.js';
-import { CoursePlan } from '../models/CoursePlan.js';
 import { Progress } from '../models/Progress.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { aiProvider } from '../ai/aiProvider.service.js';
@@ -8,6 +7,7 @@ import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
 import { guardAIRequest } from './aiSafety.service.js';
 import { interviewFeedbackFallback } from './aiFallback.service.js';
 import { mergeWeakTopics } from './progress.service.js';
+import { requireActiveCourseForUser } from './dataIntegrity.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { escapeRegex } from '../utils/regex.js';
 import { CACHE_TTL, getOrSetCache } from './cache.service.js';
@@ -27,8 +27,9 @@ const runBestEffort = async (label, action) => {
   }
 };
 
-export const listInterviewQuestions = async ({ topic, difficulty, type }) => {
-  const filter = { status: 'published' };
+export const listInterviewQuestions = async ({ userId, topic, difficulty, type }) => {
+  const course = await requireActiveCourseForUser({ userId, lean: true });
+  const filter = { status: 'published', course: course.course };
   if (topic) filter.topic = new RegExp(escapeRegex(topic), 'i');
   if (difficulty) filter.difficulty = difficulty;
   if (type) filter.type = type;
@@ -45,22 +46,24 @@ export const listInterviewQuestions = async ({ topic, difficulty, type }) => {
 };
 
 export const getInterviewQuestion = async ({ questionId, userId }) => {
+  const course = await requireActiveCourseForUser({ userId, lean: true });
   const hasAttempted = await InterviewAttempt.exists({ user: userId, question: questionId });
-  const query = InterviewQuestion.findOne({ _id: questionId, status: 'published' });
+  const query = InterviewQuestion.findOne({ _id: questionId, course: course.course, status: 'published' });
   if (!hasAttempted) query.select(publicQuestionProjection);
   const question = await query;
-  if (!question) throw new ApiError(404, 'Interview question not found');
+  if (!question) throw new ApiError(404, 'Interview question not found in your current course');
   return question;
 };
 
-const getFullInterviewQuestion = async (questionId) => {
-  const question = await InterviewQuestion.findOne({ _id: questionId, status: 'published' });
-  if (!question) throw new ApiError(404, 'Interview question not found');
+const getFullInterviewQuestion = async ({ questionId, userId }) => {
+  const course = await requireActiveCourseForUser({ userId, lean: true });
+  const question = await InterviewQuestion.findOne({ _id: questionId, course: course.course, status: 'published' });
+  if (!question) throw new ApiError(404, 'Interview question not found in your current course');
   return question;
 };
 
 export const saveInterviewAnswer = async ({ user, questionId, answer }) => {
-  const question = await getFullInterviewQuestion(questionId);
+  const question = await getFullInterviewQuestion({ questionId, userId: user._id });
   const { sanitizedText } = await guardAIRequest({
     text: answer,
     maxChars: env.aiInputLimits.interviewAnswerChars
@@ -86,6 +89,11 @@ export const saveInterviewAnswer = async ({ user, questionId, answer }) => {
 export const reviewInterviewAttempt = async ({ user, attemptId }) => {
   const attempt = await InterviewAttempt.findOne({ _id: attemptId, user: user._id }).populate('question');
   if (!attempt) throw new ApiError(404, 'Interview attempt not found');
+
+  const course = await requireActiveCourseForUser({ userId: user._id });
+  if (attempt.question?.course?.toString() !== course.course.toString()) {
+    throw new ApiError(403, 'This interview attempt belongs to a different course');
+  }
   if (attempt.status === 'reviewed') return attempt;
   assertReviewCanStart({ status: attempt.status, reviewRequestedAt: attempt.reviewRequestedAt, label: 'This interview attempt' });
 
@@ -96,8 +104,7 @@ export const reviewInterviewAttempt = async ({ user, attemptId }) => {
   await attempt.save();
 
   const aiConfigured = isGeminiAvailable();
-  const course = await CoursePlan.findOne({ user: user._id, status: 'active', isActive: true });
-  const progress = course ? await Progress.findOne({ user: user._id, coursePlan: course._id }) : null;
+  const progress = await Progress.findOne({ user: user._id, coursePlan: course._id });
   let aiResult = null;
   let reviewError = null;
 
@@ -109,7 +116,7 @@ export const reviewInterviewAttempt = async ({ user, attemptId }) => {
     aiResult = await aiProvider.reviewInterviewAnswer({
       question: attempt.question,
       answer: attempt.answer,
-      userLevel: course?.level || 'learner'
+      userLevel: course.level || 'learner'
     });
   } catch (error) {
     reviewError = error;
@@ -177,7 +184,11 @@ export const submitInterviewAnswer = async ({ user, questionId, answer }) => {
   return reviewInterviewAttempt({ user, attemptId: attempt._id });
 };
 
-export const listInterviewAttempts = async ({ userId }) => InterviewAttempt.find({ user: userId })
-  .populate('question')
-  .sort({ createdAt: -1 })
-  .limit(30);
+export const listInterviewAttempts = async ({ userId }) => {
+  const course = await requireActiveCourseForUser({ userId, lean: true });
+  const questionIds = await InterviewQuestion.find({ course: course.course }).distinct('_id');
+  return InterviewAttempt.find({ user: userId, question: { $in: questionIds } })
+    .populate('question')
+    .sort({ createdAt: -1 })
+    .limit(30);
+};
