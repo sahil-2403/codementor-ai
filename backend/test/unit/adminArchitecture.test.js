@@ -96,11 +96,14 @@ test('catalog archives protect external references and explain blockers', () => 
   assert.match(contentController, /changeTemplateStatusSafely/);
 });
 
-test('technology hierarchy cannot become circular', () => {
+test('technology parent validation stays simple', () => {
   const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
   const controller = source('controllers/adminCatalog.controller.js');
-  assert.match(lifecycle, /assertTechnologyParentAcyclic/);
-  assert.match(lifecycle, /Technology parent relationships cannot form a cycle/);
+
+  assert.match(lifecycle, /assertTechnologyParentValid/);
+  assert.match(lifecycle, /A technology cannot be its own parent/);
+  assert.match(lifecycle, /Selected parent technology is unavailable/);
+  assert.doesNotMatch(lifecycle, /visited|while \(currentId\)/);
   assert.match(controller, /updateTechnologySafely/);
 });
 
