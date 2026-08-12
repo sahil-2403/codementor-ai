@@ -23,11 +23,7 @@ const projectTaskSchema = new mongoose.Schema(
     evaluationChecklist: [{ type: String }],
     tags: [{ type: String }],
     estimatedMinutes: { type: Number, default: 60 },
-    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft', index: true },
-    archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
-    archivedByLessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }],
-    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
-    statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null }
+    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft', index: true }
   },
   { timestamps: true }
 );
@@ -39,9 +35,7 @@ projectTaskSchema.pre('validate', async function validateOwnership() {
 
   const [course, lessons] = await Promise.all([
     Course.findById(courseId).select('_id status').lean(),
-    lessonIds.length
-      ? Lesson.find({ _id: { $in: lessonIds } }).select('_id course').lean()
-      : []
+    lessonIds.length ? Lesson.find({ _id: { $in: lessonIds } }).select('_id course').lean() : []
   ]);
 
   if (!course || course.status === 'archived') this.invalidate('course', 'Project must belong to an available course');
@@ -54,8 +48,6 @@ projectTaskSchema.pre('validate', async function validateOwnership() {
 projectTaskSchema.index({ course: 1, slug: 1 }, { unique: true });
 projectTaskSchema.index({ course: 1, status: 1, difficulty: 1, moduleTitle: 1 });
 projectTaskSchema.index({ technologies: 1, status: 1 });
-projectTaskSchema.index({ archivedByTopics: 1, status: 1 });
-projectTaskSchema.index({ archivedByLessons: 1, status: 1 });
 projectTaskSchema.index({ title: 'text', description: 'text', tags: 'text' });
 
 export const ProjectTask = mongoose.model('ProjectTask', projectTaskSchema);
