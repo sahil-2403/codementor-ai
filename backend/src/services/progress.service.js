@@ -3,9 +3,6 @@ import { CoursePlan } from '../models/CoursePlan.js';
 import { Enrollment } from '../models/Enrollment.js';
 import { getWeakTopicSeverity, getNextLessonFromCourse, buildLearningRecommendations, buildStudyPlan } from './recommendation.service.js';
 import { scheduleRevisionForWeakTopic, getDueRevisions, getRevisionStats } from './revision.service.js';
-import { CACHE_TTL, getOrSetCache } from './cache.service.js';
-import { cacheKeys } from './cacheKeys.service.js';
-import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
 import { assertLessonBelongsToCourse, getActiveCourseForUser } from './dataIntegrity.service.js';
 import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
 
@@ -15,14 +12,11 @@ const calculateCompletion = (course, completedLessonIds) => {
   return Math.round((completedLessonIds.length / totalLessons) * 100);
 };
 
-export const createProgressForCourse = async ({ userId, coursePlanId }) => {
-  await invalidateUserLearningCache(userId);
-  return Progress.findOneAndUpdate(
-    { user: userId, coursePlan: coursePlanId },
-    { $setOnInsert: { user: userId, coursePlan: coursePlanId } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  );
-};
+export const createProgressForCourse = async ({ userId, coursePlanId }) => Progress.findOneAndUpdate(
+  { user: userId, coursePlan: coursePlanId },
+  { $setOnInsert: { user: userId, coursePlan: coursePlanId } },
+  { new: true, upsert: true, setDefaultsOnInsert: true }
+);
 
 const buildCurrentProgressPayload = async (userId) => {
   const course = await getActiveCourseForUser({ userId, populate: true, lean: true });
@@ -45,9 +39,7 @@ const buildCurrentProgressPayload = async (userId) => {
   return { course, progress, nextLesson, dueRevisions, revisionStats, recommendations, studyPlan, roadmapVersions };
 };
 
-export const getCurrentProgress = async (userId) => {
-  return getOrSetCache(cacheKeys.dashboard(userId), () => buildCurrentProgressPayload(userId), CACHE_TTL.SHORT);
-};
+export const getCurrentProgress = (userId) => buildCurrentProgressPayload(userId);
 
 const advanceLearningPathIfNeeded = async ({ course, progress }) => {
   if (progress.overallCompletion < 100 || !course.enrollment) return null;
@@ -122,7 +114,6 @@ export const markLessonComplete = async ({ userId, lessonId }) => {
   await progress.save();
 
   const pathResult = await advanceLearningPathIfNeeded({ course, progress });
-  await invalidateUserLearningCache(userId);
   return { progress, ...pathResult };
 };
 
@@ -159,5 +150,4 @@ export const mergeWeakTopics = async ({ progress, weakTopics, source = 'quiz' })
     });
   }
   await progress.save();
-  await invalidateUserLearningCache(progress.user);
 };
