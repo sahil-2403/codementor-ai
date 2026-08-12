@@ -1,4 +1,9 @@
-import slugify from 'slugify';
+const normalizeText = (value) => String(value || '')
+  .normalize('NFKD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase()
+  .trim();
 
-export const generateSlug = (value) =>
-  slugify(value, { lower: true, strict: true, trim: true });
+export const generateSlug = (value) => normalizeText(value)
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '');

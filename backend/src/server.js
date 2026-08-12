@@ -1,7 +1,6 @@
 import app from './app.js';
 import { env } from './config/env.js';
 import { connectDB, disconnectDB } from './config/db.js';
-import { closeRedisConnection } from './config/redis.js';
 import { verifyEmailTransport } from './email/emailTransport.js';
 
 let server = null;
@@ -25,7 +24,6 @@ const shutdown = async (signal, exitCode = 0) => {
 
   try {
     await closeHttpServer();
-    await closeRedisConnection();
     await disconnectDB();
     clearTimeout(forceExit);
     process.exit(exitCode);
@@ -45,8 +43,7 @@ const start = async () => {
       environment: env.nodeEnv,
       gemini: env.enableAi && Boolean(env.geminiApiKey),
       email: env.emailEnabled,
-      cache: env.enableCache ? env.cacheDriver : 'disabled',
-      queue: env.enableQueue
+      cache: env.enableCache ? 'memory' : 'disabled'
     });
   });
 };

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { BrainCircuit, ClipboardCheck, FastForward, ShieldCheck } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
@@ -11,12 +10,13 @@ import { onboardingApi } from '../../api/onboardingApi.js';
 import { onboardingCopyByLevel } from '../../constants/onboardingSteps.js';
 import Loader from '../../components/common/Loader.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
-import { queryKeys } from '../../constants/queryKeys.js';
+import { useDataRefresh } from '../../context/DataRefreshContext.jsx';
+import { useAsyncData } from '../../hooks/useAsyncData.js';
 
 export default function AssessmentIntroPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const { data, isLoading, error: statusError, refetch } = useQuery({ queryKey: queryKeys.onboardingStatus, queryFn: onboardingApi.status, retry: false });
+  const { refreshData } = useDataRefresh();
+  const { data, isLoading, error: statusError, refetch } = useAsyncData(onboardingApi.status);
   const enrollment = data?.currentEnrollment;
   const course = enrollment?.currentCourse || enrollment?.course;
   const level = enrollment?.level || 'intermediate';
@@ -30,7 +30,7 @@ export default function AssessmentIntroPage() {
       setSkipping(true);
       setError('');
       await onboardingApi.skipAssessment({ enrollmentId: enrollment._id });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus });
+      refreshData();
       navigate('/onboarding/generating');
     } catch (err) {
       setError(err?.message || 'Could not save your choice.');

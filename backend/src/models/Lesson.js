@@ -30,12 +30,7 @@ const lessonSchema = new mongoose.Schema(
     practiceTask: { type: String, default: '' },
     tags: [{ type: String }],
     estimatedMinutes: { type: Number, default: 45 },
-    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft' },
-    manualArchive: { type: Boolean, default: false },
-    archivedByTopics: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }],
-    statusBeforeCascadeArchive: { type: String, enum: ['draft', 'published'], default: null },
-    statusBeforeTopicArchive: { type: String, enum: ['draft', 'published'], default: null },
-    statusBeforeCourseArchive: { type: String, enum: ['draft', 'published'], default: null }
+    status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft' }
   },
   { timestamps: true }
 );
@@ -44,10 +39,12 @@ lessonSchema.pre('validate', async function validateOwnership() {
   const courseId = referenceId(this.course);
   const topicId = referenceId(this.topic);
   if (!courseId || !topicId) return;
+
   const [course, topic] = await Promise.all([
     Course.findById(courseId).select('_id status').lean(),
     Topic.findById(topicId).select('_id course status').lean()
   ]);
+
   if (!course || course.status === 'archived') this.invalidate('course', 'Lesson must belong to an available course');
   if (!topic || topic.status !== 'active') this.invalidate('topic', 'Lesson must belong to an active topic');
   else if (referenceString(topic.course) !== referenceString(courseId)) this.invalidate('topic', 'Lesson topic must belong to the same course');
@@ -56,7 +53,6 @@ lessonSchema.pre('validate', async function validateOwnership() {
 lessonSchema.index({ course: 1, slug: 1 }, { unique: true });
 lessonSchema.index({ course: 1, status: 1, difficulty: 1, topic: 1, createdAt: -1 });
 lessonSchema.index({ technologies: 1, status: 1 });
-lessonSchema.index({ archivedByTopics: 1, status: 1 });
 lessonSchema.index({ title: 'text', theory: 'text', tags: 'text' });
 
 export const Lesson = mongoose.model('Lesson', lessonSchema);

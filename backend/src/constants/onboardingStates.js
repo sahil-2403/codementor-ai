@@ -6,7 +6,6 @@ export const ONBOARDING_STATES = Object.freeze({
   ASSESSMENT_IN_PROGRESS: 'assessment_in_progress',
   ASSESSMENT_COMPLETED: 'assessment_completed',
   ROADMAP_PENDING: 'roadmap_pending',
-  ROADMAP_GENERATING: 'roadmap_generating',
   ROADMAP_FAILED: 'roadmap_failed',
   COMPLETED: 'completed'
 });
@@ -19,7 +18,6 @@ export const ONBOARDING_NEXT_PATH = Object.freeze({
   [ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS]: '/onboarding/assessment',
   [ONBOARDING_STATES.ASSESSMENT_COMPLETED]: '/onboarding/assessment-report',
   [ONBOARDING_STATES.ROADMAP_PENDING]: '/onboarding/generating',
-  [ONBOARDING_STATES.ROADMAP_GENERATING]: '/onboarding/generating',
   [ONBOARDING_STATES.ROADMAP_FAILED]: '/onboarding/generating',
   [ONBOARDING_STATES.COMPLETED]: '/dashboard'
 });

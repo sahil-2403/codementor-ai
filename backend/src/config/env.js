@@ -20,7 +20,6 @@ const envBoolean = (defaultValue = false) =>
   }, z.boolean());
 
 const optionalString = z.preprocess(emptyToUndefined, z.string().min(1).optional());
-const optionalUrl = z.preprocess(emptyToUndefined, z.string().url().optional());
 const optionalEmail = z.preprocess(emptyToUndefined, z.string().email().optional());
 const optionalPort = z.preprocess(
   emptyToUndefined,
@@ -33,7 +32,6 @@ const envSchema = z.object({
   CLIENT_URL: z.string().url().default('http://localhost:5173'),
   ALLOWED_ORIGINS: z.string().optional().default(''),
   MONGO_URI: z.string().min(1, 'MONGO_URI is required'),
-  ENABLE_MONGO_TRANSACTIONS: envBoolean(false),
   JWT_ACCESS_SECRET: z.string().min(1, 'JWT_ACCESS_SECRET is required'),
   JWT_REFRESH_SECRET: z.string().min(1, 'JWT_REFRESH_SECRET is required'),
   JWT_ACCESS_EXPIRES_IN: z.string().min(1).default('15m'),
@@ -49,16 +47,12 @@ const envSchema = z.object({
   AI_ROUTE_RATE_LIMIT: z.coerce.number().int().positive().default(40),
   ADMIN_WRITE_RATE_LIMIT: z.coerce.number().int().positive().default(80),
   ENABLE_CACHE: envBoolean(true),
-  CACHE_DRIVER: z.enum(['memory', 'redis', 'disabled']).default('memory'),
   CACHE_DASHBOARD_TTL_SECONDS: z.coerce.number().int().positive().default(30),
   CACHE_CONTENT_TTL_SECONDS: z.coerce.number().int().positive().default(600),
-  ENABLE_QUEUE: envBoolean(false),
-  REDIS_URL: optionalUrl,
   ENABLE_AI: envBoolean(false),
   GEMINI_API_KEY: optionalString,
   GEMINI_MODEL: z.string().min(1).default('gemini-1.5-flash'),
   AI_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
-  ENABLE_RAG: envBoolean(false),
   DAILY_MENTOR_LIMIT: z.coerce.number().int().positive().default(10),
   DAILY_ROADMAP_LIMIT: z.coerce.number().int().positive().default(1),
   DAILY_QUIZ_EXPLANATION_LIMIT: z.coerce.number().int().positive().default(3),
@@ -70,8 +64,6 @@ const envSchema = z.object({
   MAX_PROJECT_EXPLANATION_CHARS: z.coerce.number().int().positive().default(4000),
   MAX_INTERVIEW_ANSWER_CHARS: z.coerce.number().int().positive().default(3000),
   MAX_AI_CONTEXT_CHARS: z.coerce.number().int().positive().default(5000),
-  AI_REPEAT_WINDOW_MINUTES: z.coerce.number().int().positive().default(10),
-  AI_REPEAT_LIMIT: z.coerce.number().int().positive().default(3),
   EMAIL_ENABLED: envBoolean(false),
   SMTP_HOST: optionalString,
   SMTP_PORT: optionalPort,
@@ -98,11 +90,6 @@ const envSchema = z.object({
 
   if (values.COOKIE_SAME_SITE === 'none' && !values.COOKIE_SECURE) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['COOKIE_SECURE'], message: 'COOKIE_SECURE must be true when COOKIE_SAME_SITE is none' });
-  }
-
-  const redisCacheEnabled = values.ENABLE_CACHE && values.CACHE_DRIVER === 'redis';
-  if ((values.ENABLE_QUEUE || redisCacheEnabled) && !values.REDIS_URL) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['REDIS_URL'], message: 'REDIS_URL is required for Redis cache or queue mode' });
   }
 
   if (values.ENABLE_AI && !values.GEMINI_API_KEY) {
@@ -140,7 +127,6 @@ export const env = Object.freeze({
   clientUrl: values.CLIENT_URL,
   allowedOrigins: Object.freeze((values.ALLOWED_ORIGINS || values.CLIENT_URL).split(',').map((origin) => origin.trim()).filter(Boolean)),
   mongoUri: values.MONGO_URI,
-  enableMongoTransactions: values.ENABLE_MONGO_TRANSACTIONS,
   jwtAccessSecret: values.JWT_ACCESS_SECRET,
   jwtRefreshSecret: values.JWT_REFRESH_SECRET,
   jwtAccessExpiresIn: values.JWT_ACCESS_EXPIRES_IN,
@@ -151,18 +137,14 @@ export const env = Object.freeze({
   trustProxy: parseTrustProxy(values.TRUST_PROXY),
   rateLimits: Object.freeze({ api: values.API_RATE_LIMIT, auth: values.AUTH_RATE_LIMIT, register: values.REGISTER_RATE_LIMIT, passwordReset: values.PASSWORD_RESET_RATE_LIMIT, aiRoute: values.AI_ROUTE_RATE_LIMIT, adminWrite: values.ADMIN_WRITE_RATE_LIMIT }),
   enableCache: values.ENABLE_CACHE,
-  cacheDriver: values.CACHE_DRIVER,
   cacheDashboardTtlSeconds: values.CACHE_DASHBOARD_TTL_SECONDS,
   cacheContentTtlSeconds: values.CACHE_CONTENT_TTL_SECONDS,
-  enableQueue: values.ENABLE_QUEUE,
-  redisUrl: values.REDIS_URL,
   enableAi: values.ENABLE_AI,
   geminiApiKey: values.GEMINI_API_KEY,
   geminiModel: values.GEMINI_MODEL,
   aiTimeoutMs: values.AI_TIMEOUT_MS,
-  enableRag: values.ENABLE_RAG,
   aiLimits: Object.freeze({ mentor: values.DAILY_MENTOR_LIMIT, roadmap: values.DAILY_ROADMAP_LIMIT, quizExplanation: values.DAILY_QUIZ_EXPLANATION_LIMIT, weeklyReport: values.WEEKLY_REPORT_LIMIT, projectReview: values.DAILY_PROJECT_REVIEW_LIMIT, interviewFeedback: values.DAILY_INTERVIEW_FEEDBACK_LIMIT }),
-  aiInputLimits: Object.freeze({ mentorPromptChars: values.MAX_MENTOR_PROMPT_CHARS, projectCodeChars: values.MAX_PROJECT_CODE_CHARS, projectExplanationChars: values.MAX_PROJECT_EXPLANATION_CHARS, interviewAnswerChars: values.MAX_INTERVIEW_ANSWER_CHARS, contextChars: values.MAX_AI_CONTEXT_CHARS, repeatWindowMinutes: values.AI_REPEAT_WINDOW_MINUTES, repeatLimit: values.AI_REPEAT_LIMIT }),
+  aiInputLimits: Object.freeze({ mentorPromptChars: values.MAX_MENTOR_PROMPT_CHARS, projectCodeChars: values.MAX_PROJECT_CODE_CHARS, projectExplanationChars: values.MAX_PROJECT_EXPLANATION_CHARS, interviewAnswerChars: values.MAX_INTERVIEW_ANSWER_CHARS, contextChars: values.MAX_AI_CONTEXT_CHARS }),
   emailEnabled: values.EMAIL_ENABLED,
   smtpHost: values.SMTP_HOST,
   smtpPort: values.SMTP_PORT,
@@ -177,7 +159,5 @@ export const env = Object.freeze({
   enableDemoMode: values.ENABLE_DEMO_MODE
 });
 
-export const isCacheEnabled = () => env.enableCache && env.cacheDriver !== 'disabled';
-export const isRedisCacheEnabled = () => isCacheEnabled() && env.cacheDriver === 'redis';
-export const isQueueEnabled = () => env.enableQueue && Boolean(env.redisUrl);
+export const isCacheEnabled = () => env.enableCache;
 export const isGeminiAvailable = () => env.enableAi && Boolean(env.geminiApiKey);

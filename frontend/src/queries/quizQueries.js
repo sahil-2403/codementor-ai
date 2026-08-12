@@ -1,18 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { quizApi } from '../api/quizApi.js';
-import { queryKeys } from '../constants/queryKeys.js';
-import { invalidateMany } from './queryUtils.js';
+import { useAsyncAction } from '../hooks/useAsyncAction.js';
+import { useAsyncData } from '../hooks/useAsyncData.js';
 
-export const useModuleQuiz = (moduleId) => useQuery({ queryKey: queryKeys.quiz(moduleId), queryFn: () => quizApi.moduleQuiz(moduleId), enabled: Boolean(moduleId) });
-export const useQuizAttempt = (attemptId) => useQuery({ queryKey: queryKeys.quizAttempt(attemptId), queryFn: () => quizApi.attempt(attemptId), enabled: Boolean(attemptId) });
-export const useSubmitQuiz = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: quizApi.submit,
-    onSuccess: () => invalidateMany(queryClient, [queryKeys.dashboard, queryKeys.roadmap])
-  });
-};
-export const useExplainQuizAttempt = (attemptId) => {
-  const queryClient = useQueryClient();
-  return useMutation({ mutationFn: () => quizApi.explainAttempt(attemptId), onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.quizAttempt(attemptId) }) });
-};
+export const useModuleQuiz = (moduleId) => useAsyncData(
+  () => quizApi.moduleQuiz(moduleId),
+  [moduleId],
+  { enabled: Boolean(moduleId) }
+);
+
+export const useQuizAttempt = (attemptId) => useAsyncData(
+  () => quizApi.attempt(attemptId),
+  [attemptId],
+  { enabled: Boolean(attemptId) }
+);
+
+export const useSubmitQuiz = () => useAsyncAction(quizApi.submit);
+export const useExplainQuizAttempt = (attemptId) => useAsyncAction(() => quizApi.explainAttempt(attemptId));

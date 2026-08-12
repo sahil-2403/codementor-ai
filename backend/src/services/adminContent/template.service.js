@@ -60,9 +60,7 @@ const assertTemplatePublishable = async (template) => {
   if (errors.length) throw new ApiError(400, 'Roadmap template is not ready to publish', errors, 'CONTENT_NOT_READY');
 
   const [referencedLessons, questions] = await Promise.all([
-    Lesson.find({ _id: { $in: allLessonIds } })
-      .select('_id title status course')
-      .lean(),
+    Lesson.find({ _id: { $in: allLessonIds } }).select('_id title status course').lean(),
     QuizQuestion.find({
       course: referenceId(template.course),
       bank: 'quiz',
@@ -127,6 +125,7 @@ export const listTemplates = async (query = {}) => {
   if (query.status) filter.status = query.status;
   if (query.level) filter.level = query.level;
   if (query.course) filter.course = query.course;
+
   return listWithPagination({
     model: RoadmapTemplate,
     filter,
@@ -172,7 +171,6 @@ export const updateTemplate = async ({ id, payload }) => {
   delete normalized.course;
   delete normalized.level;
   delete normalized.estimatedDurationDays;
-  delete normalized.statusBeforeCourseArchive;
   if (Object.prototype.hasOwnProperty.call(payload, 'modules')) {
     normalized.modules = cleanTemplateModules(payload.modules);
     normalized.estimatedDurationDays = templateDurationDays(normalized.modules);

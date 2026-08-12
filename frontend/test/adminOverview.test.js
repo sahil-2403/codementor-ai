@@ -7,17 +7,15 @@ import { fileURLToPath } from 'node:url';
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const readFrontend = (path) => readFile(resolve(frontendRoot, path), 'utf8');
 
-test('admin dashboard uses the dedicated content overview query', async () => {
-  const [page, api, queries, keys] = await Promise.all([
+test('admin dashboard uses the dedicated content overview data hook', async () => {
+  const [page, api, dataHooks] = await Promise.all([
     readFrontend('src/pages/admin/AdminDashboardPage.jsx'),
     readFrontend('src/api/adminApi.js'),
-    readFrontend('src/queries/adminQueries.js'),
-    readFrontend('src/constants/queryKeys.js')
+    readFrontend('src/queries/adminQueries.js')
   ]);
 
   assert.match(api, /contentOverview:\s*\(\)\s*=>\s*api\.get\('\/admin\/content-overview'\)/);
-  assert.match(keys, /adminContentOverview:\s*\['admin-content-overview'\]/);
-  assert.match(queries, /useAdminContentOverview/);
+  assert.match(dataHooks, /useAdminContentOverview = \(\) => useAsyncData\(adminApi\.contentOverview\)/);
   assert.match(page, /useAdminContentOverview\(\)/);
   assert.doesNotMatch(page, /useAdminTopics|useAdminLessons|useAdminQuestions|useAdminTemplates/);
 });

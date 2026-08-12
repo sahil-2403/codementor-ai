@@ -11,37 +11,67 @@ test('Gemini schemas constrain scores and require roadmap modules', () => {
   assert.match(schemas, /roadmapResponseSchema[\s\S]*modules:[\s\S]*\.min\(1\)/);
 });
 
-test('project and interview models declare atomic two-attempt indexes', () => {
+test('project and interview attempts use a simple two-attempt helper', () => {
+  const helper = source('services/attempt.service.js');
   const projects = source('models/ProjectSubmission.js');
   const interviews = source('models/InterviewAttempt.js');
-  assert.match(projects, /project_attempt_slot_unique/);
-  assert.match(projects, /user:\s*1,\s*projectTask:\s*1,\s*attemptNumber:\s*1/);
-  assert.match(interviews, /interview_attempt_slot_unique/);
-  assert.match(interviews, /user:\s*1,\s*question:\s*1,\s*attemptNumber:\s*1/);
+
+  assert.match(helper, /countDocuments\(identityFilter\)/);
+  assert.match(helper, /attemptsUsed >= 2/);
+  assert.match(helper, /attemptNumber: attemptsUsed \+ 1/);
+  assert.match(projects, /attemptNumber:[\s\S]*required: true/);
+  assert.match(interviews, /attemptNumber:[\s\S]*required: true/);
+  assert.doesNotMatch(projects, /partialFilterExpression|attempt_slot_unique/);
+  assert.doesNotMatch(interviews, /partialFilterExpression|attempt_slot_unique/);
 });
 
-test('roadmap models declare job locks and output idempotency indexes', () => {
-  const jobs = source('models/AIJob.js');
-  const courses = source('models/CoursePlan.js');
-  assert.match(jobs, /ai_job_idempotency_unique/);
-  assert.match(jobs, /ai_job_active_lock_unique/);
-  assert.match(courses, /course_generation_job_unique/);
-  assert.match(courses, /course_generation_key_unique/);
+test('roadmap generation uses direct sequential mongoose operations', () => {
+  const controller = source('controllers/roadmap.controller.js');
+  const service = source('services/roadmap.service.js');
+  const routes = source('routes/roadmap.routes.js');
+
+  assert.match(controller, /createCourseFromTemplate/);
+  assert.match(routes, /post\('\/generate-or-get'/);
+  assert.match(service, /CoursePlan\.create/);
+  assert.match(service, /enrollment\.save\(\)/);
+  assert.doesNotMatch(service, /startSession|withTransaction|session\(/);
 });
 
-test('roadmap worker records the correct terminal timestamp field', () => {
-  const worker = source('workers/roadmap.worker.js');
-  assert.match(worker, /completedAt:\s*hasMoreBullAttempts\s*\?\s*null\s*:\s*new Date\(\)/);
-  assert.doesNotMatch(worker, /completdAt/);
+test('backend runtime uses in-process cache and native slug generation', () => {
+  const cache = source('services/cache.service.js');
+  const env = source('config/env.js');
+  const server = source('server.js');
+  const health = source('services/health.service.js');
+  const slug = source('utils/generateSlug.js');
+
+  assert.match(cache, /new Map\(\)/);
+  assert.match(env, /enableCache: values\.ENABLE_CACHE/);
+  assert.match(server, /cache: env\.enableCache \? 'memory' : 'disabled'/);
+  assert.match(health, /mongodb:[\s\S]*required: true/);
+  assert.match(slug, /normalize\('NFKD'\)/);
+  assert.match(slug, /replace\(\/\[\^a-z0-9\]\+\/g, '-'\)/);
 });
 
 test('mentor context is restricted to active course lessons', () => {
-  const service = source('services/mentor.service.js');
+  const mentor = source('services/mentor.service.js');
+  const context = source('services/learningContext.service.js');
   const routes = source('routes/mentor.routes.js');
-  assert.match(service, /requireActiveCourseForUser/);
-  assert.match(service, /assertLessonBelongsToCourse/);
-  assert.match(service, /LESSON_NOT_AVAILABLE|CONTENT_LOCKED/);
+
+  assert.match(mentor, /requireActiveCourseForUser/);
+  assert.match(mentor, /assertLessonBelongsToCourse/);
+  assert.match(context, /course: courseId/);
   assert.match(routes, /validate\(mentorSuggestionsSchema\)/);
+});
+
+test('AI request validation stays simple and bounded', () => {
+  const safety = source('services/aiSafety.service.js');
+  const usage = source('services/aiUsage.service.js');
+
+  assert.match(safety, /Maximum allowed characters/);
+  assert.match(safety, /UNSUPPORTED_AI_PATTERNS/);
+  assert.doesNotMatch(safety, /fingerprint|repeatedCount|REPEAT_WINDOW/i);
+  assert.match(usage, /countDocuments/);
+  assert.doesNotMatch(usage, /inputTokens|outputTokens|latencyMs|estimatedCost|promptFingerprint/);
 });
 
 test('auth and csrf cookies use one configured policy', () => {
@@ -66,7 +96,6 @@ test('weekly reports are unique per user course and UTC week', () => {
   assert.match(model, /user:\s*1,\s*coursePlan:\s*1,\s*weekStart:\s*1/);
   assert.match(service, /getUtcWeekStart/);
   assert.match(service, /checkAIUsageLimit\(userId, AI_FEATURES\.WEEKLY_REPORT\)/);
-  assert.match(service, /\.limit\(Math\.min/);
   assert.match(routes, /aiRouteLimiter, generateReport/);
 });
 

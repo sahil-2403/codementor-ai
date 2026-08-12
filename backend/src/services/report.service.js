@@ -1,9 +1,9 @@
 import { WeeklyReport } from '../models/WeeklyReport.js';
-import { CoursePlan } from '../models/CoursePlan.js';
 import { Progress } from '../models/Progress.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { aiProvider } from '../ai/aiProvider.service.js';
-import { checkAIUsageLimit, createPromptFingerprint, logAIUsage } from './aiUsage.service.js';
+import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
+import { getActiveCourseForUser } from './dataIntegrity.service.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 import { getUtcWeekStart } from '../utils/week.js';
 import { ApiError } from '../utils/ApiError.js';
@@ -32,7 +32,7 @@ const buildProgressSummary = (progress) => {
   };
 };
 
-const logReportUsage = async (payload) => {
+const saveUsage = async (payload) => {
   try {
     await logAIUsage(payload);
   } catch (error) {
@@ -41,30 +41,17 @@ const logReportUsage = async (payload) => {
 };
 
 export const generateWeeklyReportForUser = async (userId) => {
-  const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true });
+  const course = await getActiveCourseForUser({ userId });
   if (!course) return null;
   const progress = await Progress.findOne({ user: userId, coursePlan: course._id });
   if (!progress) return null;
 
   const weekStart = getUtcWeekStart();
-  const nextWeekStart = new Date(weekStart);
-  nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 7);
-
-  const existing = await WeeklyReport.findOne({
-    user: userId,
-    coursePlan: course._id,
-    $or: [
-      { weekStart },
-      { createdAt: { $gte: weekStart, $lt: nextWeekStart } }
-    ]
-  });
-
+  const existing = await WeeklyReport.findOne({ user: userId, coursePlan: course._id, weekStart });
   if (existing) {
     throw new ApiError(409, 'A weekly report has already been created for this week.');
   }
 
-  const startedAt = Date.now();
-  const promptFingerprint = createPromptFingerprint(`${userId}:${course._id}:${weekStart.toISOString()}`);
   let reportContent = buildProgressSummary(progress);
   let generationMode = 'fallback';
 
@@ -74,55 +61,39 @@ export const generateWeeklyReportForUser = async (userId) => {
       const aiResult = await aiProvider.generateWeeklyReport({ progress });
       reportContent = aiResult;
       generationMode = 'ai';
-      await logReportUsage({
+      await saveUsage({
         user: userId,
         feature: AI_FEATURES.WEEKLY_REPORT,
-        model: aiResult.model || env.geminiModel,
-        provider: 'gemini',
-        inputTokens: aiResult.inputTokens || 0,
-        outputTokens: aiResult.outputTokens || 0,
-        latencyMs: Date.now() - startedAt,
-        promptFingerprint,
-        contextSources: [{ type: 'course_plan', title: course.title, refId: course._id.toString() }],
-        metadata: { coursePlanId: course._id, weekStart }
+        model: aiResult.model || env.geminiModel
       });
     } catch (error) {
       reportContent = buildProgressSummary(progress);
-      await logReportUsage({
+      await saveUsage({
         user: userId,
         feature: AI_FEATURES.WEEKLY_REPORT,
         status: 'failed',
-        model: env.geminiModel,
-        provider: 'gemini',
-        latencyMs: Date.now() - startedAt,
-        promptFingerprint,
-        contextSources: [{ type: 'course_plan', title: course.title, refId: course._id.toString() }],
-        metadata: { coursePlanId: course._id, weekStart, errorType: 'provider_failure' },
         errorMessage: error.message
       });
     }
   }
 
-  try {
-    return await WeeklyReport.create({
-      user: userId,
-      coursePlan: course._id,
-      weekStart,
-      completedLessons: progress.completedLessons,
-      weakTopics: progress.weakTopics.map((item) => item.topic),
-      strongTopics: [],
-      summary: reportContent.summary,
-      nextWeekFocus: reportContent.nextWeekFocus || [],
-      generationMode
-    });
-  } catch (error) {
-    if (error?.code === 11000) {
-      throw new ApiError(409, 'A weekly report has already been created for this week.');
-    }
-    throw error;
-  }
+  return WeeklyReport.create({
+    user: userId,
+    coursePlan: course._id,
+    weekStart,
+    completedLessons: progress.completedLessons,
+    weakTopics: progress.weakTopics.map((item) => item.topic),
+    strongTopics: [],
+    summary: reportContent.summary,
+    nextWeekFocus: reportContent.nextWeekFocus || [],
+    generationMode
+  });
 };
 
-export const getReports = async (userId, limit = 20) => WeeklyReport.find({ user: userId })
-  .sort({ createdAt: -1 })
-  .limit(Math.min(Math.max(Number(limit) || 20, 1), 50));
+export const getReports = async (userId, limit = 20) => {
+  const course = await getActiveCourseForUser({ userId });
+  if (!course) return [];
+  return WeeklyReport.find({ user: userId, coursePlan: course._id })
+    .sort({ createdAt: -1 })
+    .limit(Math.min(Math.max(Number(limit) || 20, 1), 50));
+};

@@ -1,165 +1,101 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle2, Clock3, RotateCw, XCircle } from 'lucide-react';
-import Card from '../../components/common/Card.jsx';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, RotateCw, XCircle } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '../../components/common/Button.jsx';
-import StatusPill from '../../components/common/StatusPill.jsx';
-import Loader from '../../components/common/Loader.jsx';
+import Card from '../../components/common/Card.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
-import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
+import Loader from '../../components/common/Loader.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
-import { roadmapApi } from '../../api/roadmapApi.js';
+import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import { onboardingApi } from '../../api/onboardingApi.js';
-import { queryKeys } from '../../constants/queryKeys.js';
-
-const statusMeta = {
-  completed: { icon: CheckCircle2, title: 'Your roadmap is ready', iconClass: 'bg-success-soft text-success' },
-  failed: { icon: XCircle, title: 'We could not finish your roadmap', iconClass: 'bg-error-soft text-error' },
-  processing: { icon: RotateCw, title: 'Building your roadmap', iconClass: 'bg-primary-soft text-primary' },
-  queued: { icon: Clock3, title: 'Your roadmap is waiting to start', iconClass: 'bg-primary-soft text-primary-strong' }
-};
-
-const sameId = (left, right) => Boolean(left && right && String(left) === String(right));
+import { roadmapApi } from '../../api/roadmapApi.js';
+import { useAsyncAction } from '../../hooks/useAsyncAction.js';
+import { useAsyncData } from '../../hooks/useAsyncData.js';
 
 export default function GeneratingPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const jobId = searchParams.get('jobId');
   const isPersonalizeFlow = searchParams.get('personalize') === 'true';
+  const onboardingQuery = useAsyncData(onboardingApi.status);
+  const generateAction = useAsyncAction(roadmapApi.generateOrGet);
+  const generateRoadmap = generateAction.mutateAsync;
   const startedRef = useRef(false);
-  const redirectedRef = useRef(false);
   const [localError, setLocalError] = useState('');
   const [showSlowHint, setShowSlowHint] = useState(false);
 
-  const onboardingStatusQuery = useQuery({
-    queryKey: queryKeys.onboardingStatus,
-    queryFn: onboardingApi.status,
-    retry: false
-  });
-  const onboardingStatus = onboardingStatusQuery.data;
-  const enrollment = onboardingStatus?.currentEnrollment;
+  const onboarding = onboardingQuery.data;
+  const enrollment = onboarding?.currentEnrollment;
   const offering = enrollment?.type === 'learning_path' ? enrollment?.learningPath : enrollment?.course;
   const currentCourse = enrollment?.currentCourse || enrollment?.course;
-  const targetEnrollmentId = enrollment?._id;
-  const activeCourseMatchesEnrollment = sameId(onboardingStatus?.activeCourse?.enrollment, targetEnrollmentId);
 
-  const generateMutation = useMutation({ mutationFn: roadmapApi.generateOrGet });
-  const retryMutation = useMutation({ mutationFn: roadmapApi.retryJob });
+  const startGeneration = useCallback(async () => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    setLocalError('');
+    setShowSlowHint(false);
 
-  const refreshLearningQueries = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: queryKeys.onboardingStatus }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.roadmap }),
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
-    ]);
-  };
-
-  const redirectToDashboard = async () => {
-    if (redirectedRef.current) return;
-    redirectedRef.current = true;
-    await refreshLearningQueries();
-    navigate('/dashboard', { replace: true });
-  };
+    try {
+      const result = await generateRoadmap();
+      if (result?.course) {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+      setLocalError('Your roadmap request finished, but no roadmap was returned. Please try again.');
+      startedRef.current = false;
+    } catch (error) {
+      setLocalError(error?.message || 'Could not create your roadmap. Please try again.');
+      startedRef.current = false;
+    }
+  }, [generateRoadmap, navigate]);
 
   useEffect(() => {
-    if (jobId || startedRef.current || onboardingStatusQuery.isLoading) return;
+    if (onboardingQuery.isLoading || !onboarding) return;
 
-    if (onboardingStatus?.state === 'completed' && activeCourseMatchesEnrollment) {
-      redirectToDashboard();
+    if (onboarding.state === 'completed') {
+      navigate('/dashboard', { replace: true });
       return;
     }
 
-    const existingJob = onboardingStatus?.roadmapJob;
-    if (existingJob?._id && ['queued', 'processing'].includes(existingJob.status)) {
-      navigate(`/onboarding/generating?jobId=${existingJob._id}${isPersonalizeFlow ? '&personalize=true' : ''}`, { replace: true });
-      return;
-    }
-
-    if (!targetEnrollmentId) {
+    if (!enrollment?._id) {
       setLocalError('Choose a course or learning path before creating a roadmap.');
       return;
     }
 
-    if (!['roadmap_pending', 'roadmap_failed'].includes(onboardingStatus?.state)) {
+    if (onboarding.state === 'roadmap_failed') {
+      setLocalError(onboarding.error?.message || 'Roadmap generation could not be completed. Please try again.');
+      return;
+    }
+
+    if (onboarding.state !== 'roadmap_pending') {
       setLocalError('Finish your current setup step before creating a roadmap.');
       return;
     }
 
-    startedRef.current = true;
-    setLocalError('');
-
-    generateMutation.mutate(undefined, {
-      onSuccess: async (result) => {
-        if (result?.course || result?.mode === 'existing' || result?.mode === 'sync') {
-          await redirectToDashboard();
-          return;
-        }
-
-        if (result?.job?._id) {
-          navigate(`/onboarding/generating?jobId=${result.job._id}${isPersonalizeFlow ? '&personalize=true' : ''}`, { replace: true });
-          return;
-        }
-
-        setLocalError('We started creating your roadmap, but could not check its progress. Please try again.');
-      },
-      onError: (error) => setLocalError(error?.message || 'Could not start creating your roadmap. Please try again.')
-    });
-  }, [jobId, onboardingStatus?.state, onboardingStatus?.roadmapJob?._id, onboardingStatusQuery.isLoading, isPersonalizeFlow, targetEnrollmentId, activeCourseMatchesEnrollment]);
-
-  const jobQuery = useQuery({
-    queryKey: ['roadmap-job', jobId],
-    queryFn: () => roadmapApi.jobStatus(jobId),
-    enabled: Boolean(jobId),
-    refetchInterval: (query) => {
-      const status = query.state.data?.job?.status;
-      return status === 'completed' || status === 'failed' ? false : 2000;
-    },
-    retry: false
-  });
-
-  const job = jobQuery.data?.job;
-  const jobCourse = jobQuery.data?.course;
+    void startGeneration();
+  }, [enrollment?._id, navigate, onboarding, onboardingQuery.isLoading, startGeneration]);
 
   useEffect(() => {
-    if (jobCourse || job?.status === 'completed') redirectToDashboard();
-  }, [jobCourse?._id, job?.status]);
-
-  useEffect(() => {
+    if (!generateAction.isPending) {
+      setShowSlowHint(false);
+      return undefined;
+    }
     const timer = window.setTimeout(() => setShowSlowHint(true), 8000);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [generateAction.isPending]);
 
-  const meta = useMemo(() => statusMeta[job?.status] || statusMeta.processing, [job?.status]);
-  const Icon = meta.icon;
-  const displayedError = localError
-    || onboardingStatusQuery.error?.message
-    || generateMutation.error?.message
-    || retryMutation.error?.message
-    || jobQuery.error?.message;
+  const displayedError = localError || onboardingQuery.error?.message || generateAction.error?.message;
+  const status = useMemo(() => {
+    if (displayedError) return { icon: XCircle, title: 'We could not finish your roadmap', className: 'bg-error-soft text-error' };
+    if (!generateAction.isPending && onboarding?.state === 'completed') return { icon: CheckCircle2, title: 'Your roadmap is ready', className: 'bg-success-soft text-success' };
+    return { icon: RotateCw, title: 'Creating your roadmap', className: 'bg-primary-soft text-primary' };
+  }, [displayedError, generateAction.isPending, onboarding?.state]);
 
-  if (onboardingStatusQuery.isLoading || (!jobId && generateMutation.isPending)) return <Loader label="Creating your roadmap..." />;
+  if (onboardingQuery.isLoading) return <Loader label="Preparing your roadmap setup..." />;
 
-  const retryRoadmap = () => {
-    setLocalError('');
-    retryMutation.mutate(job._id, {
-      onSuccess: async (result) => {
-        if (result?.course || result?.mode === 'existing' || result?.mode === 'sync') {
-          await redirectToDashboard();
-          return;
-        }
-
-        const nextJobId = result?.job?._id || job._id;
-        queryClient.setQueryData(['roadmap-job', nextJobId], {
-          job: result?.job || { ...job, status: result?.mode || 'processing', error: '' },
-          course: result?.course || null
-        });
-        await refreshLearningQueries();
-        navigate(`/onboarding/generating?jobId=${nextJobId}${isPersonalizeFlow ? '&personalize=true' : ''}`, { replace: true });
-      },
-      onError: (error) => setLocalError(error?.message || 'Could not try again. Please check your connection and retry.')
-    });
+  const Icon = status.icon;
+  const retry = () => {
+    startedRef.current = false;
+    void startGeneration();
   };
 
   return <OnboardingShell
@@ -174,34 +110,33 @@ export default function GeneratingPage() {
       ]} />
       <Card>
         <p className="font-bold text-foreground">Other courses stay independent</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">Refreshing this page continues the same enrollment job. Existing course roadmaps are not replaced by this generation.</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">This request creates only the roadmap for the enrollment you selected.</p>
       </Card>
     </>}
   >
     <Card className="text-center">
-      <div className={`mx-auto grid h-16 w-16 place-items-center rounded-panel ${meta.iconClass}`}>
-        <Icon className={job?.status === 'processing' || !job?.status ? 'animate-spin' : ''} aria-hidden="true" />
+      <div className={`mx-auto grid h-16 w-16 place-items-center rounded-panel ${status.className}`}>
+        <Icon className={generateAction.isPending ? 'animate-spin' : ''} aria-hidden="true" />
       </div>
-      <h2 className="mt-5 text-3xl font-bold text-foreground">{meta.title}</h2>
-      <p className="mt-3 text-muted-foreground">{job ? `Status: ${String(job.status).replaceAll('_', ' ')}` : 'Your course roadmap is being prepared. Updates will appear here.'}</p>
+      <h2 className="mt-5 text-3xl font-bold text-foreground">{status.title}</h2>
+      <p className="mt-3 text-muted-foreground">
+        {generateAction.isPending
+          ? 'CodeMentor is creating this roadmap now. Keep this page open until the request finishes.'
+          : displayedError
+            ? 'Your setup is safe. Fix the issue or try the request again.'
+            : 'Your course roadmap is ready.'}
+      </p>
+
       <div className="mt-5"><ErrorMessage message={displayedError} /></div>
 
-      {job && <div className="mt-6 rounded-panel bg-surface-secondary p-5 text-left">
-        <div className="flex items-center justify-between gap-4"><b className="text-foreground">Roadmap status</b><StatusPill status={job.status} /></div>
-        <p className="mt-2 text-sm text-muted-foreground">This page updates automatically while this enrollment roadmap is being created.</p>
-        {job.error && <div className="ui-alert ui-alert--error mt-3" role="alert">We could not finish your roadmap. Please try again.</div>}
-      </div>}
-
-      {showSlowHint && !jobCourse && job?.status !== 'failed' && <div className="ui-alert ui-alert--info mt-6 text-left">
-        This is taking longer than usual. You can keep this page open or refresh it; the same enrollment job will continue.
+      {showSlowHint && generateAction.isPending && <div className="ui-alert ui-alert--info mt-6 text-left">
+        This is taking longer than usual because the roadmap is being created in this request. Keep the page open while it finishes.
       </div>}
 
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        {(jobCourse || job?.status === 'completed') && <Button onClick={redirectToDashboard}>Open dashboard</Button>}
-        {job?.status === 'failed' && <>
-          <Button onClick={retryRoadmap} isLoading={retryMutation.isPending} loadingLabel="Trying again...">Try again</Button>
-          <Link to={isPersonalizeFlow ? '/dashboard' : '/onboarding/preferences'} className="ui-button ui-button--secondary">{isPersonalizeFlow ? 'Back to dashboard' : 'Back to setup'}</Link>
-        </>}
+        {displayedError && <Button onClick={retry} isLoading={generateAction.isPending} loadingLabel="Trying again...">Try again</Button>}
+        {!displayedError && !generateAction.isPending && onboarding?.state === 'completed' && <Button onClick={() => navigate('/dashboard', { replace: true })}>Open dashboard</Button>}
+        {isPersonalizeFlow && displayedError && <Button variant="secondary" onClick={() => navigate('/dashboard')}>Back to dashboard</Button>}
       </div>
     </Card>
   </OnboardingShell>;

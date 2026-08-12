@@ -1,7 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendResponse } from '../utils/ApiResponse.js';
-import { getQuizForModule, submitQuiz, explainQuizAttempt } from '../services/quiz.service.js';
-import { QuizAttempt } from '../models/QuizAttempt.js';
+import { getQuizAttempt, getQuizForModule, submitQuiz, explainQuizAttempt } from '../services/quiz.service.js';
 import { logActivity } from '../services/activityLog.service.js';
 
 export const getModuleQuiz = asyncHandler(async (req, res) => {
@@ -16,7 +15,7 @@ export const submitModuleQuiz = asyncHandler(async (req, res) => {
 });
 
 export const getAttempt = asyncHandler(async (req, res) => {
-  const attempt = await QuizAttempt.findOne({ _id: req.params.attemptId, user: req.user._id }).populate('answers.question');
+  const attempt = await getQuizAttempt({ userId: req.user._id, attemptId: req.params.attemptId });
   sendResponse(res, 200, 'Quiz attempt', { attempt });
 });
 

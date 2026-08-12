@@ -1,34 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { projectApi } from '../api/projectApi.js';
-import { queryKeys } from '../constants/queryKeys.js';
-import { STALE_TIMES } from '../constants/queryConfig.js';
-import { invalidateMany } from './queryUtils.js';
+import { useAsyncAction } from '../hooks/useAsyncAction.js';
+import { useAsyncData } from '../hooks/useAsyncData.js';
 
-export const useProjectTasks = (params = {}) => useQuery({
-  queryKey: queryKeys.projectTasks(params),
-  queryFn: () => projectApi.tasks(params),
-  staleTime: STALE_TIMES.MEDIUM
-});
-
-export const useProjectTask = (taskId) => useQuery({
-  queryKey: queryKeys.projectTask(taskId),
-  queryFn: () => projectApi.task(taskId),
-  enabled: Boolean(taskId),
-  staleTime: STALE_TIMES.SHORT
-});
-
-export const useSubmitProjectTask = (taskId) => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: projectApi.submit,
-    onSuccess: () => invalidateMany(queryClient, [queryKeys.projectTask(taskId), ['project-tasks']])
-  });
+export const useProjectTasks = (params = {}) => {
+  const key = JSON.stringify(params);
+  return useAsyncData(() => projectApi.tasks(params), [key]);
 };
 
-export const useReviewProjectSubmission = (taskId) => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: projectApi.review,
-    onSuccess: () => invalidateMany(queryClient, [queryKeys.projectTask(taskId), ['project-tasks'], queryKeys.dashboard])
-  });
-};
+export const useProjectTask = (taskId) => useAsyncData(
+  () => projectApi.task(taskId),
+  [taskId],
+  { enabled: Boolean(taskId) }
+);
+
+export const useSubmitProjectTask = () => useAsyncAction(projectApi.submit);
+export const useReviewProjectSubmission = () => useAsyncAction(projectApi.review);

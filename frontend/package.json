@@ -5,12 +5,11 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test": "node --test --test-concurrency=1 ./test/frontend.test.js ./test/adminOverview.test.js ./test/adminLifecycle.test.js ./test/mentorAutoSend.test.js",
+    "test": "node --test --test-concurrency=1 ./test/frontend.test.js ./test/adminOverview.test.js ./test/adminLifecycle.test.js ./test/mentorAutoSend.test.js ./test/learnerEnrollment.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
-    "@tanstack/react-query": "^5.51.11",
     "axios": "^1.7.2",
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",

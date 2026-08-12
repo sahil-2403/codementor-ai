@@ -23,52 +23,40 @@ import {
 import { changeTemplateStatus, deleteTemplate } from './template.service.js';
 
 const activeCatalogFilter = { $ne: PUBLISHABLE_STATUS.ARCHIVED };
-
 const dependencyError = (message, details = []) => new ApiError(409, message, details, 'CONTENT_DEPENDENCY_EXISTS');
 const instruction = (field, message) => ({ field, message });
 
-const rememberedPublishableStatus = (...fallbackFields) => {
-  let fallback = 'draft';
-  for (let index = fallbackFields.length - 1; index >= 0; index -= 1) {
-    const field = fallbackFields[index];
-    fallback = {
-      $cond: [
-        { $in: [`$${field}`, ['draft', 'published']] },
-        `$${field}`,
-        fallback
-      ]
-    };
-  }
-  return {
-    $cond: [
-      { $in: ['$status', ['draft', 'published']] },
-      '$status',
-      fallback
-    ]
-  };
-};
-
-const assertTechnologyParentAcyclic = async ({ id, parentTechnology }) => {
+const assertTechnologyParentValid = async ({ id, parentTechnology }) => {
   if (!parentTechnology) return;
-  const target = String(id);
-  let currentId = String(parentTechnology);
-  const visited = new Set();
+  if (String(id) === String(parentTechnology)) {
+    throw new ApiError(400, 'A technology cannot be its own parent.', [
+      instruction('parentTechnology', 'Choose a different parent technology.')
+    ], 'CONTENT_REFERENCE_INVALID');
+  }
 
-  while (currentId) {
-    if (currentId === target) {
-      throw new ApiError(400, 'Technology parent relationships cannot form a cycle', [
-        instruction('parentTechnology', 'Choose a parent that is not this technology or one of its descendants.')
-      ], 'CATALOG_CYCLE');
-    }
-    if (visited.has(currentId)) {
-      throw new ApiError(409, 'The existing technology hierarchy already contains a cycle', [
-        instruction('parentTechnology', 'Remove the circular parent relationship before saving this technology.')
-      ], 'CATALOG_CYCLE');
-    }
-    visited.add(currentId);
-    const technology = await Technology.findById(currentId).select('_id parentTechnology').lean();
-    if (!technology?.parentTechnology) return;
-    currentId = String(technology.parentTechnology);
+  const parent = await Technology.findOne({
+    _id: parentTechnology,
+    status: activeCatalogFilter
+  }).select('_id parentTechnology').lean();
+  if (!parent) {
+    throw new ApiError(400, 'Selected parent technology is unavailable.', [
+      instruction('parentTechnology', 'Choose an active or draft technology as the parent.')
+    ], 'CONTENT_REFERENCE_INVALID');
+  }
+  if (parent.parentTechnology) {
+    throw new ApiError(400, 'Technology hierarchy supports only one parent level.', [
+      instruction('parentTechnology', 'Choose a top-level technology as the parent.')
+    ], 'CONTENT_REFERENCE_INVALID');
+  }
+
+  const childCount = await Technology.countDocuments({
+    parentTechnology: id,
+    status: activeCatalogFilter
+  });
+  if (childCount) {
+    throw new ApiError(400, 'A technology with child technologies must stay top-level.', [
+      instruction('parentTechnology', 'Reassign its child technologies before choosing a parent.')
+    ], 'CONTENT_REFERENCE_INVALID');
   }
 };
 
@@ -83,159 +71,68 @@ const assertTechnologyArchiveSafe = async (technologyId) => {
     throw dependencyError('This technology is still used by active catalog items, so it cannot be archived yet.', [
       ...(courses ? [instruction('courses', `${courses} active course(s) use it. Open Courses and remove or replace this technology first.`)] : []),
       ...(paths ? [instruction('learningPaths', `${paths} active learning path(s) use it. Open Learning Paths and remove this technology first.`)] : []),
-      ...(children ? [instruction('childTechnologies', `${children} active child technology item(s) use it as their parent. Reassign or remove their parent first.`)] : [])
+      ...(children ? [instruction('childTechnologies', `${children} child technology item(s) use it as their parent. Reassign their parent first.`)] : [])
     ]);
   }
 };
 
 const assertCourseArchiveSafe = async (courseId) => {
-  const [paths, prerequisiteUsers] = await Promise.all([
+  const [paths, prerequisiteUsers, activeLearnerPlans] = await Promise.all([
     LearningPath.countDocuments({ status: activeCatalogFilter, 'courses.course': courseId }),
-    Course.countDocuments({ status: activeCatalogFilter, recommendedPrerequisites: courseId })
+    Course.countDocuments({ status: activeCatalogFilter, recommendedPrerequisites: courseId }),
+    CoursePlan.countDocuments({ course: courseId, status: 'active', isActive: true })
   ]);
 
-  if (paths || prerequisiteUsers) {
-    throw dependencyError('This course is still used by active catalog items, so it cannot be archived yet.', [
+  if (paths || prerequisiteUsers || activeLearnerPlans) {
+    throw dependencyError('This course is still in use, so it cannot be archived yet.', [
       ...(paths ? [instruction('learningPaths', `${paths} active learning path(s) include this course. Open Learning Paths and remove the course first.`)] : []),
-      ...(prerequisiteUsers ? [instruction('recommendedPrerequisites', `${prerequisiteUsers} active course(s) recommend this course as a prerequisite. Open those Courses and remove the prerequisite first.`)] : [])
+      ...(prerequisiteUsers ? [instruction('recommendedPrerequisites', `${prerequisiteUsers} active course(s) recommend this course as a prerequisite. Remove the prerequisite first.`)] : []),
+      ...(activeLearnerPlans ? [instruction('learnerHistory', `${activeLearnerPlans} active learner roadmap(s) currently use this Course. Keep it published until those roadmaps are no longer active.`)] : [])
     ]);
   }
 };
 
 const assertTemplateCanLeavePublishedCoverage = async (templateId) => {
-  const template = ensureFound(await RoadmapTemplate.findById(templateId).select('_id course level title status').lean(), 'Roadmap template');
-  const course = await Course.findById(template.course).select('_id title status availableLevels').lean();
-  const requiredByPublishedCourse = course?.status === PUBLISHABLE_STATUS.PUBLISHED && (course.availableLevels || []).includes(template.level);
+  const template = ensureFound(
+    await RoadmapTemplate.findById(templateId).select('course level title status').lean(),
+    'Roadmap template'
+  );
+  const course = await Course.findById(template.course).select('title status availableLevels').lean();
+  const requiredByPublishedCourse = course?.status === PUBLISHABLE_STATUS.PUBLISHED &&
+    (course.availableLevels || []).includes(template.level);
 
   if (requiredByPublishedCourse) {
-    throw dependencyError(
-      `This template is required by the published course “${course.title}”.`,
-      [instruction('course', 'Archive the Course instead. Course archiving automatically archives all of its Templates and curriculum, so you do not need to archive child content first.')]
-    );
+    throw dependencyError(`This template is required by the published course “${course.title}”.`, [
+      instruction('course', 'Archive the Course instead. Course archiving automatically archives its curriculum and templates.')
+    ]);
   }
 };
 
 const archiveCourseOwnedContent = async (courseId) => {
   await Promise.all([
-    Topic.updateMany(
-      { course: courseId },
-      { $set: { status: 'archived', statusBeforeCourseArchive: 'active' } }
-    ),
-    Lesson.updateMany(
-      { course: courseId },
-      [{ $set: {
-        statusBeforeCourseArchive: rememberedPublishableStatus(
-          'statusBeforeCourseArchive',
-          'statusBeforeCascadeArchive',
-          'statusBeforeTopicArchive'
-        ),
-        status: 'archived'
-      } }]
-    ),
-    QuizQuestion.updateMany(
-      { course: courseId },
-      [{ $set: {
-        statusBeforeCourseArchive: rememberedPublishableStatus(
-          'statusBeforeCourseArchive',
-          'statusBeforeManualArchive',
-          'statusBeforeCascadeArchive',
-          'statusBeforeTopicArchive'
-        ),
-        status: 'archived'
-      } }]
-    ),
-    InterviewQuestion.updateMany(
-      { course: courseId },
-      [{ $set: {
-        statusBeforeCascadeArchive: rememberedPublishableStatus(
-          'statusBeforeCascadeArchive',
-          'statusBeforeManualArchive',
-          'statusBeforeTopicArchive'
-        ),
-        status: 'archived'
-      } }]
-    ),
-    ProjectTask.updateMany(
-      { course: courseId },
-      [{ $set: {
-        statusBeforeCascadeArchive: rememberedPublishableStatus('statusBeforeCascadeArchive'),
-        status: 'archived'
-      } }]
-    ),
-    RoadmapTemplate.updateMany(
-      { course: courseId },
-      [{ $set: {
-        statusBeforeCourseArchive: rememberedPublishableStatus('statusBeforeCourseArchive'),
-        status: 'archived'
-      } }]
-    )
+    Topic.updateMany({ course: courseId }, { status: 'archived' }),
+    Lesson.updateMany({ course: courseId }, { status: 'archived' }),
+    QuizQuestion.updateMany({ course: courseId }, { status: 'archived' }),
+    InterviewQuestion.updateMany({ course: courseId }, { status: 'archived' }),
+    ProjectTask.updateMany({ course: courseId }, { status: 'archived' }),
+    RoadmapTemplate.updateMany({ course: courseId }, { status: 'archived' })
   ]);
 };
 
 const restoreCourseOwnedContent = async (courseId) => {
   await Promise.all([
-    Topic.updateMany(
-      { course: courseId },
-      { $set: { status: 'active', statusBeforeCourseArchive: null } }
-    ),
-    Lesson.updateMany(
-      { course: courseId },
-      [{ $set: {
-        status: { $cond: [{ $in: ['$statusBeforeCourseArchive', ['draft', 'published']] }, '$statusBeforeCourseArchive', 'draft'] },
-        statusBeforeCourseArchive: null,
-        manualArchive: false,
-        archivedByTopics: [],
-        statusBeforeCascadeArchive: null,
-        statusBeforeTopicArchive: null
-      } }]
-    ),
-    QuizQuestion.updateMany(
-      { course: courseId },
-      [{ $set: {
-        status: { $cond: [{ $in: ['$statusBeforeCourseArchive', ['draft', 'published']] }, '$statusBeforeCourseArchive', 'draft'] },
-        statusBeforeCourseArchive: null,
-        manualArchive: false,
-        statusBeforeManualArchive: null,
-        archivedByTopics: [],
-        archivedByLessons: [],
-        statusBeforeCascadeArchive: null,
-        statusBeforeTopicArchive: null
-      } }]
-    ),
-    InterviewQuestion.updateMany(
-      { course: courseId },
-      [{ $set: {
-        status: { $cond: [{ $in: ['$statusBeforeCascadeArchive', ['draft', 'published']] }, '$statusBeforeCascadeArchive', 'draft'] },
-        manualArchive: false,
-        statusBeforeManualArchive: null,
-        archivedByTopics: [],
-        statusBeforeCascadeArchive: null,
-        statusBeforeTopicArchive: null
-      } }]
-    ),
-    ProjectTask.updateMany(
-      { course: courseId },
-      [{ $set: {
-        status: { $cond: [{ $in: ['$statusBeforeCascadeArchive', ['draft', 'published']] }, '$statusBeforeCascadeArchive', 'draft'] },
-        archivedByTopics: [],
-        archivedByLessons: [],
-        statusBeforeCascadeArchive: null,
-        statusBeforeTopicArchive: null
-      } }]
-    ),
-    RoadmapTemplate.updateMany(
-      { course: courseId },
-      [{ $set: {
-        status: { $cond: [{ $in: ['$statusBeforeCourseArchive', ['draft', 'published']] }, '$statusBeforeCourseArchive', 'draft'] },
-        statusBeforeCourseArchive: null
-      } }]
-    )
+    Topic.updateMany({ course: courseId }, { status: 'active' }),
+    Lesson.updateMany({ course: courseId }, { status: 'draft' }),
+    QuizQuestion.updateMany({ course: courseId }, { status: 'draft' }),
+    InterviewQuestion.updateMany({ course: courseId }, { status: 'draft' }),
+    ProjectTask.updateMany({ course: courseId }, { status: 'draft' }),
+    RoadmapTemplate.updateMany({ course: courseId }, { status: 'draft' })
   ]);
 };
 
 export const updateTechnologySafely = async ({ id, payload }) => {
   if (Object.prototype.hasOwnProperty.call(payload, 'parentTechnology')) {
-    await assertTechnologyParentAcyclic({ id, parentTechnology: payload.parentTechnology });
+    await assertTechnologyParentValid({ id, parentTechnology: payload.parentTechnology });
   }
   return updateTechnology({ id, payload });
 };
@@ -246,19 +143,21 @@ export const changeTechnologyStatusSafely = async (args) => {
 };
 
 export const changeCourseStatusSafely = async (args) => {
-  const course = ensureFound(await Course.findById(args.id).select('_id status'), 'Course');
+  const course = ensureFound(await Course.findById(args.id).select('status'), 'Course');
 
   if (args.status === PUBLISHABLE_STATUS.ARCHIVED) {
     await assertCourseArchiveSafe(args.id);
+    const updated = await changeCourseStatus(args);
     await archiveCourseOwnedContent(args.id);
-    return changeCourseStatus(args);
+    await invalidateContentCache();
+    return updated;
   }
 
   if (args.status === PUBLISHABLE_STATUS.DRAFT && course.status === PUBLISHABLE_STATUS.ARCHIVED) {
-    const restored = await changeCourseStatus(args);
+    const updated = await changeCourseStatus(args);
     await restoreCourseOwnedContent(args.id);
     await invalidateContentCache();
-    return restored;
+    return updated;
   }
 
   return changeCourseStatus(args);
@@ -267,13 +166,6 @@ export const changeCourseStatusSafely = async (args) => {
 export const changeTemplateStatusSafely = async (args) => {
   if (args.status === PUBLISHABLE_STATUS.ARCHIVED) {
     await assertTemplateCanLeavePublishedCoverage(args.id);
-    const template = ensureFound(await RoadmapTemplate.findById(args.id).select('status'), 'Roadmap template');
-    if ([PUBLISHABLE_STATUS.DRAFT, PUBLISHABLE_STATUS.PUBLISHED].includes(template.status)) {
-      await RoadmapTemplate.updateOne(
-        { _id: args.id },
-        { $set: { statusBeforeCourseArchive: template.status } }
-      );
-    }
   }
 
   if (args.status === PUBLISHABLE_STATUS.DRAFT) {
@@ -282,34 +174,33 @@ export const changeTemplateStatusSafely = async (args) => {
       const course = await Course.findById(template.course).select('status').lean();
       if (!course || course.status === PUBLISHABLE_STATUS.ARCHIVED) {
         throw dependencyError('This template cannot be restored while its Course is archived.', [
-          instruction('course', 'Open Courses and restore the parent Course first. Restoring the Course will restore all of its Templates and curriculum automatically.')
+          instruction('course', 'Open Courses and restore the parent Course first.')
         ]);
       }
     }
   }
 
-  const template = await changeTemplateStatus(args);
-  if (args.status === PUBLISHABLE_STATUS.DRAFT) {
-    await RoadmapTemplate.updateOne({ _id: args.id }, { $set: { statusBeforeCourseArchive: null } });
-  }
-  return template;
+  return changeTemplateStatus(args);
 };
 
 export const deleteTechnologySafely = async (id) => {
   const technology = ensureFound(await Technology.findById(id), 'Technology');
   requireArchivedForDelete(technology, 'Technology');
+
   const [courses, paths, children] = await Promise.all([
     Course.countDocuments({ $or: [{ technologies: id }, { primaryTechnology: id }] }),
     LearningPath.countDocuments({ technologies: id }),
     Technology.countDocuments({ parentTechnology: id })
   ]);
+
   if (courses || paths || children) {
     throw dependencyError('This technology is still referenced, so it cannot be permanently deleted.', [
-      ...(courses ? [instruction('courses', `${courses} course(s) still reference it. If one is archived, restore that Course to Draft first, remove the technology, then archive the Course again if needed.`)] : []),
-      ...(paths ? [instruction('learningPaths', `${paths} learning path(s) still reference it. If one is archived, restore that Learning Path to Draft first, remove the technology, then archive it again if needed.`)] : []),
-      ...(children ? [instruction('childTechnologies', `${children} child technology item(s) still use it as their parent. Reassign or remove their parent first.`)] : [])
+      ...(courses ? [instruction('courses', `${courses} course(s) still reference it. Remove the technology from those Courses first.`)] : []),
+      ...(paths ? [instruction('learningPaths', `${paths} learning path(s) still reference it. Remove the technology from those Learning Paths first.`)] : []),
+      ...(children ? [instruction('childTechnologies', `${children} child technology item(s) still use it as their parent. Reassign their parent first.`)] : [])
     ]);
   }
+
   return deleteTechnology(id);
 };
 
@@ -326,9 +217,9 @@ export const deleteCourseSafely = async (id) => {
 
   if (paths || prerequisiteUsers || enrollments || coursePlans) {
     throw dependencyError('This course still has external references or learner history, so it cannot be permanently deleted.', [
-      ...(paths ? [instruction('learningPaths', `${paths} learning path(s) still include this Course. Restore an archived Learning Path to Draft if necessary, remove this Course, then archive the path again if needed.`)] : []),
-      ...(prerequisiteUsers ? [instruction('recommendedPrerequisites', `${prerequisiteUsers} course(s) still reference it as a prerequisite. Restore an archived Course to Draft if necessary, remove the prerequisite, then archive it again if needed.`)] : []),
-      ...(enrollments || coursePlans ? [instruction('learnerHistory', 'Learner enrollments or generated roadmaps already reference this Course. Keep the Course archived instead of deleting it.')] : [])
+      ...(paths ? [instruction('learningPaths', `${paths} learning path(s) still include this Course. Remove the Course from those paths first.`)] : []),
+      ...(prerequisiteUsers ? [instruction('recommendedPrerequisites', `${prerequisiteUsers} course(s) still reference it as a prerequisite. Remove the prerequisite first.`)] : []),
+      ...(enrollments || coursePlans ? [instruction('learnerHistory', 'Learner enrollments or roadmaps already reference this Course. Keep the Course archived instead of deleting it.')] : [])
     ]);
   }
 
@@ -336,25 +227,28 @@ export const deleteCourseSafely = async (id) => {
     RoadmapTemplate.deleteMany({ course: id }),
     ProjectTask.deleteMany({ course: id }),
     InterviewQuestion.deleteMany({ course: id }),
-    QuizQuestion.deleteMany({ course: id })
+    QuizQuestion.deleteMany({ course: id }),
+    Lesson.deleteMany({ course: id }),
+    Topic.deleteMany({ course: id })
   ]);
-  await Lesson.deleteMany({ course: id });
-  await Topic.deleteMany({ course: id });
   return deleteCourse(id);
 };
 
 export const deleteLearningPathSafely = async (id) => {
   const path = ensureFound(await LearningPath.findById(id), 'Learning path');
   requireArchivedForDelete(path, 'Learning path');
+
   const [enrollments, coursePlans] = await Promise.all([
     Enrollment.countDocuments({ learningPath: id }),
     CoursePlan.countDocuments({ learningPath: id })
   ]);
+
   if (enrollments || coursePlans) {
     throw dependencyError('This learning path has learner history, so it cannot be permanently deleted.', [
-      instruction('learnerHistory', 'Keep the Learning Path archived. Existing learner enrollments and generated roadmaps must remain valid.')
+      instruction('learnerHistory', 'Keep the Learning Path archived so existing learner roadmaps remain valid.')
     ]);
   }
+
   return deleteLearningPath(id);
 };
 

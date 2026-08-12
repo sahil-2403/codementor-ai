@@ -2,7 +2,7 @@
 
 ## Local processes
 
-A typical local setup uses two processes:
+A normal local setup uses two processes:
 
 ```bash
 # terminal 1
@@ -16,49 +16,34 @@ npm run dev
 
 The frontend uses relative `/api` requests. Vite proxies them to `http://localhost:5000` during local development.
 
-Add a third process only when queue support is enabled:
-
-```bash
-cd backend
-npm run worker
-```
-
 ## Installation
 
-Use `npm ci` when reproducing the checked-in lockfile and `npm install` when intentionally changing dependencies.
-
 ```bash
-cd backend && npm ci
-cd ../frontend && npm ci
+cd backend && npm install
+cd ../frontend && npm install
 ```
 
 Copy both environment examples before starting the applications.
 
 ## Database and seed data
 
-`npm run seed` is intended for local/demo databases. It clears application collections and recreates topics, lessons, questions, templates, tasks, and example accounts/content.
+`npm run seed` is intended for the disposable local/demo database. It recreates the catalog, Course-owned curriculum, templates, and demo accounts/content.
 
 Before running it:
 
-1. Confirm `MONGO_URI` points to the intended database.
-2. Back up any data that must survive.
-3. Never run it casually against production.
+1. Confirm `MONGO_URI` points to the intended development database.
+2. Back up anything you need to keep.
+3. Do not run it against production data.
 
 ## Backend commands
 
 ```bash
 npm run dev
 npm start
-npm run worker
 npm run seed
 npm test
 npm run check:gemini
-npm run migrate:attempt-numbers
-npm run migrate:attempt-indexes
-npm run migrate:roadmap-indexes
 ```
-
-Run the number backfill before enforcing attempt indexes on an existing database.
 
 ## Frontend commands
 
@@ -69,22 +54,20 @@ npm run build
 npm run preview
 ```
 
-The frontend tests use `node:test`, so they run without a browser or extra testing packages. They protect cross-layer contracts; they do not replace manual responsive/accessibility testing.
+Frontend tests use Node's built-in test runner. They protect important source and cross-layer contracts but do not replace manual browser testing.
 
-## Feature modes
+## Runtime modes
 
-### Minimal deterministic mode
+### Standard mode
 
 ```env
 ENABLE_AI=false
-ENABLE_QUEUE=false
 ENABLE_CACHE=true
-CACHE_DRIVER=memory
 EMAIL_ENABLED=false
 ALLOW_DEV_EMAIL_LOG=true
 ```
 
-This mode supports the complete deterministic learner/admin workflow and development email links.
+This supports the deterministic learner/admin workflow and development email links.
 
 ### Gemini-enabled mode
 
@@ -93,23 +76,39 @@ ENABLE_AI=true
 GEMINI_API_KEY=...
 ```
 
-Keep the per-feature usage and input limits enabled. Provider errors should be tested because the UI must remain honest and usable in fallback mode.
+Gemini uses simple daily feature limits and maximum input lengths. Provider failures should be tested because learner-facing fallbacks must remain clear and honest.
 
-### Redis and workers
+## Roadmap generation
 
-```env
-CACHE_DRIVER=redis
-REDIS_URL=redis://localhost:6379
-ENABLE_QUEUE=true
-```
+Roadmap generation is a normal API request:
 
-Start the worker before exercising queued features. If the worker is absent, jobs remain queued/processing and the learner UI will not receive a completed roadmap/report.
+1. Validate the current Enrollment.
+2. Load the published Course + level template.
+3. Optionally apply Gemini personalization.
+4. Archive the previous active CoursePlan if needed.
+5. Create the new CoursePlan and Progress.
+6. Return the result.
 
-## Review recovery and weekly reports
+The learner generation page should stay open while the request is running. If it fails, the learner can retry.
 
-Project and interview reviews in `reviewing` state may be retried after five minutes. This prevents a server interruption from permanently locking a saved attempt.
+## Frontend data loading
 
-Weekly reports use a UTC Monday week boundary. Only one report is stored for each learner, active course, and UTC week. When Gemini is unavailable, the report is created from deterministic progress data.
+- Axios functions live in `src/api/`.
+- Domain hooks live in `src/queries/`.
+- `useAsyncData` handles loading/error/refetch state.
+- `useAsyncAction` handles writes.
+- Successful writes trigger a small refresh signal so mounted server-data hooks reload.
+- There is no frontend server-response cache or optimistic cache layer.
+
+## Project and interview practice
+
+Each Project task or Interview question allows two attempts. The backend simply counts existing attempts and creates attempt 1 or 2. A third attempt is rejected.
+
+The learner answer/submission is saved before Gemini review. If Gemini is unavailable, the saved attempt receives scoreless fallback guidance.
+
+## Weekly reports
+
+Weekly reports use a UTC Monday boundary. One report is stored for each learner, active CoursePlan, and week. When Gemini is unavailable, the report uses deterministic progress data.
 
 ## Email testing
 
@@ -120,7 +119,7 @@ With delivery disabled and `ALLOW_DEV_EMAIL_LOG=true`, inspect backend logs for 
 3. Keep connection verification enabled initially.
 4. Test registration, resend verification, forgot password, and reset password.
 
-The recovery UI intentionally uses generic success messages to prevent account enumeration.
+Recovery screens intentionally use generic success messages to reduce account enumeration risk.
 
 ## Test sequence before a commit
 
@@ -133,34 +132,32 @@ npm test
 npm run build
 ```
 
-Also exercise the affected flow manually when changing routing, cookies, CSRF, onboarding transitions, content publishing, queue behavior, or Gemini fallback states.
+Also exercise the affected browser flow when changing routing, cookies, CSRF, onboarding transitions, content publishing, roadmap creation, or Gemini fallbacks.
 
-## Manual critical-path checklist
+## Manual critical path
 
 1. Register and verify an account.
 2. Log in and resume the correct onboarding step after refresh.
-3. Generate or reuse a roadmap.
-4. Complete lessons and confirm the next module unlocks.
-5. Submit a quiz and confirm dashboard/progress invalidation.
-6. Create project and interview attempts; confirm the two-attempt limit.
-7. Leave a review in a stale `reviewing` state and confirm retry recovery.
-8. Disable Gemini and verify scoreless fallbacks.
-9. Generate a weekly report twice and confirm the existing report is reused.
-10. Re-enable Gemini and retry the same saved review.
-11. Publish and archive admin content through confirmation dialogs.
-12. Log out and test logout-all-devices.
+3. Choose a Course or Learning Path, level, and preferences.
+4. Generate a roadmap.
+5. Complete Lessons and confirm progression updates.
+6. Submit a Quiz and confirm Dashboard/Progress updates.
+7. Open Mentor from a Lesson and confirm the preloaded prompt sends once.
+8. Create Project and Interview attempts and verify the two-attempt limit.
+9. Disable Gemini and verify honest fallback behavior.
+10. Generate a weekly report.
+11. Exercise admin archive/restore/delete and dependency messages.
+12. Switch between independent learner enrollments.
+13. Log out and test logout-all-devices.
 
-## Production configuration notes
+## Production notes
 
 - Use HTTPS and secure cookies.
-- Route `/api` from the frontend host to the Express API, or set `VITE_API_BASE_URL` explicitly.
+- Route `/api` to the Express API or set `VITE_API_BASE_URL` explicitly.
 - Configure exact frontend origins and proxy trust.
-- Keep MongoDB, Redis, SMTP, and Gemini credentials in the deployment secret store.
-- Run API and worker as independently supervised processes.
-- Do not use in-memory cache when multiple API instances require shared cache behavior.
+- Keep MongoDB, SMTP, and Gemini credentials in deployment secrets.
 - Disable development email logging.
-- Disable demo mode unless the deployment is intentionally a demo.
-- Monitor readiness separately from liveness.
+- Disable demo mode unless intentionally demonstrating demo behavior.
 
 ## Troubleshooting
 
@@ -170,22 +167,18 @@ Check credentialed CORS, cookie domain/same-site settings, HTTPS, the `/api` rev
 
 ### Protected writes return invalid CSRF token
 
-Confirm the browser can receive both CSRF cookies, authentication and CSRF cookies use the same domain/same-site policy, and proxies preserve cookies and headers.
+Confirm authentication and CSRF cookies share the expected browser/domain policy and the proxy preserves cookies and headers.
 
-### Roadmap stays queued
+### Roadmap generation fails
 
-Confirm `ENABLE_QUEUE=true`, Redis is reachable, and `npm run worker` is running. Otherwise disable queues and use the synchronous path.
+Read the returned error, confirm the selected Course is published, and confirm the chosen level has a published Roadmap Template with published referenced content.
 
-### Project or interview review stays in progress
+### Gemini features show unavailable guidance
 
-Wait five minutes and retry the saved review. A stale review is recoverable and does not consume another attempt slot.
-
-### Gemini buttons show unavailable/fallback guidance
-
-Confirm `ENABLE_AI`, the API key, model name, provider connectivity, feature limits, and request size limits. Provider failures are expected to preserve the saved attempt without a score.
+Confirm `ENABLE_AI`, the API key, model name, provider connectivity, daily feature limit, and request-size limits.
 
 ### Admin publish fails
 
-Read the returned validation message. Common causes are missing required lesson content, MCQ answer mismatch, unpublished related lessons, incomplete interview answer checklists, invalid template lesson slugs, or duplicate published goal/level templates.
+Read the returned validation and “How to resolve” instructions. Course-owned references must belong to the same Course and required learner content must be published before dependent content can be published.
 
-See [Junior MERN project scope](JUNIOR_PROJECT_SCOPE.md) for the intentional limits of this portfolio project.
+See [Junior project scope](JUNIOR_PROJECT_SCOPE.md) for the intentional limits of this portfolio project.

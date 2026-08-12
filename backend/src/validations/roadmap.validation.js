@@ -8,7 +8,3 @@ export const generateFromAssessmentSchema = z.object({
     forceNewVersion: z.boolean().optional().default(false)
   })
 });
-
-export const roadmapJobParamSchema = z.object({
-  params: z.object({ jobId: objectIdSchema })
-});

@@ -24,7 +24,6 @@ const enrollmentSchema = new mongoose.Schema(
     },
     preferencesCompletedAt: { type: Date, default: null },
     assessmentChoiceAt: { type: Date, default: null },
-    roadmapJob: { type: mongoose.Schema.Types.ObjectId, ref: 'AIJob', default: null },
     onboardingErrorCode: { type: String, default: '' },
     onboardingErrorMessage: { type: String, default: '' },
     onboardingCompletedAt: { type: Date, default: null },

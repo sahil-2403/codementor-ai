@@ -2,15 +2,32 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendResponse } from '../utils/ApiResponse.js';
 import {
   getOnboardingStatus,
+  listLearnerEnrollments,
   markAssessmentSkipped,
   saveLevelSelection,
   savePreferencesOnly,
-  selectEnrollmentTarget
+  selectEnrollmentTarget,
+  switchLearnerEnrollment
 } from '../services/onboarding.service.js';
+import { invalidateUserLearningCache } from '../services/cacheInvalidation.service.js';
 
 export const status = asyncHandler(async (req, res) => {
   const data = await getOnboardingStatus(req.user._id);
   sendResponse(res, 200, 'Onboarding status', data);
+});
+
+export const enrollments = asyncHandler(async (req, res) => {
+  const items = await listLearnerEnrollments(req.user._id);
+  sendResponse(res, 200, 'Learner enrollments', { enrollments: items });
+});
+
+export const switchEnrollment = asyncHandler(async (req, res) => {
+  const enrollment = await switchLearnerEnrollment({
+    userId: req.user._id,
+    enrollmentId: req.params.enrollmentId
+  });
+  await invalidateUserLearningCache(req.user._id);
+  sendResponse(res, 200, 'Current enrollment changed', { enrollment });
 });
 
 export const selectOffering = asyncHandler(async (req, res) => {

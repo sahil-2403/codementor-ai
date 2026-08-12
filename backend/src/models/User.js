@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true, minlength: 8, select: false },
     role: { type: String, enum: Object.values(ROLES), default: ROLES.LEARNER },
     avatar: { type: String, default: '' },
+    currentEnrollment: { type: mongoose.Schema.Types.ObjectId, ref: 'Enrollment', default: null },
     isEmailVerified: { type: Boolean, default: false },
     refreshTokenHash: { type: String, default: null, select: false },
     refreshTokenVersion: { type: Number, default: 0, select: false },
@@ -21,7 +22,6 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ role: 1, createdAt: -1 });
 userSchema.index({ isEmailVerified: 1 });
 

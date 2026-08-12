@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import { env } from '../config/env.js';
 import { getEmailTransportStatus } from '../email/emailTransport.js';
-import { getRedisStatus } from '../config/redis.js';
 
 export const getLiveness = () => ({
   status: 'ok',
@@ -14,7 +13,6 @@ export const getLiveness = () => ({
 export const getReadiness = () => {
   const mongoReady = mongoose.connection.readyState === 1;
   const email = getEmailTransportStatus();
-  const redis = getRedisStatus();
 
   return {
     ready: mongoReady,
@@ -33,11 +31,6 @@ export const getReadiness = () => {
         enabled: env.emailEnabled,
         available: env.emailEnabled ? email.available : false,
         checked: email.checked
-      },
-      redis: {
-        required: false,
-        enabled: redis.enabled,
-        ready: redis.ready
       }
     },
     timestamp: new Date().toISOString()

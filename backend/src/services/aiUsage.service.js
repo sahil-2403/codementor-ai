@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { AIUsageLog } from '../models/AIUsageLog.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { startOfToday } from '../utils/date.js';
@@ -29,14 +28,16 @@ const nextDailyReset = () => {
   return resetAt;
 };
 
-export const createPromptFingerprint = (value = '') => crypto.createHash('sha256').update(String(value)).digest('hex').slice(0, 16);
-export const estimateTokens = (value = '') => Math.ceil(String(value).split(/\s+/).filter(Boolean).length * 1.35);
-
 export const checkAIUsageLimit = async (userId, feature) => {
   const limit = limitMap[feature]?.() ?? 5;
-  const count = await AIUsageLog.countDocuments({ user: userId, feature, status: 'success', createdAt: { $gte: startOfToday() } });
+  const count = await AIUsageLog.countDocuments({
+    user: userId,
+    feature,
+    status: 'success',
+    createdAt: { $gte: startOfToday() }
+  });
+
   if (count >= limit) {
-    await AIUsageLog.create({ user: userId, feature, status: 'blocked', model: env.geminiModel, provider: 'gemini', metadata: { limit } });
     throw new ApiError(429, `Daily AI limit reached for ${feature}`, [], 'AI_DAILY_LIMIT_REACHED');
   }
 };
@@ -64,11 +65,7 @@ export const getLearnerAIStatus = async (userId) => {
     learnerFeatures.map((feature) => {
       const limit = limitMap[feature]?.() ?? 0;
       const used = usedByFeature.get(feature) || 0;
-      return [feature, {
-        limit,
-        used,
-        remaining: Math.max(0, limit - used)
-      }];
+      return [feature, { limit, used, remaining: Math.max(0, limit - used) }];
     })
   );
 
@@ -88,28 +85,5 @@ export const logAIUsage = async ({
   feature,
   status = 'success',
   model = env.geminiModel,
-  provider = 'gemini',
-  inputTokens = 0,
-  outputTokens = 0,
-  estimatedCost = 0,
-  latencyMs = 0,
-  promptFingerprint = '',
-  contextSources = [],
-  metadata = {},
   errorMessage = ''
-}) => AIUsageLog.create({
-  user,
-  feature,
-  status,
-  model,
-  provider,
-  inputTokens,
-  outputTokens,
-  estimatedCost,
-  latencyMs,
-  promptFingerprint,
-  contextSourceCount: contextSources.length,
-  contextSources,
-  metadata,
-  errorMessage
-});
+}) => AIUsageLog.create({ user, feature, status, model, errorMessage });

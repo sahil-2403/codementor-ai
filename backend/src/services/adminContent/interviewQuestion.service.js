@@ -2,7 +2,6 @@ import mongoose from 'mongoose';
 import { InterviewQuestion } from '../../models/InterviewQuestion.js';
 import { InterviewAttempt } from '../../models/InterviewAttempt.js';
 import { Topic } from '../../models/Topic.js';
-import { env } from '../../config/env.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
@@ -19,31 +18,28 @@ import {
 } from './common.js';
 
 const escapeRegex = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const operationOptions = (session) => (session ? { session } : undefined);
-const withSession = (query, session) => (session ? query.session(session) : query);
 
-const runLifecycleOperation = async (operation) => {
-  if (!env.enableMongoTransactions) return operation(null);
-  const session = await mongoose.startSession();
-  let result;
-  try {
-    await session.withTransaction(async () => { result = await operation(session); });
-  } finally {
-    await session.endSession();
-  }
-  return result;
-};
-
-const resolveTopicReference = async ({ courseId, topicRef, topicTitle, session = null }) => {
+const resolveTopicReference = async ({ courseId, topicRef, topicTitle }) => {
   let query = null;
   if (topicRef && mongoose.isValidObjectId(topicRef)) {
     query = Topic.findOne({ _id: topicRef, course: courseId, status: 'active' }).select('_id title status course');
   } else {
     const title = String(topicTitle || '').trim();
-    if (title) query = Topic.findOne({ course: courseId, title: new RegExp(`^${escapeRegex(title)}$`, 'i'), status: 'active' }).select('_id title status course');
+    if (title) {
+      query = Topic.findOne({
+        course: courseId,
+        title: new RegExp(`^${escapeRegex(title)}$`, 'i'),
+        status: 'active'
+      }).select('_id title status course');
+    }
   }
-  const topic = query ? await withSession(query, session) : null;
-  if (!topic) throw new ApiError(400, 'Selected topic is unavailable for this course', [{ field: 'topicRef', message: 'Choose an active topic from this course' }], 'CONTENT_REFERENCE_INVALID');
+
+  const topic = query ? await query : null;
+  if (!topic) {
+    throw new ApiError(400, 'Selected topic is unavailable for this course', [
+      { field: 'topicRef', message: 'Choose an active topic from this course' }
+    ], 'CONTENT_REFERENCE_INVALID');
+  }
   return { topic: topic.title, topicRef: topic._id };
 };
 
@@ -53,23 +49,25 @@ const assertInterviewQuestionPublishable = async (question) => {
   if (String(question.expectedAnswer || '').trim().length < 20) errors.push({ field: 'expectedAnswer', message: 'Expected answer must contain at least 20 characters' });
   if (!cleanStringArray(question.answerChecklist).length) errors.push({ field: 'answerChecklist', message: 'Add at least one answer review point' });
   if (errors.length) throw new ApiError(400, 'Interview question is not ready to publish', errors, 'CONTENT_NOT_READY');
+
   await assertCourseExists(question.course, { requirePublished: true });
-  const topicLink = await resolveTopicReference({ courseId: question.course, topicRef: question.topicRef, topicTitle: question.topic });
+  const topicLink = await resolveTopicReference({
+    courseId: question.course,
+    topicRef: question.topicRef,
+    topicTitle: question.topic
+  });
   question.topic = topicLink.topic;
   question.topicRef = topicLink.topicRef;
 };
 
-export const resolveInterviewQuestionImpact = async (questionId, { session = null } = {}) => {
+export const resolveInterviewQuestionImpact = async (questionId) => {
   const question = ensureFound(
-    await withSession(
-      InterviewQuestion.findById(questionId)
-        .populate('course', 'title slug status')
-        .populate('topicRef', 'title status course'),
-      session
-    ),
+    await InterviewQuestion.findById(questionId)
+      .populate('course', 'title slug status')
+      .populate('topicRef', 'title status course'),
     'Interview question'
   );
-  const interviewAttempts = await withSession(InterviewAttempt.countDocuments({ question: question._id }), session);
+  const interviewAttempts = await InterviewAttempt.countDocuments({ question: question._id });
   return { question, counts: { interviewAttempts } };
 };
 
@@ -85,6 +83,7 @@ export const listInterviewQuestions = async (query = {}) => {
     if (mongoose.isValidObjectId(query.topic)) filter.topicRef = query.topic;
     else filter.topic = query.topic;
   }
+
   return listWithPagination({
     model: InterviewQuestion,
     filter,
@@ -97,10 +96,16 @@ export const listInterviewQuestions = async (query = {}) => {
 };
 
 export const getInterviewQuestion = async (id) => ensureFound(
-  await InterviewQuestion.findById(id).populate('course', 'title slug status').populate('topicRef', 'title status course'),
+  await InterviewQuestion.findById(id)
+    .populate('course', 'title slug status')
+    .populate('topicRef', 'title status course'),
   'Interview question'
 );
-export const getInterviewQuestionImpact = async (id) => { const impact = await resolveInterviewQuestionImpact(id); return { interviewQuestion: impact.question, counts: impact.counts }; };
+
+export const getInterviewQuestionImpact = async (id) => {
+  const impact = await resolveInterviewQuestionImpact(id);
+  return { interviewQuestion: impact.question, counts: impact.counts };
+};
 
 export const createInterviewQuestion = async (payload) => {
   await assertCourseExists(payload.course);
@@ -111,9 +116,9 @@ export const createInterviewQuestion = async (payload) => {
     technologies: cleanReferenceArray(payload.technologies),
     answerChecklist: cleanStringArray(payload.answerChecklist),
     tags: cleanStringArray(payload.tags),
-    status: PUBLISHABLE_STATUS.DRAFT,
-    manualArchive: false
+    status: PUBLISHABLE_STATUS.DRAFT
   });
+
   await invalidateContentCache();
   return question.populate([
     { path: 'course', select: 'title slug status' },
@@ -127,6 +132,7 @@ export const updateInterviewQuestion = async ({ id, payload }) => {
   if (payload.course && payload.course.toString() !== question.course.toString()) {
     throw new ApiError(409, 'Interview question course cannot be changed. Create it under the target course instead.', [], 'CONTENT_COURSE_IMMUTABLE');
   }
+
   const hasTopicChange = Object.prototype.hasOwnProperty.call(payload, 'topicRef') || Object.prototype.hasOwnProperty.call(payload, 'topic');
   const topicLink = hasTopicChange
     ? await resolveTopicReference({ courseId: question.course, topicRef: payload.topicRef, topicTitle: payload.topic || question.topic })
@@ -139,7 +145,8 @@ export const updateInterviewQuestion = async ({ id, payload }) => {
     ...(payload.tags ? { tags: cleanStringArray(payload.tags) } : {})
   };
   delete normalized.course;
-  for (const field of ['status', 'manualArchive', 'statusBeforeManualArchive', 'archivedByTopics', 'statusBeforeCascadeArchive', 'statusBeforeTopicArchive']) delete normalized[field];
+  delete normalized.status;
+
   Object.assign(question, normalized);
   if (question.status === PUBLISHABLE_STATUS.PUBLISHED) await assertInterviewQuestionPublishable(question);
   await question.save();
@@ -165,59 +172,53 @@ export const changeInterviewQuestionStatus = async ({ id, status, confirmPublish
       ]
     });
   }
-  if (!['archived', 'restored'].includes(status)) throw new ApiError(400, 'Invalid interview question status', [], 'VALIDATION_ERROR');
 
-  const result = await runLifecycleOperation(async (session) => {
-    const impact = await resolveInterviewQuestionImpact(id, { session });
-    const question = impact.question;
-    if (status === 'archived') {
-      if (question.status === PUBLISHABLE_STATUS.ARCHIVED) return { question, counts: impact.counts };
-      question.statusBeforeManualArchive = ['draft', 'published'].includes(question.status) ? question.status : PUBLISHABLE_STATUS.DRAFT;
-      question.manualArchive = true;
-      question.status = PUBLISHABLE_STATUS.ARCHIVED;
-      await question.save(operationOptions(session));
-      return { question, counts: impact.counts };
-    }
+  if (!['archived', 'restored'].includes(status)) {
+    throw new ApiError(400, 'Invalid interview question status', [], 'VALIDATION_ERROR');
+  }
+
+  const impact = await resolveInterviewQuestionImpact(id);
+  const question = impact.question;
+
+  if (status === 'archived') {
+    if (question.status === PUBLISHABLE_STATUS.ARCHIVED) return { question, counts: impact.counts };
+    question.status = PUBLISHABLE_STATUS.ARCHIVED;
+    await question.save();
+  } else {
     if (question.status !== PUBLISHABLE_STATUS.ARCHIVED) return { question, counts: impact.counts };
     if (question.course?.status === PUBLISHABLE_STATUS.ARCHIVED) {
       throw new ApiError(409, 'This interview question cannot be restored while its Course is archived.', [
-        { field: 'course', message: 'Open Courses and restore the parent Course first. Restoring the Course will restore all of its curriculum.' }
+        { field: 'course', message: 'Restore the parent Course first.' }
       ], 'PARENT_ARCHIVED');
     }
-    if (question.topicRef?.status === 'archived' || (question.archivedByTopics || []).length) {
+    if (question.topicRef?.status === 'archived') {
       throw new ApiError(409, 'This interview question cannot be restored while its Topic is archived.', [
-        { field: 'topic', message: 'Open Topics and restore the parent Topic first. Restoring the Topic will restore its child content.' }
+        { field: 'topic', message: 'Restore the parent Topic first.' }
       ], 'PARENT_ARCHIVED');
     }
-    question.manualArchive = false;
-    question.status = ['draft', 'published'].includes(question.statusBeforeManualArchive) ? question.statusBeforeManualArchive : PUBLISHABLE_STATUS.DRAFT;
-    question.statusBeforeManualArchive = null;
-    question.statusBeforeCascadeArchive = null;
-    question.statusBeforeTopicArchive = null;
-    question.archivedByTopics = [];
-    await question.save(operationOptions(session));
-    return { question, counts: impact.counts };
-  });
+
+    question.status = PUBLISHABLE_STATUS.DRAFT;
+    await question.save();
+  }
 
   await invalidateContentCache();
-  return result;
+  return { question, counts: impact.counts };
 };
 
 export const deleteInterviewQuestion = async (id) => {
-  const result = await runLifecycleOperation(async (session) => {
-    const impact = await resolveInterviewQuestionImpact(id, { session });
-    requireArchivedForDelete(impact.question, 'Interview question');
-    if (impact.counts.interviewAttempts > 0) {
-      throw new ApiError(
-        409,
-        'This interview question has learner attempts, so it cannot be permanently deleted.',
-        [{ field: 'learnerHistory', message: `Keep the Interview question archived. ${impact.counts.interviewAttempts} learner attempt(s) must remain connected to it.` }],
-        'LEARNER_HISTORY_EXISTS'
-      );
-    }
-    await InterviewQuestion.deleteOne({ _id: impact.question._id }, operationOptions(session));
-    return { question: impact.question, counts: impact.counts };
-  });
+  const impact = await resolveInterviewQuestionImpact(id);
+  requireArchivedForDelete(impact.question, 'Interview question');
+
+  if (impact.counts.interviewAttempts > 0) {
+    throw new ApiError(
+      409,
+      'This interview question has learner attempts, so it cannot be permanently deleted.',
+      [{ field: 'learnerHistory', message: 'Keep the Interview question archived so existing learner attempts remain valid.' }],
+      'LEARNER_HISTORY_EXISTS'
+    );
+  }
+
+  await InterviewQuestion.deleteOne({ _id: impact.question._id });
   await invalidateContentCache();
-  return result;
+  return { question: impact.question, counts: impact.counts };
 };

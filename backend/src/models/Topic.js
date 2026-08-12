@@ -10,20 +10,10 @@ const topicSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     slug: { type: String, required: true, trim: true },
     category: { type: String, required: true },
-    difficulty: {
-      type: String,
-      enum: ['beginner', 'intermediate', 'advanced'],
-      default: 'beginner'
-    },
+    difficulty: { type: String, enum: ['beginner', 'intermediate', 'advanced'], default: 'beginner' },
     tags: [{ type: String }],
     order: { type: Number, default: 0 },
-    status: {
-      type: String,
-      enum: ['active', 'archived'],
-      default: 'active',
-      index: true
-    },
-    statusBeforeCourseArchive: { type: String, enum: ['active'], default: null }
+    status: { type: String, enum: ['active', 'archived'], default: 'active', index: true }
   },
   { timestamps: true }
 );

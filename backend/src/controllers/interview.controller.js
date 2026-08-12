@@ -4,7 +4,12 @@ import { getInterviewQuestion, listInterviewAttempts, listInterviewQuestions, re
 import { logActivity } from '../services/activityLog.service.js';
 
 export const getInterviewQuestions = asyncHandler(async (req, res) => {
-  const questions = await listInterviewQuestions({ topic: req.query.topic, difficulty: req.query.difficulty, type: req.query.type });
+  const questions = await listInterviewQuestions({
+    userId: req.user._id,
+    topic: req.query.topic,
+    difficulty: req.query.difficulty,
+    type: req.query.type
+  });
   sendResponse(res, 200, 'Interview questions', { questions });
 });
 

@@ -1,11 +1,13 @@
 import { Progress } from '../models/Progress.js';
 import { CoursePlan } from '../models/CoursePlan.js';
+import { Enrollment } from '../models/Enrollment.js';
 import { getWeakTopicSeverity, getNextLessonFromCourse, buildLearningRecommendations, buildStudyPlan } from './recommendation.service.js';
 import { scheduleRevisionForWeakTopic, getDueRevisions, getRevisionStats } from './revision.service.js';
 import { CACHE_TTL, getOrSetCache } from './cache.service.js';
 import { cacheKeys } from './cacheKeys.service.js';
 import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
 import { assertLessonBelongsToCourse, getActiveCourseForUser } from './dataIntegrity.service.js';
+import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
 
 const calculateCompletion = (course, completedLessonIds) => {
   const totalLessons = course.modules.reduce((sum, module) => sum + module.lessons.length, 0);
@@ -13,29 +15,27 @@ const calculateCompletion = (course, completedLessonIds) => {
   return Math.round((completedLessonIds.length / totalLessons) * 100);
 };
 
-export const createProgressForCourse = async ({ userId, coursePlanId, session = null } = {}) => {
+export const createProgressForCourse = async ({ userId, coursePlanId }) => {
   await invalidateUserLearningCache(userId);
-  const query = Progress.findOneAndUpdate(
+  return Progress.findOneAndUpdate(
     { user: userId, coursePlan: coursePlanId },
     { $setOnInsert: { user: userId, coursePlan: coursePlanId } },
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
-  if (session) query.session(session);
-  return query;
 };
 
 const buildCurrentProgressPayload = async (userId) => {
-  const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true })
-    .populate('modules.lessons.lesson')
-    .sort({ createdAt: -1 })
-    .lean();
+  const course = await getActiveCourseForUser({ userId, populate: true, lean: true });
   if (!course) return null;
 
   const [progress, dueRevisions, revisionStats, roadmapVersions] = await Promise.all([
     Progress.findOne({ user: userId, coursePlan: course._id }).lean(),
     getDueRevisions({ userId, coursePlanId: course._id }),
     getRevisionStats({ userId, coursePlanId: course._id }),
-    CoursePlan.find({ user: userId }).select('_id title version roadmapType generatedReason status isActive createdAt').sort({ version: -1 }).lean()
+    CoursePlan.find({ user: userId, enrollment: course.enrollment, course: course.course })
+      .select('_id title version roadmapType generatedReason status isActive createdAt')
+      .sort({ version: -1 })
+      .lean()
   ]);
 
   const nextLesson = getNextLessonFromCourse(course);
@@ -47,6 +47,40 @@ const buildCurrentProgressPayload = async (userId) => {
 
 export const getCurrentProgress = async (userId) => {
   return getOrSetCache(cacheKeys.dashboard(userId), () => buildCurrentProgressPayload(userId), CACHE_TTL.SHORT);
+};
+
+const advanceLearningPathIfNeeded = async ({ course, progress }) => {
+  if (progress.overallCompletion < 100 || !course.enrollment) return null;
+
+  const enrollment = await Enrollment.findById(course.enrollment).populate('learningPath');
+  if (!enrollment || enrollment.type !== 'learning_path' || !enrollment.learningPath) return null;
+
+  const entries = [...(enrollment.learningPath.courses || [])].sort((a, b) => a.order - b.order);
+  const currentIndex = entries.findIndex((item) => item.course.toString() === course.course.toString());
+  const nextEntry = currentIndex >= 0 ? entries[currentIndex + 1] : null;
+
+  if (!nextEntry) {
+    enrollment.status = 'completed';
+    enrollment.onboardingState = ONBOARDING_STATES.COMPLETED;
+    await enrollment.save();
+    return { learningPathCompleted: true, nextPath: '/dashboard' };
+  }
+
+  course.status = 'archived';
+  course.isActive = false;
+  await course.save();
+
+  enrollment.currentCourse = nextEntry.course;
+  enrollment.level = nextEntry.defaultLevel || enrollment.level;
+  enrollment.status = 'draft';
+  enrollment.assessmentPreference = 'not_applicable';
+  enrollment.assessmentChoiceAt = null;
+  enrollment.onboardingState = ONBOARDING_STATES.ROADMAP_PENDING;
+  enrollment.onboardingErrorCode = '';
+  enrollment.onboardingErrorMessage = '';
+  await enrollment.save();
+
+  return { learningPathAdvanced: true, nextPath: '/onboarding/generating' };
 };
 
 export const markLessonComplete = async ({ userId, lessonId }) => {
@@ -86,8 +120,10 @@ export const markLessonComplete = async ({ userId, lessonId }) => {
   progress.overallCompletion = calculateCompletion(course, progress.completedLessons);
   await course.save();
   await progress.save();
+
+  const pathResult = await advanceLearningPathIfNeeded({ course, progress });
   await invalidateUserLearningCache(userId);
-  return progress;
+  return { progress, ...pathResult };
 };
 
 export const mergeWeakTopics = async ({ progress, weakTopics, source = 'quiz' }) => {

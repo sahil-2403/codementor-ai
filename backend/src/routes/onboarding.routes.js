@@ -7,11 +7,22 @@ import {
   selectionSchema,
   skipAssessmentSchema
 } from '../validations/onboarding.validation.js';
-import { saveLevel, savePreferences, selectOffering, skipAssessment, status } from '../controllers/onboarding.controller.js';
+import { enrollmentIdParamSchema } from '../validations/common.validation.js';
+import {
+  enrollments,
+  saveLevel,
+  savePreferences,
+  selectOffering,
+  skipAssessment,
+  status,
+  switchEnrollment
+} from '../controllers/onboarding.controller.js';
 
 const router = Router();
 router.use(requireAuth);
 router.get('/status', status);
+router.get('/enrollments', enrollments);
+router.post('/enrollments/:enrollmentId/current', validate(enrollmentIdParamSchema), switchEnrollment);
 router.post('/selection', validate(selectionSchema), selectOffering);
 router.put('/level', validate(levelSchema), saveLevel);
 router.post('/preferences', validate(preferencesSchema), savePreferences);

@@ -25,14 +25,7 @@ const ensureGeminiAvailable = () => {
   }
 };
 
-const metadata = (result) => ({
-  model: result.model,
-  provider: 'gemini',
-  inputTokens: result.inputTokens,
-  outputTokens: result.outputTokens,
-  latencyMs: result.latencyMs,
-  aiAvailable: true
-});
+const resultInfo = (result) => ({ model: result.model, aiAvailable: true });
 
 export const aiProvider = {
   async generateRoadmap({ template, enrollment, course, assessment }) {
@@ -42,7 +35,7 @@ export const aiProvider = {
       schema: roadmapResponseSchema,
       validationMessage: 'Gemini roadmap response did not match the roadmap schema'
     });
-    return { ...result.data, ...metadata(result) };
+    return { ...result.data, ...resultInfo(result) };
   },
 
   async answerMentorQuestion({ question, lesson, weakTopics, course, currentModule, recentMistakes = [], relatedContext = [], promptType = 'freeform' }) {
@@ -58,18 +51,23 @@ export const aiProvider = {
       recentMistakes,
       relatedContext
     }));
-    return { answer: result.text, sources, ...metadata(result) };
+    return { answer: result.text, sources, ...resultInfo(result) };
   },
 
   async explainQuizMistakes({ weakTopics, wrongAnswers = [], relatedContext = [], userLevel = 'learner' }) {
     ensureGeminiAvailable();
     const sources = relatedContext.map((item) => item.source).filter(Boolean);
-    const result = await geminiClient.generate(buildQuizExplanationPrompt({ userLevel, weakTopics, wrongAnswers, relatedContext }));
+    const result = await geminiClient.generate(buildQuizExplanationPrompt({
+      userLevel,
+      weakTopics,
+      wrongAnswers,
+      relatedContext
+    }));
     return {
       feedback: result.text,
       focusTopics: weakTopics?.map((item) => item.topic) || [],
       sources,
-      ...metadata(result)
+      ...resultInfo(result)
     };
   },
 
@@ -80,7 +78,7 @@ export const aiProvider = {
       schema: projectReviewResponseSchema,
       validationMessage: 'Gemini project review did not match the expected schema'
     });
-    return { ...result.data, ...metadata(result) };
+    return { ...result.data, ...resultInfo(result) };
   },
 
   async reviewInterviewAnswer({ question, answer, userLevel = 'learner' }) {
@@ -90,7 +88,7 @@ export const aiProvider = {
       schema: interviewReviewResponseSchema,
       validationMessage: 'Gemini interview feedback did not match the expected schema'
     });
-    return { ...result.data, ...metadata(result) };
+    return { ...result.data, ...resultInfo(result) };
   },
 
   async generateWeeklyReport({ progress }) {
@@ -100,6 +98,6 @@ export const aiProvider = {
       schema: weeklyReportResponseSchema,
       validationMessage: 'Gemini weekly report response did not match the expected schema'
     });
-    return { ...result.data, ...metadata(result) };
+    return { ...result.data, ...resultInfo(result) };
   }
 };
