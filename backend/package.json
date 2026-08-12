@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
-    "seed": "node src/seed/runSeed.js",
+    "seed": "node src/seed/seed.js",
     "test": "node --test --test-concurrency=1 ./test/unit/backend.test.js",
     "check:gemini": "node scripts/checkGemini.mjs"
   },
