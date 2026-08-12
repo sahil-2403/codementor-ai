@@ -37,10 +37,15 @@ const assertTechnologyParentValid = async ({ id, parentTechnology }) => {
   const parent = await Technology.findOne({
     _id: parentTechnology,
     status: activeCatalogFilter
-  }).select('_id').lean();
+  }).select('_id parentTechnology').lean();
   if (!parent) {
     throw new ApiError(400, 'Selected parent technology is unavailable.', [
       instruction('parentTechnology', 'Choose an active or draft technology as the parent.')
+    ], 'CONTENT_REFERENCE_INVALID');
+  }
+  if (parent.parentTechnology) {
+    throw new ApiError(400, 'Technology hierarchy supports only one parent level.', [
+      instruction('parentTechnology', 'Choose a top-level technology as the parent.')
     ], 'CONTENT_REFERENCE_INVALID');
   }
 };
@@ -62,15 +67,17 @@ const assertTechnologyArchiveSafe = async (technologyId) => {
 };
 
 const assertCourseArchiveSafe = async (courseId) => {
-  const [paths, prerequisiteUsers] = await Promise.all([
+  const [paths, prerequisiteUsers, activeLearnerPlans] = await Promise.all([
     LearningPath.countDocuments({ status: activeCatalogFilter, 'courses.course': courseId }),
-    Course.countDocuments({ status: activeCatalogFilter, recommendedPrerequisites: courseId })
+    Course.countDocuments({ status: activeCatalogFilter, recommendedPrerequisites: courseId }),
+    CoursePlan.countDocuments({ course: courseId, status: 'active', isActive: true })
   ]);
 
-  if (paths || prerequisiteUsers) {
-    throw dependencyError('This course is still used by active catalog items, so it cannot be archived yet.', [
+  if (paths || prerequisiteUsers || activeLearnerPlans) {
+    throw dependencyError('This course is still in use, so it cannot be archived yet.', [
       ...(paths ? [instruction('learningPaths', `${paths} active learning path(s) include this course. Open Learning Paths and remove the course first.`)] : []),
-      ...(prerequisiteUsers ? [instruction('recommendedPrerequisites', `${prerequisiteUsers} active course(s) recommend this course as a prerequisite. Remove the prerequisite first.`)] : [])
+      ...(prerequisiteUsers ? [instruction('recommendedPrerequisites', `${prerequisiteUsers} active course(s) recommend this course as a prerequisite. Remove the prerequisite first.`)] : []),
+      ...(activeLearnerPlans ? [instruction('learnerHistory', `${activeLearnerPlans} active learner roadmap(s) currently use this Course. Keep it published until those roadmaps are no longer active.`)] : [])
     ]);
   }
 };
