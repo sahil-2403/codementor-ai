@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   BookOpenCheck,
@@ -14,13 +15,39 @@ import Badge from "../../components/common/Badge.jsx";
 import PageShell from "../../components/common/PageShell.jsx";
 import PageHeader from "../../components/common/PageHeader.jsx";
 import LessonContent from "../../components/lesson/LessonContent.jsx";
-import { useCompleteLesson, useLesson } from "../../queries/lessonQueries.js";
+import { lessonApi } from '../../api/lessonApi.js';
 
 export default function LessonPage() {
   const { lessonId } = useParams();
   const navigate = useNavigate();
-  const { data, isLoading, error, refetch } = useLesson(lessonId);
-  const completeMutation = useCompleteLesson();
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [isCompleting, setIsCompleting] = useState(false);
+  const [completeError, setCompleteError] = useState(null);
+
+  useEffect(() => {
+    if (!lessonId) return undefined;
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+
+    lessonApi.get(lessonId)
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [lessonId, loadAttempt]);
 
   if (isLoading) return <Loader label="Loading lesson..." />;
   if (error)
@@ -40,7 +67,7 @@ export default function LessonPage() {
         title="Lesson not found"
         description="This lesson is not available in your current roadmap."
         actionLabel="Try again"
-        onAction={() => refetch()}
+        onAction={() => setLoadAttempt((value) => value + 1)}
       />
     );
 
@@ -52,11 +79,16 @@ export default function LessonPage() {
     );
 
   const completeLesson = async () => {
+    setIsCompleting(true);
+    setCompleteError(null);
     try {
-      const result = await completeMutation.mutateAsync(lesson._id);
+      const result = await lessonApi.complete(lesson._id);
+      setData((current) => ({ ...current, isCompleted: true }));
       if (result?.nextPath) navigate(result.nextPath);
-    } catch {
-      // The mutation already exposes the error below the header actions.
+    } catch (requestError) {
+      setCompleteError(requestError);
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -96,7 +128,7 @@ export default function LessonPage() {
               <Button
                 className="min-h-9 px-3.5 text-xs sm:text-sm"
                 onClick={completeLesson}
-                isLoading={completeMutation.isPending}
+                isLoading={isCompleting}
                 loadingLabel="Saving completion..."
               >
                 <BookOpenCheck size={16} aria-hidden="true" />
@@ -118,7 +150,7 @@ export default function LessonPage() {
         )}
       </div>
 
-      <ErrorMessage message={completeMutation.error?.message} />
+      <ErrorMessage message={completeError?.message} />
 
       <Card className="relative overflow-hidden border-primary/20 bg-gradient-to-r from-primary-soft via-violet-50 to-blue-50 shadow-sm">
         <div
