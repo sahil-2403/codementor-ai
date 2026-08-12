@@ -74,7 +74,7 @@ export default function CoursesPage() {
       description={statusTarget?.status === 'published'
         ? 'Publishing is the final learner-catalog gate. Published technologies and a published roadmap template for every enabled level are required.'
         : statusTarget?.status === 'draft'
-          ? 'Restore this Course to Draft and restore all of its owned curriculum automatically. Child Lessons, Questions, Projects, and Templates return to the Draft/Published state they had before archiving. You do not need to restore them separately.'
+          ? 'Restore this Course to Draft. Its Topics become Active and its Lessons, Questions, Projects, and Roadmap Templates become Draft. Review and publish the content you want learners to use.'
           : 'Archive this Course directly. You do not need to archive its child curriculum first. Topics, Lessons, Quiz/Skill Check questions, Interview Questions, Projects, and Roadmap Templates are archived automatically. Learning Paths and prerequisite references are not changed and may block the archive.'}
       confirmLabel={actionLabel}
       tone="primary"
