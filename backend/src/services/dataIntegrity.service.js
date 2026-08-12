@@ -16,10 +16,10 @@ export const getCurrentEnrollmentForUser = async (userId) => {
     if (selected) return selected;
   }
 
-  const fallback = await Enrollment.findOne({
-    user: userId,
-    status: { $in: ['active', 'completed'] }
-  }).sort({ updatedAt: -1 });
+  let fallback = await Enrollment.findOne({ user: userId, status: 'active' }).sort({ updatedAt: -1 });
+  if (!fallback) {
+    fallback = await Enrollment.findOne({ user: userId, status: 'completed' }).sort({ updatedAt: -1 });
+  }
 
   if (fallback) {
     await User.findByIdAndUpdate(userId, { currentEnrollment: fallback._id });
