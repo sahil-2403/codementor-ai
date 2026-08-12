@@ -13,7 +13,7 @@ const projectSubmissionSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     projectTask: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectTask', required: true, index: true },
-    attemptNumber: { type: Number, enum: [1, 2], default: null },
+    attemptNumber: { type: Number, enum: [1, 2], required: true },
     submittedCode: { type: String, default: '' },
     submittedExplanation: { type: String, default: '' },
     status: {
@@ -41,13 +41,5 @@ const projectSubmissionSchema = new mongoose.Schema(
 );
 
 projectSubmissionSchema.index({ user: 1, projectTask: 1, createdAt: -1 });
-projectSubmissionSchema.index(
-  { user: 1, projectTask: 1, attemptNumber: 1 },
-  {
-    unique: true,
-    name: 'project_attempt_slot_unique',
-    partialFilterExpression: { attemptNumber: { $type: 'number' } }
-  }
-);
 
 export const ProjectSubmission = mongoose.model('ProjectSubmission', projectSubmissionSchema);
