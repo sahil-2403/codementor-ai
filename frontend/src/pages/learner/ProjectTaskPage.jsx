@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,11 +21,7 @@ import InlineAlert from "../../components/common/InlineAlert.jsx";
 import PageShell from "../../components/common/PageShell.jsx";
 import PageHeader from "../../components/common/PageHeader.jsx";
 import FormTextarea from "../../components/form/FormTextarea.jsx";
-import {
-  useProjectTask,
-  useReviewProjectSubmission,
-  useSubmitProjectTask,
-} from "../../queries/projectQueries.js";
+import { projectApi } from '../../api/projectApi.js';
 import { projectSubmissionSchema } from "../../validations/project.schema.js";
 import { formatDate } from "../../utils/formatDate.js";
 import ProjectSubmissionFeedback from "../../components/project/ProjectSubmissionFeedback.jsx";
@@ -40,9 +36,11 @@ const isAiReview = (submission) =>
 export default function ProjectTaskPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
-  const taskQuery = useProjectTask(taskId);
-  const submitMutation = useSubmitProjectTask(taskId);
-  const reviewMutation = useReviewProjectSubmission(taskId);
+  const [taskData, setTaskData] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [reviewError, setReviewError] = useState(null);
   const [reviewingId, setReviewingId] = useState(null);
   const [visibleSubmissionId, setVisibleSubmissionId] = useState(null);
   const [expandedSubmissionIds, setExpandedSubmissionIds] = useState(
@@ -60,40 +58,63 @@ export default function ProjectTaskPage() {
     defaultValues: { submittedCode: "", submittedExplanation: "" },
   });
 
-  if (taskQuery.isLoading) return <Loader label="Loading project task..." />;
+  useEffect(() => {
+    if (!taskId) return undefined;
+    let active = true;
+    setIsLoading(true);
+    setLoadError(null);
 
-  if (taskQuery.error) {
+    projectApi.task(taskId)
+      .then((result) => {
+        if (active) setTaskData(result);
+      })
+      .catch((requestError) => {
+        if (active) setLoadError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [taskId, loadAttempt]);
+
+  if (isLoading) return <Loader label="Loading project task..." />;
+
+  if (loadError) {
     return (
       <EmptyState
         title="Project task is unavailable"
-        description={taskQuery.error.message}
+        description={loadError.message}
         actionLabel="Back to projects"
         onAction={() => navigate("/projects")}
       />
     );
   }
 
-  const task = taskQuery.data?.task;
+  const task = taskData?.task;
   if (!task) {
     return (
       <EmptyState
         title="Project task not found"
         description="This task is not available for your account."
         actionLabel="Try again"
-        onAction={() => taskQuery.refetch()}
+        onAction={() => setLoadAttempt((value) => value + 1)}
       />
     );
   }
 
-  const submissions = taskQuery.data?.submissions || [];
-  const maxAttempts = taskQuery.data?.maxAttempts || task.maxAttempts || 2;
-  const attemptsUsed = taskQuery.data?.attemptsUsed ?? submissions.length;
+  const submissions = taskData?.submissions || [];
+  const maxAttempts = taskData?.maxAttempts || task.maxAttempts || 2;
+  const attemptsUsed = taskData?.attemptsUsed ?? submissions.length;
   const canSubmit = !task.isLocked && attemptsUsed < maxAttempts;
 
   const submit = async (values) => {
     try {
-      await submitMutation.mutateAsync({ projectTaskId: taskId, ...values });
+      await projectApi.submit({ projectTaskId: taskId, ...values });
       reset();
+      setLoadAttempt((value) => value + 1);
     } catch (err) {
       setError("root", {
         message: err?.message || "Could not save your project submission.",
@@ -117,14 +138,19 @@ export default function ProjectTaskPage() {
   };
 
   const review = async (submissionId) => {
+    setReviewError(null);
+    setExpandedSubmissionIds((current) => {
+      const next = new Set(current);
+      next.add(submissionId);
+      return next;
+    });
+    setReviewingId(submissionId);
+
     try {
-      setExpandedSubmissionIds((current) => {
-        const next = new Set(current);
-        next.add(submissionId);
-        return next;
-      });
-      setReviewingId(submissionId);
-      await reviewMutation.mutateAsync(submissionId);
+      await projectApi.review(submissionId);
+      setLoadAttempt((value) => value + 1);
+    } catch (requestError) {
+      setReviewError(requestError);
     } finally {
       setReviewingId(null);
     }
@@ -257,9 +283,7 @@ export default function ProjectTaskPage() {
           </div>
         </div>
 
-        <ErrorMessage
-          message={errors.root?.message || submitMutation.error?.message}
-        />
+        <ErrorMessage message={errors.root?.message} />
 
         {!canSubmit && (
           <InlineAlert
@@ -293,7 +317,7 @@ export default function ProjectTaskPage() {
           <Button
             type="submit"
             disabled={!canSubmit}
-            isLoading={isSubmitting || submitMutation.isPending}
+            isLoading={isSubmitting}
             loadingLabel="Saving submission..."
           >
             Save submission
@@ -311,7 +335,7 @@ export default function ProjectTaskPage() {
           </p>
         </div>
 
-        <ErrorMessage message={reviewMutation.error?.message} />
+        <ErrorMessage message={reviewError?.message} />
 
         <div className="mt-5 space-y-4">
           {submissions.length ? (
