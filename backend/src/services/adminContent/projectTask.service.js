@@ -6,7 +6,6 @@ import { ApiError } from '../../utils/ApiError.js';
 import { generateSlug } from '../../utils/generateSlug.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
-import { invalidateContentCache } from '../cacheInvalidation.service.js';
 import { ensureFound, requireArchivedForDelete, transitionStatus } from './common.js';
 
 const referenceId = (value) => value?._id || value;
@@ -92,13 +91,11 @@ export const createProjectTask = async (payload) => {
   if (course.status === 'archived') throw new ApiError(409, 'Archived Courses cannot receive project tasks', [], 'COURSE_ARCHIVED');
   await validateLessons({ courseId: course._id, lessonIds: payload.relatedLessons || [] });
 
-  const project = await ProjectTask.create({
+  return ProjectTask.create({
     ...payload,
     slug: generateSlug(payload.title),
     status: 'draft'
   });
-  await invalidateContentCache();
-  return project;
 };
 
 export const updateProjectTask = async ({ id, payload }) => {
@@ -116,7 +113,6 @@ export const updateProjectTask = async ({ id, payload }) => {
   Object.assign(project, normalized);
   if (project.status === 'published') await validatePublish(project);
   await project.save();
-  await invalidateContentCache();
   return project;
 };
 
@@ -155,6 +151,5 @@ export const deleteProjectTask = async (id) => {
   }
 
   await project.deleteOne();
-  await invalidateContentCache();
   return project;
 };
