@@ -26,21 +26,22 @@ const activeCatalogFilter = { $ne: PUBLISHABLE_STATUS.ARCHIVED };
 const dependencyError = (message, details = []) => new ApiError(409, message, details, 'CONTENT_DEPENDENCY_EXISTS');
 const instruction = (field, message) => ({ field, message });
 
-const assertTechnologyParentAcyclic = async ({ id, parentTechnology }) => {
+const assertTechnologyParentValid = async ({ id, parentTechnology }) => {
   if (!parentTechnology) return;
-  const targetId = String(id);
-  let currentId = String(parentTechnology);
-  const visited = new Set();
+  if (String(id) === String(parentTechnology)) {
+    throw new ApiError(400, 'A technology cannot be its own parent.', [
+      instruction('parentTechnology', 'Choose a different parent technology.')
+    ], 'CONTENT_REFERENCE_INVALID');
+  }
 
-  while (currentId) {
-    if (currentId === targetId || visited.has(currentId)) {
-      throw new ApiError(400, 'Technology parent relationships cannot form a cycle', [
-        instruction('parentTechnology', 'Choose a different parent technology.')
-      ], 'CATALOG_CYCLE');
-    }
-    visited.add(currentId);
-    const parent = await Technology.findById(currentId).select('parentTechnology').lean();
-    currentId = parent?.parentTechnology ? String(parent.parentTechnology) : '';
+  const parent = await Technology.findOne({
+    _id: parentTechnology,
+    status: activeCatalogFilter
+  }).select('_id').lean();
+  if (!parent) {
+    throw new ApiError(400, 'Selected parent technology is unavailable.', [
+      instruction('parentTechnology', 'Choose an active or draft technology as the parent.')
+    ], 'CONTENT_REFERENCE_INVALID');
   }
 };
 
@@ -114,7 +115,7 @@ const restoreCourseOwnedContent = async (courseId) => {
 
 export const updateTechnologySafely = async ({ id, payload }) => {
   if (Object.prototype.hasOwnProperty.call(payload, 'parentTechnology')) {
-    await assertTechnologyParentAcyclic({ id, parentTechnology: payload.parentTechnology });
+    await assertTechnologyParentValid({ id, parentTechnology: payload.parentTechnology });
   }
   return updateTechnology({ id, payload });
 };
