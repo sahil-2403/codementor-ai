@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
@@ -18,7 +19,7 @@ import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import CourseProgress from '../../components/progress/CourseProgress.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
-import { useDashboard } from '../../queries/dashboardQueries.js';
+import { progressApi } from '../../api/progressApi.js';
 
 const metricTones = {
   blue: {
@@ -373,7 +374,31 @@ function RecommendedActions({ items }) {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data, isLoading, error, refetch } = useDashboard();
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+
+    progressApi.dashboard()
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
 
   if (isLoading) return <Loader label="Loading dashboard..." />;
   if (error) {
@@ -382,7 +407,7 @@ export default function DashboardPage() {
         title="Dashboard is unavailable"
         description={error.message}
         actionLabel="Try again"
-        onAction={() => refetch()}
+        onAction={() => setLoadAttempt((value) => value + 1)}
       />
     );
   }
