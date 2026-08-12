@@ -31,6 +31,18 @@ const normalizePath = (payload = {}) => ({
   }))
 });
 
+const assertParentTechnology = async (parentTechnology) => {
+  if (!parentTechnology) return;
+  const parent = await Technology.findOne({
+    _id: parentTechnology,
+    status: { $ne: PUBLISHABLE_STATUS.ARCHIVED }
+  }).select('_id parentTechnology').lean();
+  if (!parent) throw new ApiError(400, 'Parent technology is unavailable', [], 'CONTENT_REFERENCE_INVALID');
+  if (parent.parentTechnology) {
+    throw new ApiError(400, 'Choose a top-level technology as the parent', [], 'CONTENT_REFERENCE_INVALID');
+  }
+};
+
 const assertTechnologiesExist = async (technologyIds = [], { requirePublished = false } = {}) => {
   if (!technologyIds.length) return [];
   const filter = { _id: { $in: technologyIds } };
@@ -41,6 +53,33 @@ const assertTechnologiesExist = async (technologyIds = [], { requirePublished = 
     throw new ApiError(400, 'One or more selected technologies are unavailable', [], 'CONTENT_REFERENCE_INVALID');
   }
   return items;
+};
+
+const assertCourseFitsPublishedPaths = async (course) => {
+  const paths = await LearningPath.find({
+    status: PUBLISHABLE_STATUS.PUBLISHED,
+    'courses.course': course._id
+  }).select('title availableLevels courses').lean();
+
+  for (const path of paths) {
+    const entry = path.courses.find((item) => item.course.toString() === course._id.toString());
+    if (!entry) continue;
+
+    if (entry.defaultLevel && !course.availableLevels.includes(entry.defaultLevel)) {
+      throw new ApiError(409, `Course level is required by published learning path “${path.title}”`, [
+        { field: 'availableLevels', message: `Keep ${entry.defaultLevel} enabled or update the Learning Path first.` }
+      ], 'CONTENT_DEPENDENCY_EXISTS');
+    }
+
+    if (!entry.defaultLevel) {
+      const missingLevel = path.availableLevels.find((level) => !course.availableLevels.includes(level));
+      if (missingLevel) {
+        throw new ApiError(409, `Course level is required by published learning path “${path.title}”`, [
+          { field: 'availableLevels', message: `Keep ${missingLevel} enabled or give this Course a supported default level in the Learning Path.` }
+        ], 'CONTENT_DEPENDENCY_EXISTS');
+      }
+    }
+  }
 };
 
 const assertCoursePublishable = async (course) => {
@@ -67,6 +106,7 @@ const assertCoursePublishable = async (course) => {
   }
 
   await assertCourseReadyForCatalog(course);
+  await assertCourseFitsPublishedPaths(course);
 };
 
 const assertLearningPathPublishable = async (path) => {
@@ -87,11 +127,19 @@ const assertLearningPathPublishable = async (path) => {
   if (courses.length !== courseIds.length) {
     throw new ApiError(400, 'Every learning-path course must be published first', [], 'CONTENT_NOT_READY');
   }
+
   const byId = new Map(courses.map((course) => [course._id.toString(), course]));
-  const invalidLevel = entries.find((entry) => entry.defaultLevel && !(byId.get(entry.course.toString())?.availableLevels || []).includes(entry.defaultLevel));
-  if (invalidLevel) {
-    throw new ApiError(400, 'A learning-path course uses a level that the course does not support', [], 'CONTENT_NOT_READY');
+  for (const entry of entries) {
+    const course = byId.get(entry.course.toString());
+    const supported = course?.availableLevels || [];
+    if (entry.defaultLevel && !supported.includes(entry.defaultLevel)) {
+      throw new ApiError(400, 'A learning-path course uses a level that the course does not support', [], 'CONTENT_NOT_READY');
+    }
+    if (!entry.defaultLevel && path.availableLevels.some((level) => !supported.includes(level))) {
+      throw new ApiError(400, 'Each learning-path course must support all path levels or define a supported default level', [], 'CONTENT_NOT_READY');
+    }
   }
+
   await assertTechnologiesExist(path.technologies || [], { requirePublished: true });
 };
 
@@ -107,10 +155,7 @@ export const listTechnologies = async (query = {}) => {
 export const getTechnology = async (id) => ensureFound(await Technology.findById(id).populate('parentTechnology', 'name slug type status'), 'Technology');
 
 export const createTechnology = async (payload) => {
-  if (payload.parentTechnology) {
-    const parent = await Technology.findOne({ _id: payload.parentTechnology, status: { $ne: PUBLISHABLE_STATUS.ARCHIVED } });
-    if (!parent) throw new ApiError(400, 'Parent technology is unavailable', [], 'CONTENT_REFERENCE_INVALID');
-  }
+  await assertParentTechnology(payload.parentTechnology);
   const technology = await Technology.create({ ...payload, slug: generateSlug(payload.name), status: PUBLISHABLE_STATUS.DRAFT });
   await invalidateContentCache();
   return technology;
@@ -120,10 +165,7 @@ export const updateTechnology = async ({ id, payload }) => {
   const technology = ensureFound(await Technology.findById(id), 'Technology');
   ensureEditable(technology, 'Technology');
   if (payload.parentTechnology?.toString() === id.toString()) throw new ApiError(400, 'Technology cannot be its own parent');
-  if (payload.parentTechnology) {
-    const parent = await Technology.findOne({ _id: payload.parentTechnology, status: { $ne: PUBLISHABLE_STATUS.ARCHIVED } });
-    if (!parent) throw new ApiError(400, 'Parent technology is unavailable', [], 'CONTENT_REFERENCE_INVALID');
-  }
+  await assertParentTechnology(payload.parentTechnology);
   Object.assign(technology, { ...payload, ...(payload.name ? { slug: generateSlug(payload.name) } : {}) });
   await technology.save();
   await invalidateContentCache();
@@ -170,7 +212,7 @@ export const getCourse = async (id) => ensureFound(await Course.findById(id)
 export const createCourse = async (payload) => {
   const normalized = normalizeCourse(payload);
   await assertTechnologiesExist(normalized.technologies);
-  if (normalized.primaryTechnology && !normalized.technologies.includes(normalized.primaryTechnology.toString())) {
+  if (normalized.primaryTechnology && !normalized.technologies.some((id) => id.toString() === normalized.primaryTechnology.toString())) {
     throw new ApiError(400, 'Primary technology must be included in course technologies');
   }
   const course = await Course.create({ ...normalized, slug: generateSlug(payload.title), status: PUBLISHABLE_STATUS.DRAFT });
@@ -182,9 +224,9 @@ export const updateCourse = async ({ id, payload }) => {
   const course = ensureFound(await Course.findById(id), 'Course');
   ensureEditable(course, 'Course');
   const normalized = normalizeCourse({ ...course.toObject(), ...payload });
-  if (normalized.recommendedPrerequisites.includes(id.toString())) throw new ApiError(400, 'A course cannot require itself');
+  if (normalized.recommendedPrerequisites.some((item) => item.toString() === id.toString())) throw new ApiError(400, 'A course cannot require itself');
   await assertTechnologiesExist(normalized.technologies);
-  if (normalized.primaryTechnology && !normalized.technologies.includes(normalized.primaryTechnology.toString())) {
+  if (normalized.primaryTechnology && !normalized.technologies.some((item) => item.toString() === normalized.primaryTechnology.toString())) {
     throw new ApiError(400, 'Primary technology must be included in course technologies');
   }
   Object.assign(course, normalized, payload.title ? { slug: generateSlug(payload.title) } : {});
