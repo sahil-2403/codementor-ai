@@ -8,7 +8,6 @@ import { createProgressForCourse } from './progress.service.js';
 import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
 import { aiProvider } from '../ai/aiProvider.service.js';
 import { logActivity } from './activityLog.service.js';
-import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
@@ -180,7 +179,6 @@ export const createCourseFromTemplate = async ({
   await createProgressForCourse({ userId, coursePlanId: coursePlan._id });
   await setRoadmapOnboardingState({ userId, enrollmentId, state: ONBOARDING_STATES.COMPLETED });
   await setCurrentEnrollmentForUser({ userId, enrollmentId });
-  await invalidateUserLearningCache(userId);
   await logActivity({
     user: userId,
     action: 'roadmap_generated',
