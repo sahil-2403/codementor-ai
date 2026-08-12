@@ -11,16 +11,16 @@ import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import { levels } from '../../constants/levels.js';
 import { onboardingCopyByLevel } from '../../constants/onboardingSteps.js';
-import { useDataRefresh } from '../../context/DataRefreshContext.jsx';
-import { useAsyncData } from '../../hooks/useAsyncData.js';
 import { cn } from '../../utils/cn.js';
 
 const icons = { beginner: BookOpenCheck, intermediate: Gauge, advanced: GraduationCap };
 
 export default function LevelPage() {
   const navigate = useNavigate();
-  const { refreshData } = useDataRefresh();
-  const { data, isLoading, error: statusError, refetch } = useAsyncData(onboardingApi.status);
+  const [data, setData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusError, setStatusError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const enrollment = data?.currentEnrollment;
   const offering = enrollment?.type === 'learning_path' ? enrollment?.learningPath : enrollment?.course;
   const availableLevels = offering?.availableLevels || [];
@@ -29,6 +29,27 @@ export default function LevelPage() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const selectedCopy = onboardingCopyByLevel[selected] || onboardingCopyByLevel.beginner;
+
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setStatusError(null);
+
+    onboardingApi.status()
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setStatusError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
 
   useEffect(() => {
     if (!visibleLevels.length) return;
@@ -42,7 +63,6 @@ export default function LevelPage() {
       setSaving(true);
       setError('');
       await onboardingApi.saveLevel({ enrollmentId: enrollment._id, level: selected });
-      refreshData();
       navigate('/onboarding/preferences');
     } catch (err) {
       setError(err?.message || 'Could not save your level.');
@@ -52,7 +72,7 @@ export default function LevelPage() {
   };
 
   if (isLoading) return <Loader label="Loading your setup..." />;
-  if (statusError) return <EmptyState title="Your setup could not load" description={statusError.message} actionLabel="Try again" onAction={() => refetch()} />;
+  if (statusError) return <EmptyState title="Your setup could not load" description={statusError.message} actionLabel="Try again" onAction={() => setLoadAttempt((value) => value + 1)} />;
   if (!enrollment || !offering) return <EmptyState title="Choose what you want to learn first" description="Select a course or complete learning path before choosing a level." actionLabel="Open learning catalog" onAction={() => navigate('/onboarding/catalog')} />;
   if (!visibleLevels.length) return <EmptyState title="No learner levels are available" description="This learning option is not ready to start yet." actionLabel="Choose another course" onAction={() => navigate('/onboarding/catalog')} />;
 
