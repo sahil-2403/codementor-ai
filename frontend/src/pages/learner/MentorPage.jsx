@@ -5,12 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { BookMarked, Bot, FileText, SendHorizonal, Sparkles, User, WifiOff } from 'lucide-react';
 import InlineAlert from '../../components/common/InlineAlert.jsx';
 import Loader from '../../components/common/Loader.jsx';
-import {
-  useAskMentor,
-  useMentorAIStatus,
-  useMentorHistory,
-  useMentorSuggestions
-} from '../../queries/mentorQueries.js';
+import { mentorApi } from '../../api/mentorApi.js';
 import { mentorAskSchema } from '../../validations/mentor.schema.js';
 import { cn } from '../../utils/cn.js';
 import notify from '../../utils/notify.js';
@@ -42,7 +37,7 @@ const formatResetTime = (value) => {
 
 const isDailyLimitError = (error) =>
   error?.code === 'AI_DAILY_LIMIT_REACHED' ||
-  (error?.status === 429 && /daily.*limit|limit.*reached/i.test(error?.message || ''));
+  (error?.response?.status === 429 && /daily.*limit|limit.*reached/i.test(error?.message || ''));
 
 function MentorMessage({ message }) {
   const isUser = message.role === 'user';
@@ -121,10 +116,17 @@ export default function MentorPage() {
   const autoSend = params.get('autoSend') === 'true';
   const autoPromptType = params.get('promptType') || 'simple_explanation';
 
-  const historyQuery = useMentorHistory();
-  const suggestionsQuery = useMentorSuggestions(lessonId);
-  const aiStatusQuery = useMentorAIStatus();
-  const askMutation = useAskMentor();
+  const [historyData, setHistoryData] = useState(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [historyError, setHistoryError] = useState(null);
+  const [historyAttempt, setHistoryAttempt] = useState(0);
+  const [suggestionsData, setSuggestionsData] = useState(null);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+  const [suggestionsError, setSuggestionsError] = useState(null);
+  const [suggestionsAttempt, setSuggestionsAttempt] = useState(0);
+  const [aiStatusData, setAiStatusData] = useState(null);
+  const [statusLoading, setStatusLoading] = useState(true);
+  const [isAsking, setIsAsking] = useState(false);
 
   const [localMessages, setLocalMessages] = useState([]);
   const [providerNotice, setProviderNotice] = useState('');
@@ -143,9 +145,66 @@ export default function MentorPage() {
     defaultValues: { message: '', promptType: 'freeform' }
   });
 
+  useEffect(() => {
+    let active = true;
+    setHistoryLoading(true);
+    setHistoryError(null);
+
+    mentorApi.history()
+      .then((result) => {
+        if (active) setHistoryData(result);
+      })
+      .catch((error) => {
+        if (active) setHistoryError(error);
+      })
+      .finally(() => {
+        if (active) setHistoryLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [historyAttempt]);
+
+  useEffect(() => {
+    let active = true;
+    setSuggestionsLoading(true);
+    setSuggestionsError(null);
+
+    mentorApi.suggestions(lessonId)
+      .then((result) => {
+        if (active) setSuggestionsData(result);
+      })
+      .catch((error) => {
+        if (active) setSuggestionsError(error);
+      })
+      .finally(() => {
+        if (active) setSuggestionsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [lessonId, suggestionsAttempt]);
+
+  const reloadStatus = useCallback(async () => {
+    try {
+      const result = await mentorApi.status();
+      setAiStatusData(result);
+    } catch {
+      // Status is helpful for quota display, but mentor suggestions still decide availability.
+    } finally {
+      setStatusLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void reloadStatus();
+  }, [reloadStatus]);
+
   const historyMessages = useMemo(
-    () => historyQuery.data?.chats?.[0]?.messages || [],
-    [historyQuery.data]
+    () => historyData?.chats?.[0]?.messages || [],
+    [historyData]
   );
 
   const messages = useMemo(() => {
@@ -156,14 +215,14 @@ export default function MentorPage() {
     return [...historyMessages, ...pendingLocal];
   }, [historyMessages, localMessages]);
 
-  const suggestions = suggestionsQuery.data?.prompts || [];
+  const suggestions = suggestionsData?.prompts || [];
   const savedQuestions = fallbackQuestions.length
     ? fallbackQuestions
-    : suggestionsQuery.data?.savedQuestions || [];
-  const mentorQuota = aiStatusQuery.data?.limits?.mentor_chat;
+    : suggestionsData?.savedQuestions || [];
+  const mentorQuota = aiStatusData?.limits?.mentor_chat;
   const dailyLimitReached = limitReachedOverride || mentorQuota?.remaining === 0;
-  const resetAt = aiStatusQuery.data?.resetAt;
-  const aiAvailable = suggestionsQuery.data?.aiAvailable === true && !providerNotice;
+  const resetAt = aiStatusData?.resetAt;
+  const aiAvailable = suggestionsData?.aiAvailable === true && !providerNotice;
   const canAsk = aiAvailable && !dailyLimitReached;
 
   useEffect(() => {
@@ -172,7 +231,7 @@ export default function MentorPage() {
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages.length, askMutation.isPending]);
+  }, [messages.length, isAsking]);
 
   const addSavedAnswer = useCallback((item) => {
     if (!item) return;
@@ -207,7 +266,7 @@ export default function MentorPage() {
 
   const sendPayload = useCallback(async ({ text, type = 'freeform' }) => {
     const message = String(text || '').trim();
-    if (!message) return;
+    if (!message || isAsking) return;
 
     if (dailyLimitReached) {
       showLimitToast();
@@ -233,18 +292,26 @@ export default function MentorPage() {
       }
     ]);
     reset({ message: '', promptType: 'freeform' });
+    setIsAsking(true);
 
     try {
-      const result = await askMutation.mutateAsync({
+      const result = await mentorApi.ask({
         message,
         lessonId: lessonId || undefined,
         promptType: type
       });
 
+      if (result?.chat) {
+        setHistoryData({ chats: [result.chat] });
+      }
+
       if (result?.aiAvailable === false) {
+        setLocalMessages((current) => current.filter((item) => item.clientId !== optimisticId));
         setProviderNotice(result.message || 'Live mentor responses are temporarily unavailable.');
         setFallbackQuestions(result.savedQuestions || []);
       }
+
+      void reloadStatus();
     } catch (error) {
       setLocalMessages((current) => current.filter((item) => item.clientId !== optimisticId));
 
@@ -252,7 +319,7 @@ export default function MentorPage() {
         setLimitReachedOverride(true);
         reset({ message: '', promptType: 'freeform' });
         showLimitToast();
-        aiStatusQuery.refetch();
+        void reloadStatus();
         return;
       }
 
@@ -260,14 +327,16 @@ export default function MentorPage() {
       notify.error('Could not send your mentor question', {
         description: error?.message || 'Please try again.'
       });
+    } finally {
+      setIsAsking(false);
     }
   }, [
     addSavedAnswer,
     aiAvailable,
-    aiStatusQuery,
-    askMutation,
     dailyLimitReached,
+    isAsking,
     lessonId,
+    reloadStatus,
     reset,
     savedQuestions,
     showLimitToast
@@ -278,7 +347,7 @@ export default function MentorPage() {
       !autoSend ||
       autoSentRef.current ||
       dailyLimitReached ||
-      suggestionsQuery.isLoading ||
+      suggestionsLoading ||
       (!suggestions.length && !savedQuestions.length)
     ) return;
 
@@ -307,10 +376,10 @@ export default function MentorPage() {
     sendPayload,
     setParams,
     suggestions,
-    suggestionsQuery.isLoading
+    suggestionsLoading
   ]);
 
-  if (historyQuery.isLoading || suggestionsQuery.isLoading || aiStatusQuery.isLoading) {
+  if (historyLoading || suggestionsLoading || statusLoading) {
     return <Loader label="Loading mentor..." />;
   }
 
@@ -338,19 +407,19 @@ export default function MentorPage() {
       </header>
 
       <div className="space-y-3 px-4 pt-4 sm:px-6 lg:px-8">
-        {historyQuery.error ? (
+        {historyError ? (
           <InlineAlert tone="danger" title="Previous conversations are unavailable">
-            {historyQuery.error.message}{' '}
-            <button type="button" className="font-semibold underline" onClick={historyQuery.refetch}>Try again</button>
+            {historyError.message}{' '}
+            <button type="button" className="font-semibold underline" onClick={() => setHistoryAttempt((value) => value + 1)}>Try again</button>
           </InlineAlert>
         ) : null}
-        {suggestionsQuery.error ? (
+        {suggestionsError ? (
           <InlineAlert tone="danger" title="Mentor context is unavailable">
-            {suggestionsQuery.error.message}{' '}
-            <button type="button" className="font-semibold underline" onClick={suggestionsQuery.refetch}>Try again</button>
+            {suggestionsError.message}{' '}
+            <button type="button" className="font-semibold underline" onClick={() => setSuggestionsAttempt((value) => value + 1)}>Try again</button>
           </InlineAlert>
         ) : null}
-        {(providerNotice || (!aiAvailable && !suggestionsQuery.error)) ? (
+        {(providerNotice || (!aiAvailable && !suggestionsError)) ? (
           <InlineAlert tone="warning" title="Live mentor responses are unavailable">
             {providerNotice || 'You can still open saved explanations from your course.'}
           </InlineAlert>
@@ -366,7 +435,7 @@ export default function MentorPage() {
                 message={message}
               />
             ))}
-            {askMutation.isPending ? (
+            {isAsking ? (
               <div className="flex items-center gap-3 text-sm text-muted-foreground" role="status">
                 <Bot size={16} className="text-primary" aria-hidden="true" />
                 <span>Mentor is preparing a response…</span>
@@ -394,7 +463,7 @@ export default function MentorPage() {
               <button
                 key={item.promptType}
                 type="button"
-                disabled={!canAsk || askMutation.isPending}
+                disabled={!canAsk || isAsking}
                 onClick={() => sendPayload({ text: item.text, type: item.promptType })}
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground disabled:opacity-45"
               >
@@ -422,7 +491,7 @@ export default function MentorPage() {
                   ? 'Ask about your lesson or quiz mistakes…'
                   : 'Choose a saved answer above.'
             }
-            disabled={!canAsk || askMutation.isPending}
+            disabled={!canAsk || isAsking}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
@@ -433,11 +502,11 @@ export default function MentorPage() {
           />
           <button
             type="submit"
-            disabled={!canAsk || askMutation.isPending}
+            disabled={!canAsk || isAsking}
             className="absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-control bg-primary text-white disabled:bg-surface-secondary disabled:text-muted-foreground"
             aria-label="Send message"
           >
-            {askMutation.isPending ? (
+            {isAsking ? (
               <span className="ui-spinner ui-spinner--sm" aria-hidden="true" />
             ) : canAsk ? (
               <SendHorizonal size={17} />
