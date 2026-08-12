@@ -9,10 +9,10 @@ test('review policy blocks active reviews and permits stale recovery', () => {
   assert.equal(isReviewStale(new Date(now - REVIEW_STALE_MS + 1), now), false);
   assert.equal(isReviewStale(new Date(now - REVIEW_STALE_MS), now), true);
   assert.throws(
-    () => assertReviewCanStart({ status: 'reviewing', reviewRequestedAt: new Date(now - 1000), label: 'Attempt' }),
+    () => assertReviewCanStart({ status: 'reviewing', reviewRequestedAt: new Date(now - 1000), label: 'Attempt', now }),
     (error) => error.code === 'REVIEW_IN_PROGRESS' && error.statusCode === 409
   );
-  assert.doesNotThrow(() => assertReviewCanStart({ status: 'reviewing', reviewRequestedAt: new Date(now - REVIEW_STALE_MS), label: 'Attempt' }));
+  assert.doesNotThrow(() => assertReviewCanStart({ status: 'reviewing', reviewRequestedAt: new Date(now - REVIEW_STALE_MS), label: 'Attempt', now }));
 });
 
 test('weekly reports use a stable UTC Monday boundary', () => {
