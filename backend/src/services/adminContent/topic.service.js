@@ -13,7 +13,6 @@ import { ApiError } from '../../utils/ApiError.js';
 import { generateSlug } from '../../utils/generateSlug.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
-import { invalidateContentCache } from '../cacheInvalidation.service.js';
 import { assertCourseExists, cleanReferenceArray, cleanStringArray, ensureFound, requireArchivedForDelete } from './common.js';
 
 const ids = (documents = []) => documents.map((item) => item._id);
@@ -108,7 +107,6 @@ export const createTopic = async (payload) => {
     slug: generateSlug(payload.title),
     status: 'active'
   });
-  await invalidateContentCache();
   return topic.populate('course', 'title slug status');
 };
 
@@ -140,7 +138,6 @@ export const updateTopic = async ({ id, payload }) => {
     );
   }
 
-  await invalidateContentCache();
   return topic.populate('course', 'title slug status');
 };
 
@@ -191,7 +188,6 @@ export const changeTopicStatus = async ({ id, status }) => {
     ]);
   }
 
-  await invalidateContentCache();
   return { topic, counts: impact.counts };
 };
 
@@ -226,6 +222,5 @@ export const deleteTopic = async (id) => {
     Lesson.deleteMany({ _id: { $in: lessonIds } })
   ]);
   await Topic.deleteOne({ _id: topic._id });
-  await invalidateContentCache();
   return { topic, counts };
 };
