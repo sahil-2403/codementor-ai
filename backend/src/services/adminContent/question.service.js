@@ -108,6 +108,19 @@ const assertQuestionCanLeavePublished = async (question) => {
   }
 };
 
+const assertQuestionNotInActiveRoadmap = async (questionId) => {
+  const activePlans = await CoursePlan.countDocuments({
+    status: 'active',
+    isActive: true,
+    'modules.quizQuestions': questionId
+  });
+  if (activePlans) {
+    throw new ApiError(409, 'This question is used by an active learner roadmap.', [
+      { field: 'learnerHistory', message: 'Keep the Question published until the active learner roadmap no longer uses it.' }
+    ], 'LEARNER_HISTORY_EXISTS');
+  }
+};
+
 export const resolveQuestionImpact = async (questionId) => {
   const question = ensureFound(
     await QuizQuestion.findById(questionId)
@@ -257,6 +270,7 @@ export const changeQuestionStatus = async ({ id, status, confirmPublish = false 
 
   if (status === 'archived') {
     if (question.status === PUBLISHABLE_STATUS.ARCHIVED) return { question, counts: impact.counts };
+    await assertQuestionNotInActiveRoadmap(question._id);
     await assertQuestionCanLeavePublished(question);
     question.status = PUBLISHABLE_STATUS.ARCHIVED;
     await question.save();
