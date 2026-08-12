@@ -1,6 +1,11 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
-import { accessCookieOptions, clearCookieOptions, refreshCookieOptions } from '../config/cookies.js';
+import {
+  accessCookieOptions,
+  refreshCookieOptions,
+  clearAccessCookieOptions,
+  clearRefreshCookieOptions
+} from '../config/cookies.js';
 
 export const createAccessToken = (user) =>
   jwt.sign(
@@ -26,9 +31,8 @@ export const setAuthCookies = (res, accessToken, refreshToken) => {
 };
 
 export const clearAuthCookies = (res) => {
-  const options = clearCookieOptions();
-  res.clearCookie('accessToken', options);
-  res.clearCookie('refreshToken', options);
+  res.clearCookie('accessToken', clearAccessCookieOptions());
+  res.clearCookie('refreshToken', clearRefreshCookieOptions());
 };
 
 export const verifyRefreshToken = (token) => jwt.verify(token, env.jwtRefreshSecret);
