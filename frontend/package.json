@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "test": "node --test --test-concurrency=1 ./test/frontend.test.js ./test/adminOverview.test.js ./test/adminLifecycle.test.js ./test/mentorAutoSend.test.js",
+    "test": "node --test --test-concurrency=1 ./test/frontend.test.js ./test/adminOverview.test.js ./test/adminLifecycle.test.js ./test/mentorAutoSend.test.js ./test/learnerEnrollment.test.js",
     "preview": "vite preview"
   },
   "dependencies": {
