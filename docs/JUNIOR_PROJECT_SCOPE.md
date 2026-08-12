@@ -9,11 +9,12 @@ The project demonstrates:
 - React, React Router, Axios, forms, validation, loading, error, locked, and fallback states
 - Plain React hooks for server-data loading and mutation state
 - Express routes, controllers, services, middleware, and centralized errors
-- MongoDB and Mongoose schemas, references, indexes, and atomic attempt limits
+- MongoDB and Mongoose schemas, references, indexes, and straightforward CRUD rules
 - Cookie-based JWT authentication, refresh rotation, CSRF protection, CORS, rate limiting, email verification, and password recovery
 - Course/Learning Path onboarding, Roadmap Templates, CoursePlans, quiz scoring, revisions, projects, interviews, and reports
 - Course-owned curriculum with backend ownership/dependency validation
-- Optional Gemini features with limits, response schemas, and honest scoreless fallbacks
+- Simple two-attempt limits for Projects and Interview practice
+- Optional Gemini features with daily/input limits, response schemas, and honest scoreless fallbacks
 - Focused unit/source-contract tests and a repeatable release-check command
 
 ## Reliability rules
@@ -21,7 +22,6 @@ The project demonstrates:
 - Mentor Lesson context must belong to the authenticated learner's active CoursePlan.
 - Authentication and CSRF cookies share the configured security policy.
 - Cookie lifetimes follow configured JWT durations.
-- Project and Interview reviews may be retried when an earlier `reviewing` state becomes stale.
 - Successful AI review data is not replaced when later logging/progress work fails.
 - Weekly reports are unique for each user, CoursePlan, and UTC week.
 - User-controlled filters are validated and escaped before regular-expression matching.
@@ -44,6 +44,7 @@ The following are outside the scope of this portfolio project:
 - Enterprise privacy/compliance automation
 - Complex asynchronous processing infrastructure
 - Sophisticated frontend server-response caching
+- Migration/backfill infrastructure for disposable demo data
 
 The current authentication model supports one active refresh-token chain per user. Logging in again may invalidate an earlier browser session. This is acceptable for the project scope and should be explained clearly during interviews.
 
