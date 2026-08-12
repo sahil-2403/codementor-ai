@@ -1,8 +1,65 @@
 import { CoursePlan } from '../models/CoursePlan.js';
+import { Enrollment } from '../models/Enrollment.js';
+import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 
+export const getCurrentEnrollmentForUser = async (userId) => {
+  const user = await User.findById(userId).select('currentEnrollment');
+  if (!user) return null;
+
+  if (user.currentEnrollment) {
+    const selected = await Enrollment.findOne({
+      _id: user.currentEnrollment,
+      user: userId,
+      status: { $in: ['active', 'completed'] }
+    });
+    if (selected) return selected;
+  }
+
+  const fallback = await Enrollment.findOne({
+    user: userId,
+    status: { $in: ['active', 'completed'] }
+  }).sort({ updatedAt: -1 });
+
+  if (fallback) {
+    user.currentEnrollment = fallback._id;
+    await user.save();
+  }
+
+  return fallback;
+};
+
+export const setCurrentEnrollmentForUser = async ({ userId, enrollmentId }) => {
+  const enrollment = await Enrollment.findOne({
+    _id: enrollmentId,
+    user: userId,
+    status: { $in: ['active', 'completed'] }
+  });
+  if (!enrollment) throw new ApiError(404, 'Enrollment not found');
+
+  const coursePlan = await CoursePlan.findOne({
+    user: userId,
+    enrollment: enrollment._id,
+    status: 'active',
+    isActive: true
+  });
+  if (!coursePlan) throw new ApiError(409, 'This enrollment does not have an active roadmap yet');
+
+  await User.findByIdAndUpdate(userId, { currentEnrollment: enrollment._id });
+  return enrollment;
+};
+
 export const getActiveCourseForUser = async ({ userId, populate = false, lean = false } = {}) => {
-  let query = CoursePlan.findOne({ user: userId, status: 'active', isActive: true }).sort({ createdAt: -1 });
+  const enrollment = await getCurrentEnrollmentForUser(userId);
+  if (!enrollment) return null;
+
+  let query = CoursePlan.findOne({
+    user: userId,
+    enrollment: enrollment._id,
+    status: 'active',
+    isActive: true
+  }).sort({ createdAt: -1 });
+
   if (populate) {
     query = query
       .populate({ path: 'modules.lessons.lesson', match: { status: 'published' } })
