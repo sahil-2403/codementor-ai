@@ -1,15 +1,14 @@
 import { env } from './env.js';
 
-const DURATION_UNITS_MS = Object.freeze({
+const DURATION_UNITS_MS = {
   ms: 1,
   s: 1000,
   m: 60 * 1000,
   h: 60 * 60 * 1000,
   d: 24 * 60 * 60 * 1000
-});
+};
 
 export const durationToMs = (value, fallbackMs) => {
-  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
   const match = String(value || '').trim().match(/^(\d+)\s*(ms|s|m|h|d)$/i);
   if (!match) return fallbackMs;
   return Number(match[1]) * DURATION_UNITS_MS[match[2].toLowerCase()];
@@ -17,36 +16,30 @@ export const durationToMs = (value, fallbackMs) => {
 
 const accessMaxAgeMs = durationToMs(env.jwtAccessExpiresIn, 15 * 60 * 1000);
 const refreshMaxAgeMs = durationToMs(env.jwtRefreshExpiresIn, 7 * 24 * 60 * 60 * 1000);
-const csrfMaxAgeMs = 24 * 60 * 60 * 1000;
+const csrfMaxAgeMs = 60 * 60 * 1000;
 
-const baseCookieOptions = ({ httpOnly, maxAge } = {}) => ({
-  httpOnly: Boolean(httpOnly),
+const baseCookieOptions = (path, httpOnly = true) => ({
+  httpOnly,
   sameSite: env.cookieSameSite,
   secure: env.cookieSecure,
-  path: '/',
-  ...(env.cookieDomain ? { domain: env.cookieDomain } : {}),
-  ...(Number.isFinite(maxAge) ? { maxAge } : {})
+  path,
+  ...(env.cookieDomain ? { domain: env.cookieDomain } : {})
 });
 
-export const accessCookieOptions = () => baseCookieOptions({
-  httpOnly: true,
+export const accessCookieOptions = () => ({
+  ...baseCookieOptions('/api'),
   maxAge: accessMaxAgeMs
 });
 
-export const refreshCookieOptions = () => baseCookieOptions({
-  httpOnly: true,
+export const refreshCookieOptions = () => ({
+  ...baseCookieOptions('/api/auth'),
   maxAge: refreshMaxAgeMs
 });
 
-export const csrfCookieOptions = () => baseCookieOptions({
-  httpOnly: false,
+export const csrfCookieOptions = () => ({
+  ...baseCookieOptions('/api'),
   maxAge: csrfMaxAgeMs
 });
 
-export const csrfHashCookieOptions = () => baseCookieOptions({
-  httpOnly: true,
-  maxAge: csrfMaxAgeMs
-});
-
-export const clearCookieOptions = ({ httpOnly = true } = {}) =>
-  baseCookieOptions({ httpOnly });
+export const clearAccessCookieOptions = () => baseCookieOptions('/api');
+export const clearRefreshCookieOptions = () => baseCookieOptions('/api/auth');
