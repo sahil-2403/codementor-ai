@@ -8,7 +8,6 @@ import { findRelevantLessons } from './learningContext.service.js';
 import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
 import { guardAIRequest, trimContextForAI } from './aiSafety.service.js';
 import { mentorFallback } from './aiFallback.service.js';
-import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
 import { assertLessonBelongsToCourse, requireActiveCourseForUser } from './dataIntegrity.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { env, isGeminiAvailable } from '../config/env.js';
@@ -220,7 +219,6 @@ export const askMentor = async ({ user, message, lessonId, promptType = 'freefor
     metadata: contextSummary
   });
   await chat.save();
-  await invalidateUserLearningCache(user._id);
   await logAIUsage({
     user: user._id,
     feature: AI_FEATURES.MENTOR_CHAT,
