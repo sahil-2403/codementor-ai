@@ -8,7 +8,6 @@ import { ApiError } from '../../utils/ApiError.js';
 import { generateSlug } from '../../utils/generateSlug.js';
 import { makeSearchRegex } from '../../utils/pagination.js';
 import { listWithPagination } from '../listQuery.service.js';
-import { invalidateContentCache } from '../cacheInvalidation.service.js';
 import { cleanReferenceArray, ensureEditable, ensureFound, PUBLISHABLE_STATUS, transitionStatus } from './common.js';
 import { assertCourseReadyForCatalog } from './courseReadiness.service.js';
 
@@ -156,9 +155,7 @@ export const getTechnology = async (id) => ensureFound(await Technology.findById
 
 export const createTechnology = async (payload) => {
   await assertParentTechnology(payload.parentTechnology);
-  const technology = await Technology.create({ ...payload, slug: generateSlug(payload.name), status: PUBLISHABLE_STATUS.DRAFT });
-  await invalidateContentCache();
-  return technology;
+  return Technology.create({ ...payload, slug: generateSlug(payload.name), status: PUBLISHABLE_STATUS.DRAFT });
 };
 
 export const updateTechnology = async ({ id, payload }) => {
@@ -168,7 +165,6 @@ export const updateTechnology = async ({ id, payload }) => {
   await assertParentTechnology(payload.parentTechnology);
   Object.assign(technology, { ...payload, ...(payload.name ? { slug: generateSlug(payload.name) } : {}) });
   await technology.save();
-  await invalidateContentCache();
   return technology;
 };
 
@@ -181,7 +177,6 @@ export const deleteTechnology = async (id) => {
   const pathCount = await LearningPath.countDocuments({ technologies: id });
   if (dependentCount || pathCount) throw new ApiError(409, 'Technology is still used by courses or learning paths', [], 'CONTENT_DEPENDENCY_EXISTS');
   await technology.deleteOne();
-  await invalidateContentCache();
   return technology;
 };
 
@@ -215,9 +210,7 @@ export const createCourse = async (payload) => {
   if (normalized.primaryTechnology && !normalized.technologies.some((id) => id.toString() === normalized.primaryTechnology.toString())) {
     throw new ApiError(400, 'Primary technology must be included in course technologies');
   }
-  const course = await Course.create({ ...normalized, slug: generateSlug(payload.title), status: PUBLISHABLE_STATUS.DRAFT });
-  await invalidateContentCache();
-  return course;
+  return Course.create({ ...normalized, slug: generateSlug(payload.title), status: PUBLISHABLE_STATUS.DRAFT });
 };
 
 export const updateCourse = async ({ id, payload }) => {
@@ -232,7 +225,6 @@ export const updateCourse = async ({ id, payload }) => {
   Object.assign(course, normalized, payload.title ? { slug: generateSlug(payload.title) } : {});
   if (course.status === PUBLISHABLE_STATUS.PUBLISHED) await assertCoursePublishable(course);
   await course.save();
-  await invalidateContentCache();
   return course;
 };
 
@@ -251,7 +243,6 @@ export const deleteCourse = async (id) => {
     throw new ApiError(409, 'Course still has curriculum, learning-path, or enrollment dependencies', [], 'CONTENT_DEPENDENCY_EXISTS');
   }
   await course.deleteOne();
-  await invalidateContentCache();
   return course;
 };
 
@@ -283,9 +274,7 @@ export const createLearningPath = async (payload) => {
   const courseIds = normalized.courses.map((item) => item.course);
   const courses = await Course.countDocuments({ _id: { $in: courseIds }, status: { $ne: PUBLISHABLE_STATUS.ARCHIVED } });
   if (courses !== new Set(courseIds.map(String)).size) throw new ApiError(400, 'One or more learning-path courses are unavailable');
-  const path = await LearningPath.create({ ...normalized, slug: generateSlug(payload.title), status: PUBLISHABLE_STATUS.DRAFT });
-  await invalidateContentCache();
-  return path;
+  return LearningPath.create({ ...normalized, slug: generateSlug(payload.title), status: PUBLISHABLE_STATUS.DRAFT });
 };
 
 export const updateLearningPath = async ({ id, payload }) => {
@@ -296,7 +285,6 @@ export const updateLearningPath = async ({ id, payload }) => {
   Object.assign(path, normalized, payload.title ? { slug: generateSlug(payload.title) } : {});
   if (path.status === PUBLISHABLE_STATUS.PUBLISHED) await assertLearningPathPublishable(path);
   await path.save();
-  await invalidateContentCache();
   return path;
 };
 
@@ -308,6 +296,5 @@ export const deleteLearningPath = async (id) => {
   const enrollments = await Enrollment.countDocuments({ learningPath: id });
   if (enrollments) throw new ApiError(409, 'Learning path still has enrollment dependencies', [], 'CONTENT_DEPENDENCY_EXISTS');
   await path.deleteOne();
-  await invalidateContentCache();
   return path;
 };
