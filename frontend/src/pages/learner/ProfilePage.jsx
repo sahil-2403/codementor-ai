@@ -1,12 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../../components/common/Card.jsx';
 import Button from '../../components/common/Button.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
-import { useAsyncAction } from '../../hooks/useAsyncAction.js';
-import { useAsyncData } from '../../hooks/useAsyncData.js';
 import { authApi } from '../../api/authApi.js';
 import { onboardingApi } from '../../api/onboardingApi.js';
 
@@ -15,8 +13,32 @@ export default function ProfilePage() {
   const { user, logout } = useAuth();
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const enrollmentsQuery = useAsyncData(onboardingApi.enrollments);
-  const switchAction = useAsyncAction(onboardingApi.switchEnrollment);
+  const [enrollments, setEnrollments] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(true);
+  const [coursesError, setCoursesError] = useState(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [switchingId, setSwitchingId] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    setCoursesLoading(true);
+    setCoursesError(null);
+
+    onboardingApi.enrollments()
+      .then((data) => {
+        if (active) setEnrollments(data?.enrollments || []);
+      })
+      .catch((requestError) => {
+        if (active) setCoursesError(requestError);
+      })
+      .finally(() => {
+        if (active) setCoursesLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [loadAttempt]);
 
   const logoutAll = async () => {
     try {
@@ -31,14 +53,16 @@ export default function ProfilePage() {
 
   const switchEnrollment = async (enrollmentId) => {
     try {
-      await switchAction.mutateAsync(enrollmentId);
+      setCoursesError(null);
+      setSwitchingId(enrollmentId);
+      await onboardingApi.switchEnrollment(enrollmentId);
       navigate('/dashboard');
-    } catch {
-      // The action error is shown in the My courses card.
+    } catch (requestError) {
+      setCoursesError(requestError);
+    } finally {
+      setSwitchingId(null);
     }
   };
-
-  const enrollments = enrollmentsQuery.data?.enrollments || [];
 
   return <div className="mx-auto max-w-3xl space-y-5">
     <Card>
@@ -50,9 +74,9 @@ export default function ProfilePage() {
       <p className="font-bold text-indigo-600">Learning</p>
       <h2 className="text-2xl font-black">My courses</h2>
       <p className="mt-2 text-slate-600">Choose which enrollment should be used by Dashboard, Roadmap, Mentor, Projects, Interview, Progress, and Reports.</p>
-      {enrollmentsQuery.isLoading ? <div className="mt-4"><Loader label="Loading courses..." /></div> : null}
-      <ErrorMessage message={enrollmentsQuery.error?.message || switchAction.error?.message} />
-      {!enrollmentsQuery.isLoading && <div className="mt-4 space-y-3">
+      {coursesLoading ? <div className="mt-4"><Loader label="Loading courses..." /></div> : null}
+      <ErrorMessage message={coursesError?.message} />
+      {!coursesLoading && <div className="mt-4 space-y-3">
         {enrollments.length ? enrollments.map((enrollment) => {
           const title = enrollment.learningPath?.title || enrollment.currentCourse?.title || enrollment.course?.title || enrollment.roadmap?.title || 'Course';
           const courseTitle = enrollment.currentCourse?.title || enrollment.course?.title || enrollment.roadmap?.title;
@@ -65,11 +89,12 @@ export default function ProfilePage() {
               </div>
               {enrollment.isCurrent
                 ? <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">Current</span>
-                : <Button variant="secondary" onClick={() => switchEnrollment(enrollment._id)} disabled={switchAction.isPending}>Use this course</Button>}
+                : <Button variant="secondary" onClick={() => switchEnrollment(enrollment._id)} disabled={Boolean(switchingId)} isLoading={switchingId === enrollment._id}>Use this course</Button>}
             </div>
           </div>;
         }) : <p className="text-sm text-slate-600">Your active enrollments will appear here after you create a roadmap.</p>}
       </div>}
+      {coursesError ? <Button variant="ghost" className="mt-3" onClick={() => setLoadAttempt((value) => value + 1)}>Reload courses</Button> : null}
     </Card>
 
     <Card>
