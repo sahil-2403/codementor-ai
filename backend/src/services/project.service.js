@@ -1,6 +1,5 @@
 import { ProjectTask } from '../models/ProjectTask.js';
 import { ProjectSubmission } from '../models/ProjectSubmission.js';
-import { CoursePlan } from '../models/CoursePlan.js';
 import { Progress } from '../models/Progress.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { aiProvider } from '../ai/aiProvider.service.js';
@@ -8,6 +7,7 @@ import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
 import { guardAIRequest, sanitizeCodeText } from './aiSafety.service.js';
 import { projectReviewFallback } from './aiFallback.service.js';
 import { mergeWeakTopics } from './progress.service.js';
+import { requireActiveCourseForUser } from './dataIntegrity.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { invalidateUserLearningCache } from './cacheInvalidation.service.js';
 import { createAttempt } from './attempt.service.js';
@@ -25,13 +25,14 @@ const runBestEffort = async (label, action) => {
   }
 };
 
+const getCurrentCourse = (userId) => requireActiveCourseForUser({ userId, lean: true });
+
 export const listProjectTasks = async ({ userId, difficulty, tag }) => {
-  const filter = { status: 'published' };
+  const course = await getCurrentCourse(userId);
+  const filter = { status: 'published', course: course.course };
   if (difficulty) filter.difficulty = difficulty;
   if (tag) filter.tags = tag;
 
-  const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true }).lean();
-  const userLevel = course?.level || 'beginner';
   const tasks = await ProjectTask.find(filter)
     .populate('relatedLessons', 'title slug difficulty')
     .sort({ topicOrder: 1, difficulty: 1, createdAt: 1 })
@@ -53,7 +54,7 @@ export const listProjectTasks = async ({ userId, difficulty, tag }) => {
     const taskSubmissions = byTask.get(task._id.toString()) || [];
     const scored = taskSubmissions.filter((submission) => submission.reviewMode === 'ai' && typeof submission.score === 'number');
     const bestScore = scored.length ? Math.max(...scored.map((submission) => submission.score)) : null;
-    const isLocked = !allowedByLevel(userLevel, task.difficulty);
+    const isLocked = !allowedByLevel(course.level || 'beginner', task.difficulty);
     return {
       ...task,
       isLocked,
@@ -67,14 +68,14 @@ export const listProjectTasks = async ({ userId, difficulty, tag }) => {
 };
 
 export const getProjectTask = async ({ taskId, userId }) => {
-  const task = await ProjectTask.findOne({ _id: taskId, status: 'published' })
+  const course = await getCurrentCourse(userId);
+  const task = await ProjectTask.findOne({ _id: taskId, course: course.course, status: 'published' })
     .populate('relatedLessons', 'title slug difficulty topic')
     .lean();
-  if (!task) throw new ApiError(404, 'Project task not found');
+  if (!task) throw new ApiError(404, 'Project task not found in your current course');
 
-  const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true }).lean();
   const submissions = await ProjectSubmission.find({ user: userId, projectTask: taskId }).sort({ createdAt: -1 }).limit(5);
-  const isLocked = !allowedByLevel(course?.level || 'beginner', task.difficulty);
+  const isLocked = !allowedByLevel(course.level || 'beginner', task.difficulty);
   return {
     task: {
       ...task,
@@ -93,10 +94,10 @@ export const submitProjectTask = async ({ userId, projectTaskId, taskId, submitt
   submittedCode = sanitizeCodeText(submittedCode, env.aiInputLimits.projectCodeChars);
   submittedExplanation = sanitizeCodeText(submittedExplanation, env.aiInputLimits.projectExplanationChars);
 
-  const task = await ProjectTask.findOne({ _id: resolvedTaskId, status: 'published' });
-  if (!task) throw new ApiError(404, 'Project task not found');
-  const course = await CoursePlan.findOne({ user: userId, status: 'active', isActive: true }).lean();
-  if (!allowedByLevel(course?.level || 'beginner', task.difficulty)) {
+  const course = await getCurrentCourse(userId);
+  const task = await ProjectTask.findOne({ _id: resolvedTaskId, course: course.course, status: 'published' });
+  if (!task) throw new ApiError(404, 'Project task not found in your current course');
+  if (!allowedByLevel(course.level || 'beginner', task.difficulty)) {
     throw new ApiError(403, 'This project is locked for your current level', [], 'CONTENT_LOCKED');
   }
   if (!submittedCode.trim() && !submittedExplanation.trim()) {
@@ -124,6 +125,11 @@ export const submitProjectTask = async ({ userId, projectTaskId, taskId, submitt
 export const reviewProjectSubmission = async ({ user, submissionId }) => {
   const submission = await ProjectSubmission.findOne({ _id: submissionId, user: user._id }).populate('projectTask');
   if (!submission) throw new ApiError(404, 'Project submission not found');
+
+  const course = await requireActiveCourseForUser({ userId: user._id });
+  if (submission.projectTask?.course?.toString() !== course.course.toString()) {
+    throw new ApiError(403, 'This project submission belongs to a different course');
+  }
   if (submission.status === 'reviewed') return submission;
   assertReviewCanStart({ status: submission.status, reviewRequestedAt: submission.reviewRequestedAt, label: 'This project submission' });
 
@@ -134,8 +140,7 @@ export const reviewProjectSubmission = async ({ user, submissionId }) => {
   await submission.save();
 
   const aiConfigured = isGeminiAvailable();
-  const course = await CoursePlan.findOne({ user: user._id, status: 'active', isActive: true });
-  const progress = course ? await Progress.findOne({ user: user._id, coursePlan: course._id }) : null;
+  const progress = await Progress.findOne({ user: user._id, coursePlan: course._id });
   const guardText = `${submission.projectTask?.title || ''} ${submission.submittedExplanation || ''} ${submission.submittedCode || ''}`;
   let aiResult = null;
   let reviewError = null;
@@ -151,7 +156,7 @@ export const reviewProjectSubmission = async ({ user, submissionId }) => {
     aiResult = await aiProvider.reviewProjectSubmission({
       task: submission.projectTask,
       submission,
-      userLevel: course?.level || 'learner',
+      userLevel: course.level || 'learner',
       weakTopics: progress?.weakTopics || []
     });
   } catch (error) {
@@ -215,7 +220,11 @@ export const reviewProjectSubmission = async ({ user, submissionId }) => {
   return submission;
 };
 
-export const listMySubmissions = async ({ userId }) => ProjectSubmission.find({ user: userId })
-  .populate('projectTask', 'title difficulty moduleTitle')
-  .sort({ createdAt: -1 })
-  .limit(50);
+export const listMySubmissions = async ({ userId }) => {
+  const course = await getCurrentCourse(userId);
+  const taskIds = await ProjectTask.find({ course: course.course }).distinct('_id');
+  return ProjectSubmission.find({ user: userId, projectTask: { $in: taskIds } })
+    .populate('projectTask', 'title difficulty moduleTitle')
+    .sort({ createdAt: -1 })
+    .limit(50);
+};
