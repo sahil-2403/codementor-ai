@@ -1,25 +1,48 @@
+import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import EmptyState from '../components/common/EmptyState.jsx';
 import Loader from '../components/common/Loader.jsx';
 import { onboardingApi } from '../api/onboardingApi.js';
 import { ONBOARDING_STATE, ROADMAP_SETUP_STATES } from '../constants/domainEnums.js';
-import { useAsyncData } from '../hooks/useAsyncData.js';
 import { useAuth } from '../hooks/useAuth.js';
 
 export default function OnboardingGuard({ mode = 'needs-onboarding' }) {
   const location = useLocation();
   const { user } = useAuth();
-  const { data, error, isLoading, refetch } = useAsyncData(
-    onboardingApi.status,
-    [user?._id, user?.role],
-    { enabled: Boolean(user && user.role !== 'admin') }
-  );
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    if (!user || user.role === 'admin') {
+      setIsLoading(false);
+      return undefined;
+    }
+
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+
+    onboardingApi.status()
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [user?._id, user?.role, location.pathname, loadAttempt]);
 
   if (user?.role === 'admin') return <Navigate to="/admin" replace />;
 
-  // On a full page refresh the async hook has one initial render before its
-  // effect starts. Wait for the first onboarding response before redirecting.
-  if (isLoading || data === undefined && !error) {
+  if (isLoading) {
     return <Loader label="Checking onboarding status..." />;
   }
 
@@ -29,7 +52,7 @@ export default function OnboardingGuard({ mode = 'needs-onboarding' }) {
         title="Could not check your learning setup"
         description={error.message || 'Please try again.'}
         actionLabel="Try again"
-        onAction={() => refetch()}
+        onAction={() => setLoadAttempt((value) => value + 1)}
       />
     );
   }
