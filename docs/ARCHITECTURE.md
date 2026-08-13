@@ -2,20 +2,20 @@
 
 ## System overview
 
-CodeMentor AI is a React single-page application backed by an Express API and MongoDB.
+CodeMentor AI is a React single-page application backed by an Express API and MongoDB. Its architecture intentionally stays at the same complexity level as Hireflow.
 
 ```text
 Browser
-  └─ React Router pages
-      └─ React data hooks
-          └─ Axios
-              └─ Express routes
-                  └─ Controllers
-                      └─ Services
-                          ├─ MongoDB / Mongoose
-                          ├─ In-process memory cache
-                          ├─ SMTP delivery (optional)
-                          └─ Gemini (optional)
+  └─ React Router page / component
+      └─ local useState + useEffect
+          └─ domain API wrapper
+              └─ Axios
+                  └─ Express route
+                      └─ Controller
+                          └─ Service
+                              ├─ MongoDB / Mongoose
+                              ├─ SMTP delivery (optional)
+                              └─ Gemini (optional)
 ```
 
 ## Product hierarchy
@@ -48,14 +48,16 @@ Technology classifies Courses. Course is the central learning unit. Learning Pat
 
 ## Frontend
 
-- `src/api/` contains Axios wrappers grouped by domain.
-- Domain data hooks load API data with normal React state/effects.
-- `useAsyncData` exposes data, loading, error, and refetch state.
-- `useAsyncAction` runs writes and refreshes mounted data after success.
+- `src/api/` contains small Axios wrappers grouped by domain.
+- Pages and feature components load data with normal `useState`, `useEffect`, and event handlers.
+- Writes call the relevant API wrapper and then update local state or reload the affected page data.
+- Authentication is shared through `AuthContext`; one Axios response interceptor handles a single refresh retry after a 401.
 - React Router handles public, onboarding, learner, and admin routes.
 - React Hook Form and Zod handle forms and validation.
 - Loading, empty, error, unavailable, locked, and archived states are shown explicitly.
 - The Profile page provides the simple learner Course/Enrollment switcher.
+
+There is no custom query layer, global data-refresh bus, frontend server-response cache, or third-party server-state library.
 
 The Mentor page renders messages as normal pre-wrapped text and uses one effect to scroll to the latest message.
 
@@ -72,11 +74,13 @@ Services handle:
 - Roadmap creation and simple retry recovery
 - Lesson completion and Learning Path course advancement
 - Quizzes, progress, and revisions
-- Two-attempt project/interview practice
-- Mentor context lookup
+- Two-attempt Project/Interview practice
+- Mentor learning-context lookup
 - Admin content lifecycle rules
 
-MongoDB stores users, catalog entities, curriculum, enrollments, CoursePlans, progress, attempts, revisions, chats, reports, and basic AI usage records.
+MongoDB stores users, catalog entities, curriculum, Enrollments, CoursePlans, Progress, attempts, Revisions, chats, reports, and basic AI usage records.
+
+There is no application cache, queue/worker layer, repository layer, event bus, migration framework, or transaction-heavy workflow.
 
 ## Core flows
 
@@ -120,15 +124,13 @@ Each task/question allows two attempts:
 3. Otherwise create attempt 1 or attempt 2.
 4. Save Gemini review when available, or scoreless fallback guidance when unavailable.
 
-Project tasks and Interview questions are always filtered to the learner's current Course.
+Project Tasks and Interview Questions are always filtered to the learner's current Course.
 
 ### Mentor context
 
-The Mentor uses the current CoursePlan, current Lesson, recent quiz mistakes, weak topics, and simple keyword matching against published Lessons from the same Course. This is normal MongoDB content lookup, not a separate retrieval infrastructure.
+The Mentor uses the current CoursePlan, current Lesson, recent quiz mistakes, weak topics, and simple keyword matching against published Lessons from the same Course. This is normal MongoDB content lookup, not a separate retrieval or embedding system.
 
 ## Admin lifecycle
-
-All admin content follows:
 
 ```text
 Draft / Published / Active
@@ -163,9 +165,6 @@ Gemini integration keeps only the application-level behavior needed by learners:
 
 Assessment completion and Gemini personalization are separate states: completing a diagnostic remains recorded even when Gemini falls back to the standard template.
 
-## Cache and health
+## Health
 
-The cache is a small in-process JavaScript `Map` for short-lived reads. The application remains correct with caching disabled.
-
-- `/health` reports process liveness.
-- `/health/ready` checks MongoDB and configured optional services.
+`GET /health` is the single lightweight health endpoint. MongoDB connection failures are handled during application startup rather than through a separate readiness architecture.
