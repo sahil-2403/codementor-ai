@@ -2,7 +2,6 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendResponse } from '../utils/ApiResponse.js';
 import { getCurrentProgress } from '../services/progress.service.js';
 import { updateRevisionStatus } from '../services/revision.service.js';
-import { invalidateUserLearningCache } from '../services/cacheInvalidation.service.js';
 import { Enrollment } from '../models/Enrollment.js';
 import { ApiError } from '../utils/ApiError.js';
 
@@ -52,6 +51,5 @@ export const dashboard = asyncHandler(async (req, res) => {
 export const updateRevision = asyncHandler(async (req, res) => {
   const revision = await updateRevisionStatus({ userId: req.user._id, revisionId: req.params.revisionId, status: req.body.status });
   if (!revision) throw new ApiError(404, 'Revision item not found');
-  await invalidateUserLearningCache(req.user._id);
   sendResponse(res, 200, `Revision ${revision.status}`, { revision });
 });
