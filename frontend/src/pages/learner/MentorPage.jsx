@@ -465,7 +465,7 @@ export default function MentorPage() {
                 type="button"
                 disabled={!canAsk || isAsking}
                 onClick={() => sendPayload({ text: item.text, type: item.promptType })}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground disabled:opacity-45"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/35 hover:text-foreground disabled:opacity-45"
               >
                 <Sparkles size={12} className="text-primary" aria-hidden="true" />
                 {item.label}
