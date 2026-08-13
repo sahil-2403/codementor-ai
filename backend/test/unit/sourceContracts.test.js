@@ -1,8 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const source = (relativePath) => readFileSync(new URL(`../../src/${relativePath}`, import.meta.url), 'utf8');
+
+const collectSourceFiles = (directory) => readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+  const path = new URL(entry.name + (entry.isDirectory() ? '/' : ''), directory);
+  if (entry.isDirectory()) return collectSourceFiles(path);
+  return entry.name.endsWith('.js') ? [path] : [];
+});
 
 test('Gemini schemas constrain scores and require roadmap modules', () => {
   const schemas = source('ai/aiSchemas.js');
@@ -52,6 +58,15 @@ test('backend runtime queries Mongo directly and keeps one simple health endpoin
   assert.doesNotMatch(lessons, /getOrSetCache|cacheKey/);
   assert.match(slug, /normalize\('NFKD'\)/);
   assert.match(slug, /replace\(\/\[\^a-z0-9\]\+\/g, '-'\)/);
+});
+
+test('deleted cache invalidation service is not imported anywhere', () => {
+  const srcRoot = new URL('../../src/', import.meta.url);
+  const staleFiles = collectSourceFiles(srcRoot)
+    .filter((file) => readFileSync(file, 'utf8').includes('cacheInvalidation.service'))
+    .map((file) => file.pathname);
+
+  assert.deepEqual(staleFiles, []);
 });
 
 test('mentor context is restricted to active course lessons', () => {
