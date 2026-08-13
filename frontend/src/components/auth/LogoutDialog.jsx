@@ -4,9 +4,12 @@ import Button from '../common/Button.jsx';
 
 export default function LogoutDialog({ isOpen, onClose, onConfirm, returnFocusRef }) {
   const cancelButtonRef = useRef(null);
+  const submittingRef = useRef(false);
   const [logoutFromAllDevices, setLogoutFromAllDevices] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  submittingRef.current = isSubmitting;
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -17,7 +20,7 @@ export default function LogoutDialog({ isOpen, onClose, onConfirm, returnFocusRe
     const focusFrame = window.requestAnimationFrame(() => cancelButtonRef.current?.focus());
 
     const handleEscape = (event) => {
-      if (event.key === 'Escape' && !isSubmitting) onClose();
+      if (event.key === 'Escape' && !submittingRef.current) onClose();
     };
     document.addEventListener('keydown', handleEscape);
 
@@ -29,7 +32,7 @@ export default function LogoutDialog({ isOpen, onClose, onConfirm, returnFocusRe
         window.requestAnimationFrame(() => returnFocusElement.focus());
       }
     };
-  }, [isOpen, isSubmitting, onClose, returnFocusRef]);
+  }, [isOpen, onClose, returnFocusRef]);
 
   useEffect(() => {
     if (isOpen) return;
