@@ -1,15 +1,15 @@
 # CodeMentor AI
 
-CodeMentor AI is a MERN learning platform for structured coding practice. Learners can start an individual course or follow an ordered learning path, receive a course-level roadmap, study lessons, complete quizzes and projects, practise interview questions, review progress, and use optional Gemini-assisted guidance.
+CodeMentor AI is a MERN learning platform for structured coding practice. Learners can start an individual Course or follow an ordered Learning Path, receive a Course-level roadmap, study Lessons, complete Quizzes and Projects, practise Interview questions, review progress, and use optional Gemini-assisted guidance.
 
 ## Product principles
 
 - **The server owns learning state.** Enrollments, roadmaps, unlocks, attempts, scores, weak topics, revisions, and content lifecycle are persisted in MongoDB.
-- **Courses own curriculum.** Topics, lessons, questions, project tasks, interview practice, and roadmap templates are scoped to a Course.
+- **Courses own curriculum.** Topics, Lessons, Questions, Project Tasks, Interview practice, and Roadmap Templates are scoped to a Course.
 - **Technologies classify content.** A learner can start a Course directly without selecting a programming language first.
-- **Deterministic learning features do not require AI.** Authentication, onboarding, template roadmaps, lessons, quizzes, projects, interview attempts, progress, and admin content management remain available when Gemini is disabled.
-- **AI output is labelled honestly.** Provider failures fall back to stored course guidance without presenting fallback content as generated analysis.
-- **The codebase stays junior-friendly.** Data loading uses React hooks and Axios, backend workflows use straightforward Express services, and infrastructure is intentionally kept small.
+- **Deterministic learning features do not require AI.** Authentication, onboarding, template roadmaps, Lessons, Quizzes, Projects, Interview attempts, Progress, and admin content management remain available when Gemini is disabled.
+- **AI output is labelled honestly.** Provider failures use stored/deterministic fallback guidance without presenting fallback content as generated analysis.
+- **Hireflow is the complexity ceiling.** CodeMentor may be simpler than Hireflow, but it must not introduce architecture beyond the current Hireflow project unless the project scope is explicitly raised.
 
 ## Main capabilities
 
@@ -17,15 +17,15 @@ CodeMentor AI is a MERN learning platform for structured coding practice. Learne
 
 - Registration, email verification, login, password recovery, and session invalidation
 - Course and Learning Path catalog
-- Beginner, intermediate, and advanced entry levels
-- Preferences and optional course-specific diagnostics
+- Beginner, Intermediate, and Advanced entry levels
+- Preferences and optional Course-specific diagnostics
 - Versioned template or assessment-personalized roadmaps
-- Ordered modules, lesson completion, and module quizzes
-- Weak-topic and revision tracking
-- Contextual Gemini Mentor with saved course explanations as fallback
-- Project tasks and interview practice with two attempts
-- Dashboard, progress, and weekly reports
-- Multiple independent enrollments with current-course switching
+- Ordered modules, Lesson completion, and module Quizzes
+- Weak-topic and Revision tracking
+- Contextual Gemini Mentor with saved Course explanations as fallback
+- Project Tasks and Interview practice with two attempts
+- Dashboard, Progress, and weekly Reports
+- Multiple independent Enrollments with current-Course switching
 
 ### Administrators
 
@@ -56,6 +56,17 @@ Admin content uses a consistent lifecycle: active/draft/published content is arc
 - Sonner
 - Vite 5
 
+Frontend feature data follows a simple Hireflow-style flow:
+
+```text
+Page / Component
+  -> useState + useEffect
+  -> domain API wrapper
+  -> Axios
+```
+
+Authentication is the only shared application state and uses `AuthContext` plus a small Axios refresh interceptor.
+
 ### Backend
 
 - JavaScript
@@ -63,10 +74,19 @@ Admin content uses a consistent lifecycle: active/draft/published content is arc
 - Express
 - MongoDB and Mongoose
 - Zod
-- JWT authentication with HTTP-only cookies
+- JWT authentication with HttpOnly cookies
 - Nodemailer-compatible SMTP delivery
 - Google Gemini API
-- In-process memory cache
+
+Backend request flow stays straightforward:
+
+```text
+Route
+  -> middleware / validation
+  -> Controller
+  -> Service
+  -> Mongoose Model
+```
 
 ## Repository layout
 
@@ -84,8 +104,7 @@ backend/
 frontend/
   src/
     api/              Axios clients grouped by domain
-    queries/          Domain data hooks built with React hooks
-    hooks/            Shared async/data hooks and app hooks
+    hooks/            Small application hooks such as useAuth
     pages/            Public, onboarding, learner, and admin screens
     components/       Shared UI and domain components
     constants/        Product enums and display configuration
@@ -123,10 +142,7 @@ The API listens on `http://localhost:5000` by default.
 
 > `npm run seed` recreates the development/demo data. Do not use it against data you need to keep.
 
-Health endpoints:
-
-- `GET /health`
-- `GET /health/ready`
+Health endpoint: `GET /health`.
 
 ### Frontend
 
@@ -147,7 +163,7 @@ GEMINI_API_KEY=your_key
 GEMINI_MODEL=gemini-1.5-flash
 ```
 
-Gemini-assisted features include roadmap adjustment, Mentor answers, quiz explanations, project reviews, interview feedback, and weekly summaries. Each feature keeps an honest stored/deterministic fallback where appropriate.
+Gemini-assisted features include roadmap adjustment, Mentor answers, Quiz explanations, Project reviews, Interview feedback, and weekly summaries. Each feature keeps an honest stored/deterministic fallback where appropriate.
 
 ## Email
 
@@ -181,7 +197,6 @@ npm run check:gemini
 - Origins/proxy: `CLIENT_URL`, `ALLOWED_ORIGINS`, `TRUST_PROXY`
 - Authentication: JWT and cookie settings
 - Persistence: `MONGO_URI`
-- Cache: `ENABLE_CACHE` and cache TTL values
 - AI: Gemini configuration, daily limits, input limits, and timeout
 - Email: SMTP settings and sender addresses
 - Frontend API: optional `VITE_API_BASE_URL`

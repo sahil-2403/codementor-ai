@@ -21,6 +21,7 @@ export default function LoginPage() {
   const params = new URLSearchParams(location.search);
   const verified = params.get('verified') === 'true';
   const reset = params.get('reset') === 'true';
+  const logoutMessage = location.state?.message || '';
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting }, setError } = useForm({
     resolver: zodResolver(loginFormSchema),
     defaultValues: { email: '', password: '' }
@@ -58,6 +59,7 @@ export default function LoginPage() {
     </div>}
   >
     <div className="space-y-3">
+      {logoutMessage && <AuthNotice tone="success">{logoutMessage}</AuthNotice>}
       {verified && <AuthNotice tone="success">Email verified. You can now log in.</AuthNotice>}
       {reset && <AuthNotice tone="success">Password reset successfully. Log in with your new password.</AuthNotice>}
     </div>
