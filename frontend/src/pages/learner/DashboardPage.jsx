@@ -431,11 +431,7 @@ export default function DashboardPage() {
     studyPlan = []
   } = data;
 
-  const canPersonalize = Boolean(
-    stats.canPersonalizeLater ||
-      (['intermediate', 'advanced'].includes(course.level) &&
-        course.generatedReason !== 'assessment_personalized')
-  );
+  const canPersonalize = Boolean(stats.canPersonalizeLater);
   const firstName = user?.name?.trim()?.split(/\s+/)[0] || 'Learner';
   const overallCompletion =
     stats.overallCompletion || progress?.overallCompletion || 0;
