@@ -5,14 +5,11 @@ import Button from '../../components/common/Button.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
-import { authApi } from '../../api/authApi.js';
 import { onboardingApi } from '../../api/onboardingApi.js';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const { user } = useAuth();
   const [enrollments, setEnrollments] = useState([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [coursesError, setCoursesError] = useState(null);
@@ -39,17 +36,6 @@ export default function ProfilePage() {
       active = false;
     };
   }, [loadAttempt]);
-
-  const logoutAll = async () => {
-    try {
-      setError('');
-      await authApi.logoutAll();
-      setMessage('You have been signed out from all devices. Please log in again.');
-      await logout();
-    } catch (err) {
-      setError(err.message);
-    }
-  };
 
   const switchEnrollment = async (enrollmentId) => {
     try {
@@ -95,15 +81,6 @@ export default function ProfilePage() {
         }) : <p className="text-sm text-slate-600">Your active enrollments will appear here after you create a roadmap.</p>}
       </div>}
       {coursesError ? <Button variant="ghost" className="mt-3" onClick={() => setLoadAttempt((value) => value + 1)}>Reload courses</Button> : null}
-    </Card>
-
-    <Card>
-      <p className="font-bold text-indigo-600">Account security</p>
-      <h2 className="text-2xl font-black">Sign out everywhere</h2>
-      <p className="mt-2 text-slate-600">Use this if you signed in on a shared device or think someone else may have access to your account.</p>
-      <ErrorMessage message={error} />
-      {message && <p className="mt-4 rounded-2xl bg-emerald-50 p-4 text-sm font-bold text-emerald-700">{message}</p>}
-      <Button variant="secondary" className="mt-5" onClick={logoutAll}>Sign out from all devices</Button>
     </Card>
   </div>;
 }
