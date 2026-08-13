@@ -54,6 +54,17 @@ test('roadmap retry repairs progress and fallback is not labelled personalized',
   assert.match(dashboard, /canPersonalizeLater/);
 });
 
+test('skipping an unfinished assessment moves setup to roadmap generation', () => {
+  const onboarding = source('services/onboarding.service.js');
+  const roadmapPending = onboarding.indexOf('enrollment.onboardingState === ONBOARDING_STATES.ROADMAP_PENDING');
+  const startedAssessment = onboarding.indexOf("assessment?.status === 'started'");
+
+  assert.ok(roadmapPending >= 0, 'roadmap_pending should be handled explicitly');
+  assert.ok(startedAssessment > roadmapPending, 'explicit roadmap_pending choice must win over an older started assessment');
+  assert.match(onboarding, /markAssessmentSkipped[\s\S]*assessmentPreference = enrollment\.level === 'beginner' \? 'not_applicable' : 'skip'/);
+  assert.match(onboarding, /markAssessmentSkipped[\s\S]*onboardingState = ONBOARDING_STATES\.ROADMAP_PENDING/);
+});
+
 test('admin lifecycle protects active learners and simple catalog rules', () => {
   const lifecycle = source('services/adminContent/dependencyLifecycle.service.js');
   const catalog = source('services/adminContent/catalog.service.js');
