@@ -20,3 +20,10 @@ test('onboarding guard waits for status from the current route before redirectin
   assert.match(source, /location\.pathname, loadAttempt/);
   assert.match(source, /Could not check your learning setup/);
 });
+
+test('dashboard skill-check banner trusts the backend eligibility flag', async () => {
+  const source = await readFrontend('src/pages/learner/DashboardPage.jsx');
+
+  assert.match(source, /const canPersonalize = Boolean\(stats\.canPersonalizeLater\);/);
+  assert.doesNotMatch(source, /generatedReason\s*!==\s*['"]assessment_personalized['"]/);
+});
