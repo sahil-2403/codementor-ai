@@ -40,10 +40,13 @@ npm run check:gemini
 - [ ] Environment examples and documentation match current variables/commands
 - [ ] Frontend/backend API enums and response fields remain aligned
 - [ ] Admin scope remains learning-content management only
+- [ ] Frontend pages use local React state/effects and domain API wrappers rather than a custom query layer
+- [ ] No application cache, queue/worker, or other infrastructure beyond the Hireflow/junior scope has been added
 
 ## 3. Database
 
 - [ ] Confirm `MONGO_URI` points to the intended development/demo database
+- [ ] MongoDB connectivity works
 - [ ] Review intentional Mongoose schema/index changes
 - [ ] Clear and reseed the disposable development database when schema changes require fresh data
 - [ ] Never run the development seed against data that must survive
@@ -67,11 +70,11 @@ npm run seed
 - [ ] Rate limits are appropriate
 - [ ] Development/demo flags are disabled unless intentionally required
 
-### MongoDB and cache
+### MongoDB
 
-- [ ] MongoDB connectivity and readiness verified
-- [ ] `ENABLE_CACHE` chosen intentionally
-- [ ] Cache TTL values reviewed if caching is enabled
+- [ ] MongoDB connection string is configured through deployment secrets
+- [ ] Application startup fails clearly when MongoDB cannot connect
+- [ ] `GET /health` responds after successful startup
 
 ### Email
 
@@ -117,7 +120,7 @@ npm run seed
 - [ ] Lesson → Mentor predefined prompt sends exactly once
 - [ ] Mentor pending indicator disappears when the answer returns
 - [ ] Dashboard, Progress, and Reports reflect persisted data after writes/refresh
-- [ ] Switching current enrollment updates learner pages
+- [ ] Switching current Enrollment updates learner pages
 - [ ] Projects and Interview questions allow two attempts and reject a third
 
 ### Gemini and fallback honesty
