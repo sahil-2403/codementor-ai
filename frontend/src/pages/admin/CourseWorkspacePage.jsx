@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, BookOpen, ClipboardCheck, FileQuestion, Hammer, Layers3, MessageSquareText, Pencil, Tags } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
@@ -7,7 +8,7 @@ import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import StatusPill from '../../components/common/StatusPill.jsx';
-import { useAdminCourseWorkspace } from '../../queries/adminQueries.js';
+import { adminCourseWorkspaceApi } from '../../api/adminCourseWorkspaceApi.js';
 
 const sections = [
   { key: 'topics', title: 'Topics', icon: Tags, path: '/admin/topics', detail: (item) => `${item.active || 0} active · ${item.archived || 0} archived` },
@@ -21,14 +22,36 @@ const sections = [
 
 export default function CourseWorkspacePage() {
   const { courseId } = useParams();
-  const query = useAdminCourseWorkspace(courseId);
-  if (query.isLoading) return <Loader label="Loading course workspace..." />;
-  if (query.error) return <PageShell><ErrorMessage message={query.error.message} /></PageShell>;
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const course = query.data?.course;
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setError(null);
+
+    adminCourseWorkspaceApi.get(courseId)
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [courseId]);
+
+  if (isLoading) return <Loader label="Loading course workspace..." />;
+  if (error) return <PageShell><ErrorMessage message={error.message} /></PageShell>;
+
+  const course = data?.course;
   if (!course) return <EmptyState title="Course workspace is unavailable" description="This Course could not be found." />;
-  const counts = query.data?.counts || {};
-  const coverage = query.data?.templateCoverage || {};
+  const counts = data?.counts || {};
+  const coverage = data?.templateCoverage || {};
 
   return (
     <PageShell className="space-y-6 pb-8">
