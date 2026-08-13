@@ -37,7 +37,7 @@ export default function TechnologiesPage() {
     setIsLoading(true);
     setError(null);
 
-    adminApi.listTechnologies(filters)
+    adminApi.technologies(filters)
       .then((result) => {
         if (active) setTechnologies(result?.technologies || []);
       })
@@ -59,7 +59,8 @@ export default function TechnologiesPage() {
     setStatusLoading(true);
     setStatusError(null);
     try {
-      await adminApi.changeTechnologyStatus(statusTarget.item._id, {
+      await adminApi.updateTechnologyStatus({
+        id: statusTarget.item._id,
         status: statusTarget.status,
         confirmPublish: statusTarget.status === 'published'
       });
