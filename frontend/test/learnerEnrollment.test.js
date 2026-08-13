@@ -20,6 +20,7 @@ test('profile exposes the current enrollment switch flow', () => {
 test('final lesson can continue a learning path through the server nextPath', () => {
   const lesson = read('../src/pages/learner/LessonPage.jsx');
 
-  assert.match(lesson, /completeMutation\.mutateAsync\(lesson\._id\)/);
+  assert.match(lesson, /lessonApi\.complete\(lesson\._id\)/);
   assert.match(lesson, /if \(result\?\.nextPath\) navigate\(result\.nextPath\)/);
+  assert.doesNotMatch(lesson, /mutateAsync|useAsyncAction|queries\//);
 });
