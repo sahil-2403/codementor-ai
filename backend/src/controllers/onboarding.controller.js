@@ -9,7 +9,6 @@ import {
   selectEnrollmentTarget,
   switchLearnerEnrollment
 } from '../services/onboarding.service.js';
-import { invalidateUserLearningCache } from '../services/cacheInvalidation.service.js';
 
 export const status = asyncHandler(async (req, res) => {
   const data = await getOnboardingStatus(req.user._id);
@@ -26,7 +25,6 @@ export const switchEnrollment = asyncHandler(async (req, res) => {
     userId: req.user._id,
     enrollmentId: req.params.enrollmentId
   });
-  await invalidateUserLearningCache(req.user._id);
   sendResponse(res, 200, 'Current enrollment changed', { enrollment });
 });
 
