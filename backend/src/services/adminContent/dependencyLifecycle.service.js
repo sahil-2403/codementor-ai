@@ -10,7 +10,6 @@ import { RoadmapTemplate } from '../../models/RoadmapTemplate.js';
 import { CoursePlan } from '../../models/CoursePlan.js';
 import { Enrollment } from '../../models/Enrollment.js';
 import { ApiError } from '../../utils/ApiError.js';
-import { invalidateContentCache } from '../cacheInvalidation.service.js';
 import { PUBLISHABLE_STATUS, ensureFound, requireArchivedForDelete } from './common.js';
 import {
   updateTechnology,
@@ -149,14 +148,12 @@ export const changeCourseStatusSafely = async (args) => {
     await assertCourseArchiveSafe(args.id);
     const updated = await changeCourseStatus(args);
     await archiveCourseOwnedContent(args.id);
-    await invalidateContentCache();
     return updated;
   }
 
   if (args.status === PUBLISHABLE_STATUS.DRAFT && course.status === PUBLISHABLE_STATUS.ARCHIVED) {
     const updated = await changeCourseStatus(args);
     await restoreCourseOwnedContent(args.id);
-    await invalidateContentCache();
     return updated;
   }
 
