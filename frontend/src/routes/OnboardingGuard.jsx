@@ -14,6 +14,7 @@ export default function OnboardingGuard({ mode = 'needs-onboarding' }) {
   const [isLoading, setIsLoading] = useState(true);
   const [checkedPath, setCheckedPath] = useState('');
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const guardPath = mode === 'needs-onboarding' ? location.pathname : '';
 
   useEffect(() => {
     if (!user || user.role === 'admin') {
@@ -29,12 +30,12 @@ export default function OnboardingGuard({ mode = 'needs-onboarding' }) {
       .then((result) => {
         if (!active) return;
         setData(result);
-        setCheckedPath(location.pathname);
+        setCheckedPath(guardPath);
       })
       .catch((requestError) => {
         if (!active) return;
         setError(requestError);
-        setCheckedPath(location.pathname);
+        setCheckedPath(guardPath);
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -43,11 +44,11 @@ export default function OnboardingGuard({ mode = 'needs-onboarding' }) {
     return () => {
       active = false;
     };
-  }, [user?._id, user?.role, location.pathname, loadAttempt]);
+  }, [user?._id, user?.role, guardPath, loadAttempt]);
 
   if (user?.role === 'admin') return <Navigate to="/admin" replace />;
 
-  if (isLoading || checkedPath !== location.pathname) {
+  if (isLoading || (mode === 'needs-onboarding' && checkedPath !== guardPath)) {
     return <Loader label="Checking onboarding status..." />;
   }
 
