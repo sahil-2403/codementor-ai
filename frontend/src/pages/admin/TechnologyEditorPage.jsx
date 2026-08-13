@@ -35,8 +35,8 @@ export default function TechnologyEditorPage() {
     let active = true;
     setIsLoading(true);
     setLoadError(null);
-    const requests = [adminApi.listTechnologies({ limit: 100 })];
-    if (editing) requests.push(adminApi.getTechnology(technologyId));
+    const requests = [adminApi.technologies({ limit: 100 })];
+    if (editing) requests.push(adminApi.technology(technologyId));
 
     Promise.all(requests)
       .then(([listResult, itemResult]) => {
@@ -74,7 +74,7 @@ export default function TechnologyEditorPage() {
     setIsSaving(true);
     setSaveError(null);
     try {
-      if (editing) await adminApi.updateTechnology(technologyId, payload);
+      if (editing) await adminApi.updateTechnology({ id: technologyId, payload });
       else await adminApi.createTechnology(payload);
       navigate('/admin/technologies');
     } catch (requestError) {
