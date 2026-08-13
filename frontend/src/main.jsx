@@ -6,7 +6,6 @@ import AppToaster from './components/feedback/AppToaster.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import AuthInterceptor from './features/auth/AuthInterceptor.jsx';
 import App from './App.jsx';
-import './index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
