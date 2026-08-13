@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +25,7 @@ const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = resolve(frontendRoot, '..');
 const readFrontend = (path) => readFile(resolve(frontendRoot, path), 'utf8');
 const readRepo = (path) => readFile(resolve(repoRoot, path), 'utf8');
+const missingFrontendPath = (path) => assert.rejects(access(resolve(frontendRoot, path)));
 
 test('shared utilities keep class names and empty dates deterministic', () => {
   assert.equal(cn('base', false, undefined, 'active'), 'base active');
@@ -40,38 +41,50 @@ test('onboarding copy preserves catalog and optional-diagnostic paths', () => {
   assert.match(onboardingCopyByLevel.advanced.badge, /optional/i);
 });
 
-test('frontend data flow uses plain react hooks and axios domain APIs', async () => {
-  const [main, dataHook, actionHook, dashboardData, adminData] = await Promise.all([
+test('frontend data flow stays inside the Hireflow junior architecture ceiling', async () => {
+  const [main, dashboard, courses, lessons, templates] = await Promise.all([
     readFrontend('src/main.jsx'),
-    readFrontend('src/hooks/useAsyncData.js'),
-    readFrontend('src/hooks/useAsyncAction.js'),
-    readFrontend('src/queries/dashboardQueries.js'),
-    readFrontend('src/queries/adminQueries.js')
+    readFrontend('src/pages/learner/DashboardPage.jsx'),
+    readFrontend('src/pages/admin/CoursesPage.jsx'),
+    readFrontend('src/pages/admin/CourseLessonsPage.jsx'),
+    readFrontend('src/pages/admin/TemplatesPage.jsx')
   ]);
 
-  assert.match(main, /DataRefreshProvider/);
-  assert.match(dataHook, /useEffect/);
-  assert.match(dataHook, /useState/);
-  assert.match(actionHook, /refreshData\(\)/);
-  assert.match(dashboardData, /useAsyncData\(progressApi\.dashboard\)/);
-  assert.match(adminData, /useAsyncData/);
-  assert.match(adminData, /useAsyncAction/);
+  assert.doesNotMatch(main, /DataRefreshProvider/);
+  await Promise.all([
+    missingFrontendPath('src/context/DataRefreshContext.jsx'),
+    missingFrontendPath('src/hooks/useAsyncData.js'),
+    missingFrontendPath('src/hooks/useAsyncAction.js'),
+    missingFrontendPath('src/queries')
+  ]);
+
+  assert.match(dashboard, /useEffect/);
+  assert.match(dashboard, /useState/);
+  assert.match(dashboard, /progressApi\.dashboard/);
+  for (const source of [courses, lessons, templates]) {
+    assert.match(source, /useEffect/);
+    assert.match(source, /useState/);
+    assert.match(source, /adminApi\./);
+    assert.doesNotMatch(source, /queries\//);
+    assert.doesNotMatch(source, /useAsyncData|useAsyncAction/);
+  }
 });
 
-test('auth transport keeps cookie, CSRF, refresh, and deployment contracts', async () => {
-  const [source, authContext] = await Promise.all([
+test('auth transport keeps the simple cookie csrf and refresh flow', async () => {
+  const [axiosSource, authContext, interceptor] = await Promise.all([
     readFrontend('src/api/axiosInstance.js'),
-    readFrontend('src/context/AuthContext.jsx')
+    readFrontend('src/context/AuthContext.jsx'),
+    readFrontend('src/features/auth/AuthInterceptor.jsx')
   ]);
-  assert.match(source, /withCredentials:\s*true/);
-  assert.match(source, /X-CSRF-Token/);
-  assert.match(source, /auth\/refresh-token/);
-  assert.match(source, /_retry/);
-  assert.match(source, /VITE_API_BASE_URL\s*\|\|\s*['"]\/api['"]/);
-  assert.doesNotMatch(source, /localhost:5000/);
-  assert.match(source, /dispatchEvent\(new Event\(SESSION_EXPIRED_EVENT\)\)/);
-  assert.match(authContext, /addEventListener\(SESSION_EXPIRED_EVENT/);
-  assert.match(authContext, /finally\s*\{\s*setUser\(null\)/);
+  assert.match(axiosSource, /withCredentials:\s*true/);
+  assert.match(axiosSource, /X-CSRF-Token/);
+  assert.match(axiosSource, /VITE_API_BASE_URL\s*\|\|\s*['"]\/api['"]/);
+  assert.doesNotMatch(axiosSource, /localhost:5000/);
+  assert.match(authContext, /authApi\.me\(\)/);
+  assert.match(authContext, /authApi\.refresh\(\)/);
+  assert.match(interceptor, /authApi\.refresh\(\)/);
+  assert.match(interceptor, /_authRetry/);
+  assert.match(interceptor, /signOut\(\)/);
 });
 
 test('password recovery uses a generic non-enumerating success message', async () => {
@@ -81,20 +94,13 @@ test('password recovery uses a generic non-enumerating success message', async (
   assert.doesNotMatch(source, /(?:we found|we confirmed)\s+(?:an?\s+)?account|email is registered/i);
 });
 
-test('onboarding navigation is driven by server status', async () => {
+test('onboarding navigation is driven by server status with local state', async () => {
   const source = await readFrontend('src/routes/OnboardingGuard.jsx');
   assert.match(source, /onboardingApi\.status/);
-  assert.match(source, /useAsyncData/);
+  assert.match(source, /useEffect/);
+  assert.match(source, /useState/);
+  assert.doesNotMatch(source, /useAsyncData/);
   assert.match(source, /data\?\.nextPath/);
-});
-
-test('successful learner writes refresh mounted server data', async () => {
-  const [quizData, actionHook] = await Promise.all([
-    readFrontend('src/queries/quizQueries.js'),
-    readFrontend('src/hooks/useAsyncAction.js')
-  ]);
-  assert.match(quizData, /useSubmitQuiz = \(\) => useAsyncAction\(quizApi\.submit\)/);
-  assert.match(actionHook, /if \(refresh\) refreshData\(\)/);
 });
 
 test('fallback review states stay scoreless and progress-neutral', async () => {
@@ -133,11 +139,10 @@ test('admin publishing uses the shared confirmed lifecycle', async () => {
     assert.doesNotMatch(source, /window\.confirm/);
     assert.match(source, /ConfirmDialog/);
   }
-
   for (const source of [lessons, questions]) {
     assert.match(source, /confirmPublish:\s*statusTarget\.status\s*===\s*['"]published['"]/);
   }
-  assert.match(templates, /status:\s*['"]published['"][\s\S]*confirmPublish:\s*true/);
+  assert.match(templates, /confirmPublish:\s*status\s*===\s*['"]published['"]/);
 });
 
 test('admin routes use course-aware catalog and curriculum pages', async () => {
@@ -169,11 +174,12 @@ test('admin form schemas are course-first and no longer goal-key based', async (
 });
 
 test('roadmap template admin uses a structured editor and explicit deletion', async () => {
-  const [routes, form, page, api] = await Promise.all([
+  const [routes, form, page, api, editor] = await Promise.all([
     readFrontend('src/routes/AppRoutes.jsx'),
     readFrontend('src/components/admin/TemplateForm.jsx'),
     readFrontend('src/pages/admin/TemplatesPage.jsx'),
-    readFrontend('src/api/adminApi.js')
+    readFrontend('src/api/adminApi.js'),
+    readFrontend('src/pages/admin/TemplateEditorPage.jsx')
   ]);
   assert.match(routes, /\/admin\/templates\/new/);
   assert.match(routes, /\/admin\/templates\/:templateId\/edit/);
@@ -181,9 +187,10 @@ test('roadmap template admin uses a structured editor and explicit deletion', as
   assert.doesNotMatch(form, /modulesText|Modules JSON|JSON\.parse|JSON\.stringify/);
   assert.match(page, /Type DELETE to confirm/);
   assert.match(page, /Restore to Draft/);
-  assert.doesNotMatch(page, /Duplicate/);
   assert.match(api, /deleteTemplate/);
   assert.doesNotMatch(api, /duplicateTemplate|archiveTemplate/);
+  assert.match(editor, /adminApi\.templates/);
+  assert.doesNotMatch(editor, /useAdminTemplate|useAdminTemplates/);
 });
 
 test('frontend enum values match current backend contracts', async () => {
@@ -209,15 +216,9 @@ test('frontend enum values match current backend contracts', async () => {
   ]);
   const combined = sources.join('\n');
   const frontendValues = [
-    ...Object.values(CONTENT_STATUS),
-    ...Object.values(COURSE_STATUS),
-    ...Object.values(LEARNING_ITEM_STATUS),
-    ...Object.values(REVIEW_STATUS),
-    ...Object.values(REVIEW_MODE),
-    ...Object.values(REVISION_STATUS),
-    ...Object.values(SEVERITY),
-    ...Object.values(ROADMAP_TYPE),
-    ...Object.values(ONBOARDING_STATE)
+    ...Object.values(CONTENT_STATUS), ...Object.values(COURSE_STATUS), ...Object.values(LEARNING_ITEM_STATUS),
+    ...Object.values(REVIEW_STATUS), ...Object.values(REVIEW_MODE), ...Object.values(REVISION_STATUS),
+    ...Object.values(SEVERITY), ...Object.values(ROADMAP_TYPE), ...Object.values(ONBOARDING_STATE)
   ];
   for (const value of frontendValues) assert.match(combined, new RegExp(`[\"']${value}[\"']`));
 });
@@ -248,23 +249,23 @@ test('frontend has render recovery, lazy routes, and a real not-found page', asy
 });
 
 test('frontend API wrappers match active learner and admin flows', async () => {
-  const [onboarding, authSchema, projectData, projectApiSource, adminApiSource, roadmapApiSource] = await Promise.all([
+  const [onboarding, authSchema, projectPage, projectApiSource, adminApiSource, roadmapApiSource] = await Promise.all([
     readFrontend('src/constants/onboardingSteps.js'),
     readFrontend('src/validations/auth.schema.js'),
-    readFrontend('src/queries/projectQueries.js'),
+    readFrontend('src/pages/learner/ProjectsPage.jsx'),
     readFrontend('src/api/projectApi.js'),
     readFrontend('src/api/adminApi.js'),
     readFrontend('src/api/roadmapApi.js')
   ]);
   assert.doesNotMatch(onboarding, /accountJourneySteps/);
   assert.doesNotMatch(authSchema, /verifyEmailFormSchema/);
-  assert.doesNotMatch(projectData, /useProjectSubmissions/);
   assert.doesNotMatch(projectApiSource, /^\s*submissions:/m);
+  assert.match(projectPage, /projectApi\./);
+  assert.doesNotMatch(projectPage, /useAsyncData|useAsyncAction|queries\//);
   assert.match(adminApiSource, /^\s*lesson:/m);
   assert.match(adminApiSource, /^\s*interviewQuestion:/m);
   assert.match(adminApiSource, /^\s*template:/m);
   assert.doesNotMatch(adminApiSource, /duplicateTemplate|archiveTemplate/);
-  assert.match(projectData, /useAsyncData/);
   assert.match(roadmapApiSource, /generateOrGet/);
   assert.match(roadmapApiSource, /fromAssessment/);
 });
