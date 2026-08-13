@@ -7,13 +7,16 @@ import { fileURLToPath } from 'node:url';
 const frontendRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const readFrontend = (path) => readFile(resolve(frontendRoot, path), 'utf8');
 
-test('onboarding guard waits for status before redirecting a refreshed learner', async () => {
+test('onboarding guard waits for status from the current route before redirecting', async () => {
   const source = await readFrontend('src/routes/OnboardingGuard.jsx');
-  const waitForStatus = source.indexOf('data === undefined && !error');
+  const currentRouteWait = source.indexOf("checkedPath !== location.pathname");
+  const catalogRedirect = source.indexOf('ONBOARDING_STATE.CATALOG_PENDING');
   const courseRedirect = source.indexOf("mode === 'needs-course'");
 
-  assert.ok(waitForStatus >= 0, 'guard should wait until onboarding status is known');
-  assert.ok(courseRedirect > waitForStatus, 'redirect checks must run after the initial status wait');
+  assert.ok(currentRouteWait >= 0, 'guard should wait when the route changed after the last status check');
+  assert.ok(catalogRedirect > currentRouteWait, 'catalog redirect must use status loaded for the current route');
+  assert.ok(courseRedirect > currentRouteWait, 'course redirect must use status loaded for the current route');
+  assert.match(source, /setCheckedPath\(location\.pathname\)/);
+  assert.match(source, /location\.pathname, loadAttempt/);
   assert.match(source, /Could not check your learning setup/);
-  assert.match(source, /onAction=\{\(\) => refetch\(\)\}/);
 });
