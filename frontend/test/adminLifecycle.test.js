@@ -50,3 +50,22 @@ test('course UI explains simple downward archive and restore behavior', async ()
   assert.match(page, /Topics become Active/);
   assert.match(page, /Lessons, Questions, Projects, and Roadmap Templates become Draft/);
 });
+
+test('technology admin pages call the real admin api methods', async () => {
+  const [page, editor, api] = await Promise.all([
+    readFrontend('src/pages/admin/TechnologiesPage.jsx'),
+    readFrontend('src/pages/admin/TechnologyEditorPage.jsx'),
+    readFrontend('src/api/adminApi.js')
+  ]);
+
+  assert.match(api, /technologies:\s*\(params\)/);
+  assert.match(api, /technology:\s*\(id\)/);
+  assert.match(api, /updateTechnologyStatus:\s*\(\{ id, status, confirmPublish/);
+  assert.match(page, /adminApi\.technologies\(filters\)/);
+  assert.match(page, /adminApi\.updateTechnologyStatus\(\{/);
+  assert.doesNotMatch(page, /listTechnologies|changeTechnologyStatus/);
+  assert.match(editor, /adminApi\.technologies\(\{ limit: 100 \}\)/);
+  assert.match(editor, /adminApi\.technology\(technologyId\)/);
+  assert.match(editor, /adminApi\.updateTechnology\(\{ id: technologyId, payload \}\)/);
+  assert.doesNotMatch(editor, /listTechnologies|getTechnology/);
+});
