@@ -57,6 +57,9 @@ const deriveState = ({ enrollment, activeCourse, assessment }) => {
   if (activeCourse?.enrollment?.toString?.() === enrollment._id.toString() && ['active', 'completed'].includes(enrollment.status)) {
     return ONBOARDING_STATES.COMPLETED;
   }
+  if (enrollment.onboardingState === ONBOARDING_STATES.ROADMAP_PENDING) {
+    return ONBOARDING_STATES.ROADMAP_PENDING;
+  }
   if (assessment?.status === 'started') return ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS;
   if (assessment?.status === 'completed' && enrollment.assessmentPreference === 'take') return ONBOARDING_STATES.ASSESSMENT_COMPLETED;
   if (enrollment.onboardingState && isOnboardingState(enrollment.onboardingState)) return enrollment.onboardingState;
