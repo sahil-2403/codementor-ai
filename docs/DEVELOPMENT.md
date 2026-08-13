@@ -62,7 +62,6 @@ Frontend tests use Node's built-in test runner. They protect important source an
 
 ```env
 ENABLE_AI=false
-ENABLE_CACHE=true
 EMAIL_ENABLED=false
 ALLOW_DEV_EMAIL_LOG=true
 ```
@@ -93,12 +92,21 @@ The learner generation page should stay open while the request is running. If it
 
 ## Frontend data loading
 
-- Axios functions live in `src/api/`.
-- Domain hooks live in `src/queries/`.
-- `useAsyncData` handles loading/error/refetch state.
-- `useAsyncAction` handles writes.
-- Successful writes trigger a small refresh signal so mounted server-data hooks reload.
-- There is no frontend server-response cache or optimistic cache layer.
+- Axios domain functions live in `src/api/`.
+- Pages/components use normal `useState` and `useEffect` for server data.
+- Mutations use normal async event handlers.
+- After a successful write, update the relevant local state or reload that page's data explicitly.
+- Authentication uses `AuthContext` because it is shared application state.
+- There is no `src/queries` layer, global refresh signal, custom server-state framework, or frontend response cache.
+
+This is the preferred Hireflow-style request flow:
+
+```text
+Page / Component
+  -> useState + useEffect
+  -> API wrapper
+  -> Axios
+```
 
 ## Project and interview practice
 
@@ -147,7 +155,7 @@ Also exercise the affected browser flow when changing routing, cookies, CSRF, on
 9. Disable Gemini and verify honest fallback behavior.
 10. Generate a weekly report.
 11. Exercise admin archive/restore/delete and dependency messages.
-12. Switch between independent learner enrollments.
+12. Switch between independent learner Enrollments.
 13. Log out and test logout-all-devices.
 
 ## Production notes
