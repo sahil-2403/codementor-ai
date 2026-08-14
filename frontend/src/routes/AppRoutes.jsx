@@ -16,7 +16,6 @@ const ForgotPasswordPage = lazy(() => import('../pages/public/ForgotPasswordPage
 const ResetPasswordPage = lazy(() => import('../pages/public/ResetPasswordPage.jsx'));
 const CatalogPage = lazy(() => import('../pages/onboarding/CatalogPage.jsx'));
 const LevelPage = lazy(() => import('../pages/onboarding/LevelPage.jsx'));
-const PreferencesPage = lazy(() => import('../pages/onboarding/PreferencesPage.jsx'));
 const AssessmentIntroPage = lazy(() => import('../pages/onboarding/AssessmentIntroPage.jsx'));
 const AssessmentPage = lazy(() => import('../pages/onboarding/AssessmentPage.jsx'));
 const AssessmentReportPage = lazy(() => import('../pages/onboarding/AssessmentReportPage.jsx'));
@@ -75,7 +74,7 @@ export default function AppRoutes() {
             <Route path="/onboarding/goal" element={<Navigate to="/onboarding/catalog" replace />} />
             <Route path="/onboarding/catalog" element={<CatalogPage />} />
             <Route path="/onboarding/level" element={<LevelPage />} />
-            <Route path="/onboarding/preferences" element={<PreferencesPage />} />
+            <Route path="/onboarding/preferences" element={<Navigate to="/onboarding/level" replace />} />
             <Route path="/onboarding/assessment-intro" element={<AssessmentIntroPage />} />
             <Route path="/onboarding/assessment" element={<AssessmentPage />} />
             <Route path="/onboarding/assessment-report/:assessmentId" element={<AssessmentReportPage />} />
