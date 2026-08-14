@@ -34,7 +34,6 @@ export default function CoursesPage() {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
     setError(null);
     adminApi.courses(filters)
       .then((result) => { if (active) setCourses(result?.courses || []); })

@@ -34,7 +34,6 @@ export default function TechnologiesPage() {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
     setError(null);
 
     adminApi.technologies(filters)

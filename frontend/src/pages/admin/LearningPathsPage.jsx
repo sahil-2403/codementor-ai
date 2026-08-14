@@ -32,7 +32,7 @@ export default function LearningPathsPage() {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true); setError(null);
+    setError(null);
     adminApi.learningPaths(filters)
       .then((result) => { if (active) setPaths(result?.learningPaths || []); })
       .catch((requestError) => { if (active) setError(requestError); })
