@@ -1,20 +1,13 @@
 const stringify = (value) => JSON.stringify(value);
 
 export const buildRoadmapPrompt = ({ template, enrollment, course, assessment }) => ({
-  system: 'You are CodeMentor AI. Personalize a software-development course roadmap. Return only valid JSON with title, description, and modules. Preserve every source module and all backend-owned learning-content references. Do not add or remove modules or invent lessons/questions. For every output module, sourceOrder must equal the original module.order. You may adjust module title, description, display order, and duration only.',
+  system: 'You are CodeMentor AI. Personalize a software-development course roadmap from diagnostic assessment evidence. Return only valid JSON with title, description, and modules. Preserve every source module and all backend-owned learning-content references. Do not add or remove modules or invent lessons/questions. For every output module, sourceOrder must equal the original module.order. You may adjust module title, description, display order, and duration only.',
   user: stringify({
     course: {
       title: course?.title,
       description: course?.description,
       category: course?.category,
       level: enrollment?.level
-    },
-    preferences: {
-      dailyStudyTime: enrollment?.dailyStudyTime,
-      targetDurationDays: enrollment?.targetDurationDays,
-      learningStyle: enrollment?.learningStyle,
-      knownBasics: enrollment?.knownBasics,
-      mainFocus: enrollment?.mainFocus
     },
     assessment,
     template,
@@ -45,15 +38,14 @@ export const buildMentorPrompt = ({
     level,
     lessonTitle,
     currentModule,
-    weakTopics: weakTopics.slice(0, 5),
-    recentMistakes: recentMistakes.slice(0, 5),
-    context: relatedContext.map((item, index) => ({
-      index: index + 1,
+    weakTopics,
+    recentMistakes,
+    context: relatedContext.map((item) => ({
       source: item.source,
       snippet: item.snippet
-    })).filter((item) => item.snippet)
+    }))
   }),
-  maxTokens: 1000
+  maxTokens: 1100
 });
 
 export const buildQuizExplanationPrompt = ({ userLevel = 'learner', weakTopics = [], wrongAnswers = [], relatedContext = [] }) => ({
