@@ -1,37 +1,45 @@
-import { Check } from 'lucide-react';
 import { cn } from '../../utils/cn.js';
 
 export default function StepProgress({ steps = [], current = '' }) {
   const foundIndex = steps.findIndex((step) => step.key === current);
   const currentIndex = foundIndex >= 0 ? foundIndex : 0;
+  const currentStep = steps[currentIndex];
 
-  return <nav className="rounded-panel border border-border bg-surface p-3 shadow-sm sm:p-4" aria-label="Onboarding progress">
-    <ol className="grid gap-2 sm:grid-cols-4">
-      {steps.map((step, index) => {
-        const complete = index < currentIndex;
-        const active = index === currentIndex;
-        return <li
-          key={step.key}
-          aria-current={active ? 'step' : undefined}
-          className={cn(
-            'rounded-surface border p-3 transition sm:p-4',
-            active ? 'border-primary/30 bg-primary-soft' : complete ? 'border-success/20 bg-success-soft' : 'border-border bg-surface'
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <span className={cn(
-              'grid h-8 w-8 shrink-0 place-items-center rounded-control text-xs font-bold',
-              active ? 'bg-primary text-white' : complete ? 'bg-success text-white' : 'bg-surface-secondary text-muted-foreground'
-            )} aria-hidden="true">
-              {complete ? <Check size={15} /> : index + 1}
-            </span>
-            <div className="min-w-0">
-              <p className="font-semibold text-foreground">{step.label}</p>
-              {step.helper && <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{step.helper}</p>}
-            </div>
-          </div>
-        </li>;
-      })}
-    </ol>
-  </nav>;
+  return (
+    <nav aria-label="Onboarding progress">
+      <div className="flex items-center justify-between gap-4 text-xs font-semibold">
+        <span className="uppercase tracking-[0.14em] text-primary-strong">
+          Step {currentIndex + 1} of {steps.length}
+        </span>
+        <span className="text-muted-foreground">{currentStep?.label}</span>
+      </div>
+
+      <ol className="mt-3 grid grid-cols-4 gap-2">
+        {steps.map((step, index) => {
+          const reached = index <= currentIndex;
+          const active = index === currentIndex;
+
+          return (
+            <li key={step.key} aria-current={active ? 'step' : undefined}>
+              <span
+                className={cn(
+                  'block h-1.5 rounded-full transition',
+                  reached ? 'bg-primary' : 'bg-surface-secondary'
+                )}
+                aria-hidden="true"
+              />
+              <span
+                className={cn(
+                  'mt-2 hidden text-xs font-semibold sm:block',
+                  active ? 'text-foreground' : reached ? 'text-primary-strong' : 'text-muted-foreground'
+                )}
+              >
+                {step.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
 }
