@@ -147,7 +147,6 @@ export default function MentorPage() {
 
   useEffect(() => {
     let active = true;
-    setHistoryLoading(true);
     setHistoryError(null);
 
     mentorApi.history()
@@ -168,7 +167,6 @@ export default function MentorPage() {
 
   useEffect(() => {
     let active = true;
-    setSuggestionsLoading(true);
     setSuggestionsError(null);
 
     mentorApi.suggestions(lessonId)

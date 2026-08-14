@@ -55,22 +55,31 @@ export default function AdminDashboardPage() {
   const [overview, setOverview] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRetrying, setIsRetrying] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
-    setError(null);
+    if (loadAttempt === 0) {
+      setIsLoading(true);
+      setError(null);
+    } else {
+      setIsRetrying(true);
+    }
 
     adminApi.contentOverview()
       .then((result) => {
-        if (active) setOverview(result);
+        if (!active) return;
+        setOverview(result);
+        setError(null);
       })
       .catch((requestError) => {
         if (active) setError(requestError);
       })
       .finally(() => {
-        if (active) setIsLoading(false);
+        if (!active) return;
+        setIsLoading(false);
+        setIsRetrying(false);
       });
 
     return () => {
@@ -79,7 +88,7 @@ export default function AdminDashboardPage() {
   }, [loadAttempt]);
 
   if (isLoading) return <Loader label="Loading content overview..." />;
-  if (error) return <PageShell><ErrorMessage message={error.message} /><button type="button" className="ui-button ui-button--secondary mt-4" onClick={() => setLoadAttempt((value) => value + 1)}>Try again</button></PageShell>;
+  if (error) return <PageShell><ErrorMessage message={error.message} /><button type="button" className="ui-button ui-button--secondary mt-4" disabled={isRetrying} onClick={() => setLoadAttempt((value) => value + 1)}>{isRetrying ? 'Trying again...' : 'Try again'}</button></PageShell>;
   if (!overview) return <EmptyState title="Content overview is unavailable" description="No overview data was returned." />;
 
   const catalog = overview.catalog || {};
