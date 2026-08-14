@@ -1,15 +1,28 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BrainCircuit, ClipboardCheck, FastForward, ShieldCheck } from 'lucide-react';
-import Card from '../../components/common/Card.jsx';
+import { ArrowLeft, ArrowRight, Check, ClipboardCheck, FastForward } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
-import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import { onboardingApi } from '../../api/onboardingApi.js';
-import { onboardingCopyByLevel } from '../../constants/onboardingSteps.js';
 import Loader from '../../components/common/Loader.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import { cn } from '../../utils/cn.js';
+
+const options = [
+  {
+    value: 'assessment',
+    title: 'Take a skill check',
+    description: 'Check your current knowledge before creating the roadmap.',
+    icon: ClipboardCheck
+  },
+  {
+    value: 'skip',
+    title: 'Skip for now',
+    description: 'Create your roadmap using your selected level and preferences.',
+    icon: FastForward
+  }
+];
 
 export default function AssessmentIntroPage() {
   const navigate = useNavigate();
@@ -17,8 +30,9 @@ export default function AssessmentIntroPage() {
   const [statusError, setStatusError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [choice, setChoice] = useState('assessment');
   const [error, setError] = useState('');
-  const [skipping, setSkipping] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -44,56 +58,125 @@ export default function AssessmentIntroPage() {
   const enrollment = data?.currentEnrollment;
   const course = enrollment?.currentCourse || enrollment?.course;
   const level = enrollment?.level || 'intermediate';
-  const copy = onboardingCopyByLevel[level] || onboardingCopyByLevel.intermediate;
 
-  const skip = async () => {
+  const continueNext = async () => {
+    if (choice === 'assessment') {
+      navigate('/onboarding/assessment');
+      return;
+    }
+
     if (!enrollment?._id) return;
+
     try {
-      setSkipping(true);
+      setSaving(true);
       setError('');
       await onboardingApi.skipAssessment({ enrollmentId: enrollment._id });
       navigate('/onboarding/generating');
     } catch (err) {
       setError(err?.message || 'Could not save your choice.');
     } finally {
-      setSkipping(false);
+      setSaving(false);
     }
   };
 
   if (isLoading) return <Loader label="Loading your options..." />;
-  if (statusError) return <EmptyState title="Your options could not load" description={statusError.message} actionLabel="Try again" onAction={() => setLoadAttempt((value) => value + 1)} />;
-  if (!enrollment || !course) return <EmptyState title="Your course selection is missing" description="Choose a course or learning path before starting a diagnostic." actionLabel="Open learning catalog" onAction={() => navigate('/onboarding/catalog')} />;
-  if (level === 'beginner') return <EmptyState title="A diagnostic is not required" description="Beginner learners start from the course foundations." actionLabel="Create roadmap" onAction={() => navigate('/onboarding/generating')} />;
+  if (statusError) {
+    return (
+      <EmptyState
+        title="Your options could not load"
+        description={statusError.message}
+        actionLabel="Try again"
+        onAction={() => setLoadAttempt((value) => value + 1)}
+      />
+    );
+  }
+  if (!enrollment || !course) {
+    return (
+      <EmptyState
+        title="Your course selection is missing"
+        description="Choose a course or learning path before starting a diagnostic."
+        actionLabel="Open learning catalog"
+        onAction={() => navigate('/onboarding/catalog')}
+      />
+    );
+  }
+  if (level === 'beginner') {
+    return (
+      <EmptyState
+        title="A diagnostic is not required"
+        description="Beginner learners start from the course foundations."
+        actionLabel="Create roadmap"
+        onAction={() => navigate('/onboarding/generating')}
+      />
+    );
+  }
 
-  return <OnboardingShell
-    current="setup"
-    eyebrow="Step 3 · Optional skill check"
-    title={`${copy.title}: choose how to begin`}
-    description={`Start ${course.title} now with the recommended ${level} roadmap, or take a short course-specific skill check to focus on gaps.`}
-    backTo="/onboarding/preferences"
-    aside={<>
-      <OnboardingInsightCard title="Choose what suits you" badge={copy.badge} items={[
-        { title: 'Take the skill check', description: `Useful when you are unsure about your ${course.title} gaps or want a more focused starting roadmap.` },
-        { title: 'Start now', description: 'Useful when you want to begin immediately. Your saved level and preferences still shape the roadmap.' }
-      ]} />
-      <Card className="bg-primary-soft"><ShieldCheck className="text-primary" /><p className="mt-3 font-bold text-foreground">Course-specific diagnostic</p><p className="mt-2 text-sm leading-6 text-muted-foreground">Questions come only from the selected course and level, so another language or technology never leaks into this assessment.</p></Card>
-    </>}
-  >
-    <ErrorMessage message={error} />
-    <div className="grid gap-5 md:grid-cols-2">
-      <Card className="border-primary/20 bg-primary-soft">
-        <span className="grid h-14 w-14 place-items-center rounded-surface bg-primary text-white" aria-hidden="true"><ClipboardCheck /></span>
-        <h3 className="mt-5 text-2xl font-bold text-foreground">Take a skill check</h3>
-        <p className="mt-3 leading-7 text-muted-foreground">Answer {course.title} questions at the {level} level, review topic scores, and identify areas to prioritise before roadmap generation.</p>
-        <Button className="mt-6 w-full" onClick={() => navigate('/onboarding/assessment')}>Start skill check</Button>
-      </Card>
-      <Card>
-        <span className="grid h-14 w-14 place-items-center rounded-surface bg-surface-secondary text-foreground" aria-hidden="true"><FastForward /></span>
-        <h3 className="mt-5 text-2xl font-bold text-foreground">Start with the recommended roadmap</h3>
-        <p className="mt-3 leading-7 text-muted-foreground">Use your selected {level} level and learning preferences to create the roadmap without taking a diagnostic first.</p>
-        <Button variant="secondary" className="mt-6 w-full" onClick={skip} isLoading={skipping} loadingLabel="Saving choice...">Start now</Button>
-      </Card>
-    </div>
-    <Card className="bg-foreground text-white"><BrainCircuit aria-hidden="true" /><p className="mt-3 text-xl font-bold text-white">Both choices keep the course curriculum intact</p><p className="mt-2 leading-7 text-slate-300">The skill check personalizes emphasis and pacing; it does not invent a different course or mix content from another technology.</p></Card>
-  </OnboardingShell>;
+  return (
+    <OnboardingShell
+      current="setup"
+      eyebrow="Optional skill check"
+      title="Do you want to take a skill check?"
+      description={`Use a short ${course.title} skill check for a more focused starting roadmap, or continue without it.`}
+      footer={
+        <div className="flex items-center justify-between gap-3">
+          <Button type="button" variant="secondary" onClick={() => navigate('/onboarding/preferences')} className="gap-2">
+            <ArrowLeft size={16} aria-hidden="true" /> Previous
+          </Button>
+          <Button
+            type="button"
+            onClick={continueNext}
+            isLoading={saving}
+            loadingLabel="Saving..."
+            className="gap-2 px-6"
+          >
+            Next <ArrowRight size={16} aria-hidden="true" />
+          </Button>
+        </div>
+      }
+    >
+      <ErrorMessage message={error} />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {options.map((option) => {
+          const Icon = option.icon;
+          const active = choice === option.value;
+
+          return (
+            <button
+              key={option.value}
+              type="button"
+              disabled={saving}
+              aria-pressed={active}
+              onClick={() => setChoice(option.value)}
+              className={cn(
+                'relative min-h-[200px] rounded-panel border p-6 text-left transition',
+                active
+                  ? 'border-primary bg-primary-soft/55 shadow-sm'
+                  : 'border-border bg-surface hover:border-primary/30 hover:shadow-sm'
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span
+                  className={cn(
+                    'grid h-11 w-11 place-items-center rounded-surface',
+                    active ? 'bg-primary text-white' : 'bg-surface-secondary text-primary-strong'
+                  )}
+                  aria-hidden="true"
+                >
+                  <Icon size={19} />
+                </span>
+                {active ? (
+                  <span className="grid h-6 w-6 place-items-center rounded-full bg-primary text-white" aria-hidden="true">
+                    <Check size={14} />
+                  </span>
+                ) : null}
+              </div>
+              <h2 className="mt-5 text-xl font-bold text-foreground">{option.title}</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{option.description}</p>
+            </button>
+          );
+        })}
+      </div>
+    </OnboardingShell>
+  );
 }
