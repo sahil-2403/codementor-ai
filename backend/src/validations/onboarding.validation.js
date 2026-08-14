@@ -15,17 +15,6 @@ export const levelSchema = z.object({
   })
 });
 
-export const preferencesSchema = z.object({
-  body: z.object({
-    enrollmentId: objectIdSchema.optional(),
-    dailyStudyTime: z.coerce.number().min(15).max(600),
-    targetDurationDays: z.coerce.number().min(7).max(365),
-    learningStyle: z.string().trim().min(2).max(80),
-    knownBasics: z.array(z.string().trim().max(80)).optional().default([]),
-    mainFocus: z.string().trim().min(2).max(120)
-  })
-});
-
 export const skipAssessmentSchema = z.object({
   body: z.object({ enrollmentId: objectIdSchema.optional() })
 });
