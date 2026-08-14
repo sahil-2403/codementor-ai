@@ -48,6 +48,7 @@ const technologyMarks = {
   mongodb: 'M',
   mongo: 'M',
   java: 'J',
+  'spring-boot': 'SB',
   python: 'PY',
   html: '<>',
   css: '#',
@@ -67,7 +68,7 @@ const getTechnologyMark = (technology) => {
 function OfferingCard({ type, offering, selected, onSelect }) {
   const active = selected?.type === type && selected?.id === offering._id;
   const isPath = type === 'learning_path';
-  const primaryTechnology = offering.technologies?.[0];
+  const primaryTechnology = offering.primaryTechnology || offering.technologies?.[0];
   const technologyMark = getTechnologyMark(primaryTechnology);
 
   return (
@@ -85,9 +86,10 @@ function OfferingCard({ type, offering, selected, onSelect }) {
       <div className="flex items-start justify-between gap-3">
         <span
           className={cn(
-            'grid h-11 w-11 place-items-center rounded-surface text-sm font-extrabold',
+            'grid h-11 w-11 place-items-center rounded-surface text-base font-extrabold tracking-tight',
             active ? 'bg-primary text-white' : 'bg-surface-secondary text-primary-strong'
           )}
+          title={isPath ? 'Learning path' : primaryTechnology?.name || 'Course technology'}
           aria-hidden="true"
         >
           {isPath ? <Route size={19} /> : technologyMark || <Code2 size={19} />}
@@ -112,7 +114,7 @@ function OfferingRow({ title, children, id }) {
   return (
     <section aria-labelledby={id} className="space-y-3">
       <h2 id={id} className="text-lg font-bold text-foreground sm:text-xl">{title}</h2>
-      <div className="flex gap-4 overflow-x-auto pb-2">{children}</div>
+      <div className="flex gap-4 overflow-x-auto pb-2 pr-2">{children}</div>
     </section>
   );
 }
@@ -261,7 +263,7 @@ export default function CatalogPage() {
     >
       <ErrorMessage message={error} />
 
-      <div className="relative max-w-2xl">
+      <div className="relative w-full">
         <Search
           size={18}
           className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -271,7 +273,7 @@ export default function CatalogPage() {
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="ui-field-control min-h-12 pl-11"
+          className="ui-field-control min-h-12 w-full pl-11"
           placeholder="Search courses, technologies or languages..."
           aria-label="Search courses, technologies or languages"
         />
