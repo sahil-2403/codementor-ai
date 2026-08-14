@@ -38,14 +38,15 @@ export const buildMentorPrompt = ({
     level,
     lessonTitle,
     currentModule,
-    weakTopics,
-    recentMistakes,
-    context: relatedContext.map((item) => ({
+    weakTopics: weakTopics.slice(0, 5),
+    recentMistakes: recentMistakes.slice(0, 5),
+    context: relatedContext.map((item, index) => ({
+      index: index + 1,
       source: item.source,
       snippet: item.snippet
-    }))
+    })).filter((item) => item.snippet)
   }),
-  maxTokens: 1100
+  maxTokens: 1000
 });
 
 export const buildQuizExplanationPrompt = ({ userLevel = 'learner', weakTopics = [], wrongAnswers = [], relatedContext = [] }) => ({
