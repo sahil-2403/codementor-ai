@@ -11,9 +11,11 @@ import {
   setCurrentEnrollmentForUser
 } from './dataIntegrity.service.js';
 
+const LEGACY_PREFERENCES_PENDING = 'preferences_pending';
+
 const incompleteStates = [
   ONBOARDING_STATES.LEVEL_PENDING,
-  ONBOARDING_STATES.PREFERENCES_PENDING,
+  LEGACY_PREFERENCES_PENDING,
   ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING,
   ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS,
   ONBOARDING_STATES.ASSESSMENT_COMPLETED,
@@ -62,10 +64,18 @@ const deriveState = ({ enrollment, activeCourse, assessment }) => {
   }
   if (assessment?.status === 'started') return ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS;
   if (assessment?.status === 'completed' && enrollment.assessmentPreference === 'take') return ONBOARDING_STATES.ASSESSMENT_COMPLETED;
+
+  if (enrollment.onboardingState === LEGACY_PREFERENCES_PENDING) {
+    return enrollment.level === 'beginner'
+      ? ONBOARDING_STATES.ROADMAP_PENDING
+      : ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
+  }
+
   if (enrollment.onboardingState && isOnboardingState(enrollment.onboardingState)) return enrollment.onboardingState;
   if (!enrollment.level) return ONBOARDING_STATES.LEVEL_PENDING;
-  if (!enrollment.preferencesCompletedAt) return ONBOARDING_STATES.PREFERENCES_PENDING;
-  if (enrollment.assessmentPreference === 'skip' || enrollment.level === 'beginner') return ONBOARDING_STATES.ROADMAP_PENDING;
+  if (enrollment.level === 'beginner' || enrollment.assessmentPreference === 'skip') {
+    return ONBOARDING_STATES.ROADMAP_PENDING;
+  }
   return ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
 };
 
@@ -201,7 +211,6 @@ export const selectEnrollmentTarget = async ({ userId, type, courseId = null, le
 
   if (changedTarget) {
     enrollment.level = null;
-    enrollment.preferencesCompletedAt = null;
     enrollment.assessmentChoiceAt = null;
     enrollment.assessmentPreference = 'not_applicable';
   }
@@ -227,30 +236,11 @@ export const saveLevelSelection = async ({ userId, enrollmentId = null, level })
   enrollment.level = level;
   enrollment.assessmentPreference = 'not_applicable';
   enrollment.assessmentChoiceAt = null;
-  enrollment.preferencesCompletedAt = null;
   enrollment.onboardingErrorCode = '';
   enrollment.onboardingErrorMessage = '';
-  enrollment.onboardingState = ONBOARDING_STATES.PREFERENCES_PENDING;
-  await enrollment.save();
-  return enrollment;
-};
-
-export const savePreferencesOnly = async ({ userId, enrollmentId = null, preferences }) => {
-  const enrollment = await requireCurrentEnrollment({ userId, enrollmentId, allowActive: true });
-  if (!enrollment.level) throw new ApiError(409, 'Choose your current level first', [], 'ONBOARDING_STEP_REQUIRED');
-
-  Object.assign(enrollment, preferences);
-  enrollment.preferencesCompletedAt = new Date();
-  enrollment.onboardingErrorCode = '';
-  enrollment.onboardingErrorMessage = '';
-
-  if (enrollment.level === 'beginner') {
-    enrollment.assessmentPreference = 'not_applicable';
-    enrollment.onboardingState = ONBOARDING_STATES.ROADMAP_PENDING;
-  } else {
-    enrollment.onboardingState = ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
-  }
-
+  enrollment.onboardingState = level === 'beginner'
+    ? ONBOARDING_STATES.ROADMAP_PENDING
+    : ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
   await enrollment.save();
   return enrollment;
 };
