@@ -6,9 +6,9 @@ export const REVIEW_MODE = Object.freeze({ AI: 'ai', FALLBACK: 'fallback', NONE:
 export const REVISION_STATUS = Object.freeze({ PENDING: 'pending', COMPLETED: 'completed', SKIPPED: 'skipped' });
 export const SEVERITY = Object.freeze({ LOW: 'low', MEDIUM: 'medium', HIGH: 'high', CRITICAL: 'critical' });
 export const ASSESSMENT_STATUS = Object.freeze({ NOT_REQUIRED: 'not_required', SKIPPED: 'skipped', COMPLETED: 'completed' });
-export const ROADMAP_TYPE = Object.freeze({ TEMPLATE: 'template', TEMPLATE_AI_ADJUSTED: 'template_ai_adjusted', ASSESSMENT_AI_PERSONALIZED: 'assessment_ai_personalized' });
+export const ROADMAP_TYPE = Object.freeze({ TEMPLATE: 'template', ASSESSMENT_AI_PERSONALIZED: 'assessment_ai_personalized' });
 export const ONBOARDING_STATE = Object.freeze({
-  CATALOG_PENDING: 'catalog_pending', LEVEL_PENDING: 'level_pending', PREFERENCES_PENDING: 'preferences_pending',
+  CATALOG_PENDING: 'catalog_pending', LEVEL_PENDING: 'level_pending',
   ASSESSMENT_CHOICE_PENDING: 'assessment_choice_pending', ASSESSMENT_IN_PROGRESS: 'assessment_in_progress',
   ASSESSMENT_COMPLETED: 'assessment_completed', ROADMAP_PENDING: 'roadmap_pending',
   ROADMAP_FAILED: 'roadmap_failed', COMPLETED: 'completed'
