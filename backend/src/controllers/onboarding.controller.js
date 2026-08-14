@@ -5,7 +5,6 @@ import {
   listLearnerEnrollments,
   markAssessmentSkipped,
   saveLevelSelection,
-  savePreferencesOnly,
   selectEnrollmentTarget,
   switchLearnerEnrollment
 } from '../services/onboarding.service.js';
@@ -36,12 +35,6 @@ export const selectOffering = asyncHandler(async (req, res) => {
 export const saveLevel = asyncHandler(async (req, res) => {
   const enrollment = await saveLevelSelection({ userId: req.user._id, ...req.body });
   sendResponse(res, 200, 'Current level saved', { enrollment });
-});
-
-export const savePreferences = asyncHandler(async (req, res) => {
-  const { enrollmentId, ...preferences } = req.body;
-  const enrollment = await savePreferencesOnly({ userId: req.user._id, enrollmentId, preferences });
-  sendResponse(res, 200, 'Preferences saved', { enrollment });
 });
 
 export const skipAssessment = asyncHandler(async (req, res) => {
