@@ -32,7 +32,11 @@ const coursePlanSchema = new mongoose.Schema(
     title: { type: String, required: true },
     description: { type: String, default: '' },
     level: { type: String, enum: ['beginner', 'intermediate', 'advanced'], required: true },
-    roadmapType: { type: String, enum: Object.values(ROADMAP_TYPES), default: ROADMAP_TYPES.TEMPLATE },
+    roadmapType: {
+      type: String,
+      enum: [...Object.values(ROADMAP_TYPES), 'template_ai_adjusted'],
+      default: ROADMAP_TYPES.TEMPLATE
+    },
     modules: [courseModuleSchema],
     status: { type: String, enum: Object.values(COURSE_STATUS), default: COURSE_STATUS.ACTIVE },
     aiGenerated: { type: Boolean, default: false },
