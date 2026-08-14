@@ -14,7 +14,7 @@ export default function StepProgress({ steps = [], current = '' }) {
         <span className="text-muted-foreground">{currentStep?.label}</span>
       </div>
 
-      <ol className="mt-3 grid grid-cols-4 gap-2">
+      <ol className="mt-3 grid grid-cols-3 gap-2">
         {steps.map((step, index) => {
           const reached = index <= currentIndex;
           const active = index === currentIndex;
