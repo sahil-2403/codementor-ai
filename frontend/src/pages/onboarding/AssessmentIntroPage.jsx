@@ -19,7 +19,7 @@ const options = [
   {
     value: 'skip',
     title: 'Skip for now',
-    description: 'Create your roadmap using your selected level and preferences.',
+    description: 'Create the standard roadmap for your selected level.',
     icon: FastForward
   }
 ];
@@ -104,7 +104,7 @@ export default function AssessmentIntroPage() {
     return (
       <EmptyState
         title="A diagnostic is not required"
-        description="Beginner learners start from the course foundations."
+        description="Beginner learners start from the published course foundations."
         actionLabel="Create roadmap"
         onAction={() => navigate('/onboarding/generating')}
       />
@@ -113,13 +113,13 @@ export default function AssessmentIntroPage() {
 
   return (
     <OnboardingShell
-      current="setup"
+      current="roadmap"
       eyebrow="Optional skill check"
       title="Do you want to take a skill check?"
-      description={`Use a short ${course.title} skill check for a more focused starting roadmap, or continue without it.`}
+      description={`Use a short ${course.title} skill check for a more focused roadmap, or continue with the standard ${level} roadmap.`}
       footer={
         <div className="flex items-center justify-between gap-3">
-          <Button type="button" variant="secondary" onClick={() => navigate('/onboarding/preferences')} className="gap-2">
+          <Button type="button" variant="secondary" onClick={() => navigate('/onboarding/level')} className="gap-2">
             <ArrowLeft size={16} aria-hidden="true" /> Previous
           </Button>
           <Button
