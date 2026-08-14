@@ -53,16 +53,12 @@ export const generateOrGetRoadmap = asyncHandler(async (req, res) => {
     return sendResponse(res, 200, 'Existing roadmap found', { course: existingCourse, mode: 'existing' });
   }
 
-  const roadmapType = enrollment.assessmentPreference === 'not_applicable'
-    ? ROADMAP_TYPES.TEMPLATE_AI_ADJUSTED
-    : ROADMAP_TYPES.TEMPLATE;
-
   try {
     const course = await createCourseFromTemplate({
       userId: req.user._id,
       enrollmentId: enrollment._id,
-      roadmapType,
-      generatedReason: enrollment.assessmentPreference === 'skip' ? 'initial_template' : 'preference_adjusted'
+      roadmapType: ROADMAP_TYPES.TEMPLATE,
+      generatedReason: 'initial_template'
     });
     return sendResponse(res, 201, 'Roadmap created', { course, mode: 'created' });
   } catch (error) {
