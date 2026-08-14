@@ -34,7 +34,7 @@ export default function CourseQuestionBankPage({ bank = 'quiz' }) {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true); setError(null);
+    setError(null);
     Promise.all([adminApi.questions(filters), adminApi.courses({ limit: 100 })]).then(([questionResult, courseResult]) => {
       if (!active) return;
       setQuestions(questionResult?.questions || []);

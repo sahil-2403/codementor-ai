@@ -31,7 +31,7 @@ export default function CourseLessonsPage() {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true); setError(null);
+    setError(null);
     Promise.all([adminApi.lessons(filters), adminApi.courses({ limit: 100 })])
       .then(([lessonResult, courseResult]) => {
         if (!active) return;
