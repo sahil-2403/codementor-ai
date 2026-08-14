@@ -10,11 +10,6 @@ const enrollmentSchema = new mongoose.Schema(
     learningPath: { type: mongoose.Schema.Types.ObjectId, ref: 'LearningPath', default: null },
     level: { type: String, enum: COURSE_LEVELS, default: null },
     currentCourse: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', default: null },
-    dailyStudyTime: { type: Number, default: 90 },
-    targetDurationDays: { type: Number, default: 90 },
-    learningStyle: { type: String, default: 'project-based' },
-    knownBasics: [{ type: String }],
-    mainFocus: { type: String, default: 'job-preparation' },
     assessmentPreference: { type: String, enum: ['not_applicable', 'take', 'skip'], default: 'not_applicable' },
     onboardingState: {
       type: String,
@@ -22,7 +17,6 @@ const enrollmentSchema = new mongoose.Schema(
       default: ONBOARDING_STATES.LEVEL_PENDING,
       index: true
     },
-    preferencesCompletedAt: { type: Date, default: null },
     assessmentChoiceAt: { type: Date, default: null },
     onboardingErrorCode: { type: String, default: '' },
     onboardingErrorMessage: { type: String, default: '' },
