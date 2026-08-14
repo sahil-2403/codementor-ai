@@ -34,11 +34,22 @@ test('shared utilities keep class names and empty dates deterministic', () => {
   assert.match(formatDate('2026-08-04T00:00:00.000Z'), /2026/);
 });
 
-test('onboarding copy preserves catalog and optional-diagnostic paths', () => {
-  assert.deepEqual(onboardingSteps.map((step) => step.key), ['catalog', 'level', 'setup', 'roadmap']);
+test('onboarding keeps course level and optional diagnostic only', async () => {
+  assert.deepEqual(onboardingSteps.map((step) => step.key), ['catalog', 'level', 'roadmap']);
   assert.equal(onboardingCopyByLevel.beginner.badge, 'No assessment required');
   assert.match(onboardingCopyByLevel.intermediate.badge, /optional/i);
   assert.match(onboardingCopyByLevel.advanced.badge, /optional/i);
+
+  const [routes, api] = await Promise.all([
+    readFrontend('src/routes/AppRoutes.jsx'),
+    readFrontend('src/api/onboardingApi.js')
+  ]);
+  assert.doesNotMatch(routes, /PreferencesPage/);
+  assert.doesNotMatch(api, /savePreferences/);
+  await Promise.all([
+    missingFrontendPath('src/pages/onboarding/PreferencesPage.jsx'),
+    missingFrontendPath('src/validations/onboarding.schema.js')
+  ]);
 });
 
 test('frontend data flow stays inside the Hireflow junior architecture ceiling', async () => {
@@ -199,11 +210,11 @@ test('frontend enum values match current backend contracts', async () => {
   assert.deepEqual(Object.values(REVIEW_MODE), ['ai', 'fallback', 'none']);
   assert.deepEqual(Object.values(REVISION_STATUS), ['pending', 'completed', 'skipped']);
   assert.deepEqual(Object.values(SEVERITY), ['low', 'medium', 'high', 'critical']);
-  assert.deepEqual(Object.values(ROADMAP_TYPE), ['template', 'template_ai_adjusted', 'assessment_ai_personalized']);
+  assert.deepEqual(Object.values(ROADMAP_TYPE), ['template', 'assessment_ai_personalized']);
   assert.deepEqual(Object.values(COURSE_STATUS), ['active', 'archived']);
   assert.deepEqual(Object.values(LEARNING_ITEM_STATUS), ['locked', 'available', 'in_progress', 'completed']);
   assert.deepEqual(Object.values(ASSESSMENT_STATUS), ['not_required', 'skipped', 'completed']);
-  assert.equal(Object.values(ONBOARDING_STATE).length, 9);
+  assert.equal(Object.values(ONBOARDING_STATE).length, 8);
 
   const sources = await Promise.all([
     readRepo('backend/src/models/ProjectSubmission.js'),
