@@ -18,6 +18,18 @@ test('learner requests resolve one explicit current enrollment', () => {
   assert.match(onboarding, /post\('\/enrollments\/:enrollmentId\/current'/);
 });
 
+test('onboarding moves from level directly to assessment choice or roadmap', () => {
+  const onboarding = source('services/onboarding.service.js');
+  const routes = source('routes/onboarding.routes.js');
+  const model = source('models/Enrollment.js');
+  const prompt = source('ai/promptBuilders.js');
+
+  assert.match(onboarding, /level === 'beginner'[\s\S]*ONBOARDING_STATES\.ROADMAP_PENDING[\s\S]*ONBOARDING_STATES\.ASSESSMENT_CHOICE_PENDING/);
+  assert.doesNotMatch(routes, /\/preferences/);
+  assert.doesNotMatch(model, /dailyStudyTime|targetDurationDays|learningStyle|knownBasics|mainFocus|preferencesCompletedAt/);
+  assert.doesNotMatch(prompt, /dailyStudyTime|targetDurationDays|learningStyle|knownBasics|mainFocus/);
+});
+
 test('projects interview quizzes and revisions stay inside the current course', () => {
   const projects = source('services/project.service.js');
   const interview = source('services/interview.service.js');
@@ -48,6 +60,7 @@ test('roadmap retry repairs progress and fallback is not labelled personalized',
 
   assert.match(controller, /repairExistingRoadmap/);
   assert.match(controller, /createProgressForCourse/);
+  assert.match(controller, /roadmapType:\s*ROADMAP_TYPES\.TEMPLATE/);
   assert.match(roadmap, /const finalReason = aiGenerated \|\| roadmapType === ROADMAP_TYPES\.TEMPLATE/);
   assert.match(roadmap, /: 'initial_template'/);
   assert.match(dashboard, /assessmentPreference === 'take'/);
