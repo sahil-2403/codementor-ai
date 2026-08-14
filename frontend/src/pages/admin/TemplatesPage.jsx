@@ -35,7 +35,6 @@ export default function TemplatesPage() {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
     setError(null);
     Promise.all([adminApi.templates(filters), adminApi.courses({ limit: 100 })])
       .then(([templateResult, courseResult]) => {

@@ -32,7 +32,6 @@ export default function CourseProjectsPage() {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
     setError(null);
     Promise.all([adminProjectApi.list(filters), adminApi.courses({ limit: 100 })])
       .then(([projectResult, courseResult]) => {

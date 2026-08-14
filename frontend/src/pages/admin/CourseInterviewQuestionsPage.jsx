@@ -31,7 +31,6 @@ export default function CourseInterviewQuestionsPage() {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
     setError(null);
     Promise.all([adminApi.interviewQuestions(filters), adminApi.courses({ limit: 100 })])
       .then(([questionResult, courseResult]) => {
