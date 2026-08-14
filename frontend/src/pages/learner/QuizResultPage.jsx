@@ -84,7 +84,6 @@ export default function QuizResultPage() {
   useEffect(() => {
     if (!attemptId) return undefined;
     let active = true;
-    setIsLoading(true);
     setAttemptError(null);
 
     quizApi.attempt(attemptId)

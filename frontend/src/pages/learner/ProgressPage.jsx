@@ -66,7 +66,6 @@ export default function ProgressPage() {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
     setError(null);
 
     progressApi.dashboard()

@@ -61,7 +61,6 @@ export default function ProjectTaskPage() {
   useEffect(() => {
     if (!taskId) return undefined;
     let active = true;
-    setIsLoading(true);
     setLoadError(null);
 
     projectApi.task(taskId)

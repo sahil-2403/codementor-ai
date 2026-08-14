@@ -122,7 +122,6 @@ export default function ReportsPage() {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
     setError(null);
 
     reportApi.list()

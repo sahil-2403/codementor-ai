@@ -52,7 +52,6 @@ export default function InterviewPage() {
 
   useEffect(() => {
     let active = true;
-    setIsLoading(true);
     setLoadError(null);
 
     Promise.all([interviewApi.questions(), interviewApi.attempts()])
