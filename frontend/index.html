@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#F7F8FA" />
     <meta name="description" content="CodeMentor AI — a calm, structured MERN learning workspace." />
+    <link rel="stylesheet" href="/boot-loader.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,7 +16,16 @@
     <title>CodeMentor AI</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div
+        class="app-boot-loader"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading CodeMentor AI"
+      >
+        <div class="app-boot-spinner" aria-hidden="true"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
