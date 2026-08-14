@@ -6,11 +6,12 @@ export default function StepProgress({ steps = [], current = '' }) {
   const currentStep = steps[currentIndex];
 
   return (
-    <nav aria-label="Onboarding progress">
-      <div className="flex items-center justify-between gap-4 text-xs font-semibold">
+    <nav className="mx-auto w-full max-w-xl text-center" aria-label="Onboarding progress">
+      <div className="flex items-center justify-center gap-2 text-xs font-semibold">
         <span className="uppercase tracking-[0.14em] text-primary-strong">
           Step {currentIndex + 1} of {steps.length}
         </span>
+        <span className="text-border" aria-hidden="true">•</span>
         <span className="text-muted-foreground">{currentStep?.label}</span>
       </div>
 
@@ -20,10 +21,10 @@ export default function StepProgress({ steps = [], current = '' }) {
           const active = index === currentIndex;
 
           return (
-            <li key={step.key} aria-current={active ? 'step' : undefined}>
+            <li key={step.key} aria-current={active ? 'step' : undefined} className="text-center">
               <span
                 className={cn(
-                  'block h-1.5 rounded-full transition',
+                  'block h-1 rounded-full transition',
                   reached ? 'bg-primary' : 'bg-surface-secondary'
                 )}
                 aria-hidden="true"
