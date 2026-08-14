@@ -20,7 +20,6 @@ import {
 
 const reasonByRoadmapType = {
   [ROADMAP_TYPES.TEMPLATE]: 'initial_template',
-  [ROADMAP_TYPES.TEMPLATE_AI_ADJUSTED]: 'preference_adjusted',
   [ROADMAP_TYPES.ASSESSMENT_AI_PERSONALIZED]: 'assessment_personalized'
 };
 
@@ -96,7 +95,7 @@ export const createCourseFromTemplate = async ({
   let roadmapDescription = template.description;
   let templateForResolution = template;
   let aiGenerated = false;
-  const shouldUseAI = isGeminiAvailable() && roadmapType !== ROADMAP_TYPES.TEMPLATE;
+  const shouldUseAI = isGeminiAvailable() && roadmapType === ROADMAP_TYPES.ASSESSMENT_AI_PERSONALIZED;
 
   if (shouldUseAI) {
     try {
