@@ -7,6 +7,5 @@ export const onboardingApi = {
   switchEnrollment: (enrollmentId) => api.post(`/onboarding/enrollments/${enrollmentId}/current`).then((res) => res.data.data),
   selectOffering: (payload) => api.post('/onboarding/selection', payload).then((res) => res.data.data),
   saveLevel: (payload) => api.put('/onboarding/level', payload).then((res) => res.data.data),
-  savePreferences: (payload) => api.post('/onboarding/preferences', payload).then((res) => res.data.data),
   skipAssessment: (payload = {}) => api.post('/onboarding/assessment/skip', payload).then((res) => res.data.data)
 };
