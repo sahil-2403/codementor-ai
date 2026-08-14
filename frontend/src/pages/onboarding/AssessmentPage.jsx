@@ -138,9 +138,9 @@ export default function AssessmentPage() {
     return (
       <EmptyState
         title="No skill check is required"
-        description="Beginner setup uses your learning preferences to create a foundation-first roadmap."
-        actionLabel="Continue setup"
-        onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : '/onboarding/preferences')}
+        description="Beginner learners start from the published course foundations."
+        actionLabel="Create roadmap"
+        onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : '/onboarding/generating')}
       />
     );
   }
@@ -167,7 +167,7 @@ export default function AssessmentPage() {
 
   return (
     <OnboardingShell
-      current="setup"
+      current="roadmap"
       eyebrow="Skill check"
       title={`${course.title} skill check`}
       description={`Answer one ${level} question at a time. All questions must be answered before submitting.`}
