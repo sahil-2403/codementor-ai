@@ -2,10 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, RotateCw, XCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Button from '../../components/common/Button.jsx';
-import Card from '../../components/common/Card.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import Loader from '../../components/common/Loader.jsx';
-import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 import { onboardingApi } from '../../api/onboardingApi.js';
 import { roadmapApi } from '../../api/roadmapApi.js';
@@ -101,15 +99,32 @@ export default function GeneratingPage() {
       setShowSlowHint(false);
       return undefined;
     }
+
     const timer = window.setTimeout(() => setShowSlowHint(true), 8000);
     return () => window.clearTimeout(timer);
   }, [generating]);
 
   const displayedError = localError || onboardingError?.message;
   const status = useMemo(() => {
-    if (displayedError) return { icon: XCircle, title: 'We could not finish your roadmap', className: 'bg-error-soft text-error' };
-    if (!generating && onboarding?.state === 'completed') return { icon: CheckCircle2, title: 'Your roadmap is ready', className: 'bg-success-soft text-success' };
-    return { icon: RotateCw, title: 'Creating your roadmap', className: 'bg-primary-soft text-primary' };
+    if (displayedError) {
+      return {
+        icon: XCircle,
+        title: 'We could not create your roadmap',
+        className: 'bg-error-soft text-error'
+      };
+    }
+    if (!generating && onboarding?.state === 'completed') {
+      return {
+        icon: CheckCircle2,
+        title: 'Your roadmap is ready',
+        className: 'bg-success-soft text-success'
+      };
+    }
+    return {
+      icon: RotateCw,
+      title: 'Creating your roadmap',
+      className: 'bg-primary-soft text-primary'
+    };
   }, [displayedError, generating, onboarding?.state]);
 
   if (onboardingLoading) return <Loader label="Preparing your roadmap setup..." />;
@@ -120,46 +135,46 @@ export default function GeneratingPage() {
     void startGeneration();
   };
 
-  return <OnboardingShell
-    current="roadmap"
-    eyebrow="Step 4 · Create your roadmap"
-    title={`Creating ${offering?.title || currentCourse?.title || 'your course'} roadmap`}
-    description="We’re organising this enrollment’s lessons, quizzes, projects, and practice without affecting any other course you may be learning."
-    aside={<>
-      <OnboardingInsightCard title="What is being prepared?" badge="Course roadmap" items={[
-        { title: 'Enrollment-specific plan', description: `This roadmap belongs only to ${offering?.title || currentCourse?.title || 'the selected course'} and its chosen level.` },
-        { title: 'Authoritative curriculum', description: 'Personalization may change emphasis and pacing, but lesson and quiz references still come from the selected course template.' }
-      ]} />
-      <Card>
-        <p className="font-bold text-foreground">Other courses stay independent</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">This request creates only the roadmap for the enrollment you selected.</p>
-      </Card>
-    </>}
-  >
-    <Card className="text-center">
-      <div className={`mx-auto grid h-16 w-16 place-items-center rounded-panel ${status.className}`}>
-        <Icon className={generating ? 'animate-spin' : ''} aria-hidden="true" />
+  return (
+    <OnboardingShell
+      current="roadmap"
+      eyebrow="Roadmap"
+      title="Creating your roadmap"
+      description={`We’re preparing ${offering?.title || currentCourse?.title || 'your selected course'} using your saved setup.`}
+    >
+      <div className="grid min-h-[320px] place-items-center text-center">
+        <div className="max-w-lg">
+          <span className={`mx-auto grid h-14 w-14 place-items-center rounded-full ${status.className}`} aria-hidden="true">
+            <Icon size={22} className={generating ? 'animate-spin' : ''} />
+          </span>
+          <h2 className="mt-5 text-2xl font-bold text-foreground">{status.title}</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {generating
+              ? 'Keep this page open while the roadmap is prepared.'
+              : displayedError
+                ? 'Your onboarding choices are saved. You can try again.'
+                : 'Your roadmap is ready to open.'}
+          </p>
+
+          <div className="mt-5"><ErrorMessage message={displayedError} /></div>
+
+          {showSlowHint && generating ? (
+            <p className="mt-4 text-sm text-muted-foreground">This is taking a little longer than usual.</p>
+          ) : null}
+
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            {displayedError ? (
+              <Button onClick={retry} isLoading={generating} loadingLabel="Trying again...">Try again</Button>
+            ) : null}
+            {!displayedError && !generating && onboarding?.state === 'completed' ? (
+              <Button onClick={() => navigate('/dashboard', { replace: true })}>Open dashboard</Button>
+            ) : null}
+            {isPersonalizeFlow && displayedError ? (
+              <Button variant="secondary" onClick={() => navigate('/dashboard')}>Back to dashboard</Button>
+            ) : null}
+          </div>
+        </div>
       </div>
-      <h2 className="mt-5 text-3xl font-bold text-foreground">{status.title}</h2>
-      <p className="mt-3 text-muted-foreground">
-        {generating
-          ? 'CodeMentor is creating this roadmap now. Keep this page open until the request finishes.'
-          : displayedError
-            ? 'Your setup is safe. Fix the issue or try the request again.'
-            : 'Your course roadmap is ready.'}
-      </p>
-
-      <div className="mt-5"><ErrorMessage message={displayedError} /></div>
-
-      {showSlowHint && generating && <div className="ui-alert ui-alert--info mt-6 text-left">
-        This is taking longer than usual because the roadmap is being created in this request. Keep the page open while it finishes.
-      </div>}
-
-      <div className="mt-6 flex flex-wrap justify-center gap-3">
-        {displayedError && <Button onClick={retry} isLoading={generating} loadingLabel="Trying again...">Try again</Button>}
-        {!displayedError && !generating && onboarding?.state === 'completed' && <Button onClick={() => navigate('/dashboard', { replace: true })}>Open dashboard</Button>}
-        {isPersonalizeFlow && displayedError && <Button variant="secondary" onClick={() => navigate('/dashboard')}>Back to dashboard</Button>}
-      </div>
-    </Card>
-  </OnboardingShell>;
+    </OnboardingShell>
+  );
 }

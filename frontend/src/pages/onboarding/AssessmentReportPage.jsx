@@ -1,16 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, BarChart3, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, BarChart3, CheckCircle2 } from 'lucide-react';
 import { assessmentApi } from '../../api/assessmentApi.js';
 import { roadmapApi } from '../../api/roadmapApi.js';
-import Card from '../../components/common/Card.jsx';
 import Button from '../../components/common/Button.jsx';
-import Badge from '../../components/common/Badge.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
-import OnboardingInsightCard from '../../components/onboarding/OnboardingInsightCard.jsx';
 
 const roadmapRecommendationLabel = (value) => ({
   assessment_ai_personalized: 'Personalized roadmap',
@@ -21,6 +18,34 @@ const roadmapRecommendationLabel = (value) => ({
   accelerated: 'Accelerated roadmap',
   balanced_personalized: 'Balanced personalized roadmap'
 }[value] || 'Personalized roadmap');
+
+function TopicList({ title, icon: Icon, items = [], emptyText, tone }) {
+  const toneClass = tone === 'success' ? 'text-success bg-success-soft' : 'text-warning bg-warning-soft';
+
+  return (
+    <section className="rounded-panel border border-border bg-surface p-5 sm:p-6">
+      <div className="flex items-center gap-3">
+        <span className={`grid h-10 w-10 place-items-center rounded-surface ${toneClass}`} aria-hidden="true">
+          <Icon size={18} />
+        </span>
+        <h2 className="text-lg font-bold text-foreground">{title}</h2>
+      </div>
+
+      {items.length ? (
+        <div className="mt-5 space-y-3">
+          {items.map((item) => (
+            <div key={item.topic} className="flex items-center justify-between gap-4 text-sm">
+              <span className="font-semibold text-foreground">{item.topic}</span>
+              <span className="text-muted-foreground">{item.score}%</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-muted-foreground">{emptyText}</p>
+      )}
+    </section>
+  );
+}
 
 export default function AssessmentReportPage() {
   const { assessmentId } = useParams();
@@ -94,83 +119,113 @@ export default function AssessmentReportPage() {
 
   if (isLoading) return <Loader label="Preparing your results..." />;
   if (!assessmentId || reportError || !report) {
-    return <EmptyState
-      title="Skill-check results unavailable"
-      description={reportError?.message || 'Your results could not be found. Take the skill check again or return to your dashboard.'}
-      actionLabel={isPersonalizeFlow ? 'Back to dashboard' : 'Back to skill check'}
-      onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : `/onboarding/assessment${personalizeQuery}`)}
-    />;
+    return (
+      <EmptyState
+        title="Skill-check results unavailable"
+        description={reportError?.message || 'Your results could not be found. Take the skill check again or return to your dashboard.'}
+        actionLabel={isPersonalizeFlow ? 'Back to dashboard' : 'Back to skill check'}
+        onAction={() => navigate(isPersonalizeFlow ? '/dashboard' : `/onboarding/assessment${personalizeQuery}`)}
+      />
+    );
   }
 
-  return <OnboardingShell
-    current="roadmap"
-    eyebrow="Step 4 · Your results"
-    title={`You scored ${report.score || 0}%`}
-    description={report.summary || 'Review your stronger areas and the topics that need more practice before creating your course roadmap.'}
-    backTo={`/onboarding/assessment${personalizeQuery}`}
-    aside={<>
-      <OnboardingInsightCard title="Recommended next step" badge={report.recommendedLevel || 'Review'} items={[
-        {
-          title: roadmapRecommendationLabel(report.suggestedRoadmapType),
-          description: 'This recommendation uses only your selected course diagnostic results and the areas that need more practice.'
-        },
-        {
-          title: isPersonalizeFlow ? 'Update this course roadmap' : 'Create this course roadmap',
-          description: isPersonalizeFlow
-            ? 'The updated version replaces the active roadmap for this enrollment while preserving its earlier version.'
-            : 'Your roadmap will open as soon as it is ready.'
-        }
-      ]} />
-      <Card className="bg-primary-soft">
-        <BarChart3 className="text-primary" aria-hidden="true" />
-        <p className="mt-3 font-bold text-foreground">Diagnostic emphasis, not a different course</p>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">Your scores can change emphasis and pacing, while the selected course remains the source of lessons and questions.</p>
-      </Card>
-    </>}
-  >
-    <ErrorMessage message={error} />
+  const score = Math.max(0, Math.min(100, Number(report.score) || 0));
 
-    <div className="grid gap-5 lg:grid-cols-2">
-      <Card>
-        <h2 className="flex items-center gap-2 text-xl font-bold text-foreground"><BarChart3 size={20} aria-hidden="true" /> Topic scores</h2>
-        <div className="mt-5 space-y-4">
-          {(report.categoryScores || []).length ? report.categoryScores.map((item) => {
-            const score = Math.max(0, Math.min(100, Number(item.score) || 0));
-            return <div key={item.topic} className="rounded-surface bg-surface-secondary p-4">
-              <div className="mb-2 flex justify-between gap-4 text-sm font-semibold text-foreground"><span>{item.topic}</span><span>{score}%</span></div>
-              <div className="h-3 overflow-hidden rounded-full bg-surface" role="progressbar" aria-label={`${item.topic} score`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={score}>
-                <div className="h-full rounded-full bg-primary" style={{ width: `${score}%` }} />
-              </div>
-            </div>;
-          }) : <p className="text-sm text-muted-foreground">No topic breakdown is available for this result.</p>}
+  return (
+    <OnboardingShell
+      current="roadmap"
+      eyebrow="Skill check results"
+      title="Your skill check results"
+      description={report.summary || 'Review your strongest topics and the areas that need more practice.'}
+      footer={
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => navigate(`/onboarding/assessment${personalizeQuery}`)}
+            disabled={creating}
+            className="gap-2"
+          >
+            <ArrowLeft size={16} aria-hidden="true" /> Previous
+          </Button>
+          <Button
+            type="button"
+            onClick={generateRoadmap}
+            isLoading={creating}
+            loadingLabel="Creating roadmap..."
+            className="gap-2 px-6"
+          >
+            {isPersonalizeFlow ? 'Update roadmap' : 'Create my roadmap'}
+            <ArrowRight size={16} aria-hidden="true" />
+          </Button>
         </div>
-      </Card>
+      }
+    >
+      <ErrorMessage message={error} />
 
-      <div className="space-y-5">
-        <Card>
-          <h2 className="flex items-center gap-2 text-xl font-bold text-foreground"><AlertTriangle size={20} aria-hidden="true" /> Topics to practise first</h2>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {report.weakTopics?.length ? report.weakTopics.map((item) => <Badge key={item.topic} variant="danger">{item.topic} · {item.score}%</Badge>) : <p className="text-sm text-muted-foreground">No topic needs urgent attention.</p>}
+      <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <section className="rounded-panel border border-border bg-surface p-6 text-center">
+          <p className="text-sm font-semibold text-muted-foreground">Overall score</p>
+          <p className="mt-3 text-5xl font-extrabold tracking-tight text-primary-strong">{score}%</p>
+          <p className="mt-5 text-sm font-semibold text-foreground">Recommended level</p>
+          <p className="mt-1 text-xl font-bold capitalize text-foreground">{report.recommendedLevel || 'Review'}</p>
+          <p className="mt-3 text-xs font-semibold text-muted-foreground">
+            {roadmapRecommendationLabel(report.suggestedRoadmapType)}
+          </p>
+        </section>
+
+        <section className="rounded-panel border border-border bg-surface p-5 sm:p-6">
+          <div className="flex items-center gap-3">
+            <span className="grid h-10 w-10 place-items-center rounded-surface bg-primary-soft text-primary-strong" aria-hidden="true">
+              <BarChart3 size={18} />
+            </span>
+            <h2 className="text-lg font-bold text-foreground">Topic performance</h2>
           </div>
-        </Card>
 
-        <Card>
-          <h2 className="flex items-center gap-2 text-xl font-bold text-foreground"><CheckCircle2 size={20} aria-hidden="true" /> Stronger topics</h2>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {report.strongTopics?.length ? report.strongTopics.map((item) => <Badge key={item.topic} variant="success">{item.topic} · {item.score}%</Badge>) : <p className="text-sm text-muted-foreground">Complete more questions to identify your strongest topics.</p>}
+          <div className="mt-5 space-y-4">
+            {(report.categoryScores || []).length ? report.categoryScores.map((item) => {
+              const topicScore = Math.max(0, Math.min(100, Number(item.score) || 0));
+              return (
+                <div key={item.topic}>
+                  <div className="mb-2 flex items-center justify-between gap-4 text-sm">
+                    <span className="font-semibold text-foreground">{item.topic}</span>
+                    <span className="text-muted-foreground">{topicScore}%</span>
+                  </div>
+                  <div
+                    className="h-2 overflow-hidden rounded-full bg-surface-secondary"
+                    role="progressbar"
+                    aria-label={`${item.topic} score`}
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    aria-valuenow={topicScore}
+                  >
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${topicScore}%` }} />
+                  </div>
+                </div>
+              );
+            }) : (
+              <p className="text-sm text-muted-foreground">No topic breakdown is available for this result.</p>
+            )}
           </div>
-        </Card>
+        </section>
       </div>
-    </div>
 
-    <Card className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h2 className="text-2xl font-bold text-foreground">{isPersonalizeFlow ? 'Create the updated course roadmap' : 'Create your course roadmap'}</h2>
-        <p className="mt-2 max-w-2xl text-muted-foreground">Your results will help prioritize course topics that need more practice without mixing content from another course.</p>
+      <div className="grid gap-5 md:grid-cols-2">
+        <TopicList
+          title="Strong topics"
+          icon={CheckCircle2}
+          items={report.strongTopics || []}
+          emptyText="No strong topic has been identified yet."
+          tone="success"
+        />
+        <TopicList
+          title="Topics to improve"
+          icon={AlertTriangle}
+          items={report.weakTopics || []}
+          emptyText="No topic needs urgent attention."
+          tone="warning"
+        />
       </div>
-      <Button onClick={generateRoadmap} isLoading={creating} loadingLabel="Creating roadmap..." className="shrink-0 px-6">
-        Create roadmap <ArrowRight size={18} aria-hidden="true" />
-      </Button>
-    </Card>
-  </OnboardingShell>;
+    </OnboardingShell>
+  );
 }
