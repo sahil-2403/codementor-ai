@@ -71,7 +71,7 @@ export default function LevelPage() {
       setSaving(true);
       setError('');
       await onboardingApi.saveLevel({ enrollmentId: enrollment._id, level: selected });
-      navigate('/onboarding/preferences');
+      navigate(selected === 'beginner' ? '/onboarding/generating' : '/onboarding/assessment-intro');
     } catch (err) {
       setError(err?.message || 'Could not save your level.');
     } finally {
