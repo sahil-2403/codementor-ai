@@ -15,6 +15,24 @@ import { env, isGeminiAvailable } from '../config/env.js';
 
 const difficultyRank = { beginner: 1, intermediate: 2, advanced: 3 };
 const allowedByLevel = (userLevel, difficulty) => difficultyRank[difficulty] <= difficultyRank[userLevel || 'beginner'];
+const referenceId = (value) => value?._id || value;
+
+const getUnlockedLessonIds = (course) => new Set(
+  (course.modules || [])
+    .filter((module) => module.status !== 'locked')
+    .flatMap((module) => (module.lessons || [])
+      .filter((item) => item.status !== 'locked')
+      .map((item) => referenceId(item.lesson)?.toString())
+      .filter(Boolean))
+);
+
+const isPracticeTaskUnlocked = ({ course, task, unlockedLessonIds = getUnlockedLessonIds(course) }) => {
+  const relatedLessonIds = (task.relatedLessons || []).map(referenceId).filter(Boolean);
+  if (!relatedLessonIds.length) return allowedByLevel(course.level || 'beginner', task.difficulty);
+  return relatedLessonIds.some((id) => unlockedLessonIds.has(id.toString()));
+};
+
+const practiceLockedReason = 'Complete the earlier roadmap modules to unlock this practice task.';
 
 const runBestEffort = async (label, action) => {
   try {
@@ -41,6 +59,7 @@ export const listPracticeTasks = async ({ userId, difficulty, tag }) => {
     practiceTask: { $in: tasks.map((task) => task._id) }
   }).sort({ createdAt: -1 }).lean();
   const byTask = new Map();
+  const unlockedLessonIds = getUnlockedLessonIds(course);
 
   submissions.forEach((submission) => {
     const key = submission.practiceTask.toString();
@@ -53,11 +72,11 @@ export const listPracticeTasks = async ({ userId, difficulty, tag }) => {
     const taskSubmissions = byTask.get(task._id.toString()) || [];
     const scored = taskSubmissions.filter((submission) => submission.reviewMode === 'ai' && typeof submission.score === 'number');
     const bestScore = scored.length ? Math.max(...scored.map((submission) => submission.score)) : null;
-    const isLocked = !allowedByLevel(course.level || 'beginner', task.difficulty);
+    const isLocked = !isPracticeTaskUnlocked({ course, task, unlockedLessonIds });
     return {
       ...task,
       isLocked,
-      lockedReason: isLocked ? `Unlock this after reaching ${task.difficulty} level.` : '',
+      lockedReason: isLocked ? practiceLockedReason : '',
       attemptsUsed: taskSubmissions.length,
       maxAttempts: 2,
       bestScore,
@@ -74,12 +93,12 @@ export const getPracticeTask = async ({ taskId, userId }) => {
   if (!task) throw new ApiError(404, 'Practice task not found in your current course');
 
   const submissions = await PracticeSubmission.find({ user: userId, practiceTask: taskId }).sort({ createdAt: -1 }).limit(5);
-  const isLocked = !allowedByLevel(course.level || 'beginner', task.difficulty);
+  const isLocked = !isPracticeTaskUnlocked({ course, task });
   return {
     task: {
       ...task,
       isLocked,
-      lockedReason: isLocked ? `Unlock this after reaching ${task.difficulty} level.` : '',
+      lockedReason: isLocked ? practiceLockedReason : '',
       maxAttempts: 2
     },
     submissions,
@@ -95,8 +114,8 @@ export const submitPracticeTask = async ({ userId, practiceTaskId, submittedCode
   const course = await getCurrentCourse(userId);
   const task = await PracticeTask.findOne({ _id: practiceTaskId, course: course.course, status: 'published' });
   if (!task) throw new ApiError(404, 'Practice task not found in your current course');
-  if (!allowedByLevel(course.level || 'beginner', task.difficulty)) {
-    throw new ApiError(403, 'This practice task is locked for your current level', [], 'CONTENT_LOCKED');
+  if (!isPracticeTaskUnlocked({ course, task })) {
+    throw new ApiError(403, practiceLockedReason, [], 'CONTENT_LOCKED');
   }
   if (!submittedCode.trim() && !submittedExplanation.trim()) {
     throw new ApiError(400, 'Submit code or explanation for review');

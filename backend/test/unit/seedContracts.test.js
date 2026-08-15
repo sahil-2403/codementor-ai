@@ -20,26 +20,36 @@ test('development seed expects a fresh database and runs directly', () => {
   assert.doesNotMatch(seed, /syncIndexes|dropIndex|migration/i);
 });
 
-test('Complete JavaScript seed is large enough to exercise the full learner workflow', () => {
-  assert.equal(javascriptTopics.length, 12);
-  assert.equal(javascriptLessons.length, 36);
-  assert.equal(javascriptQuizQuestions.length, 48);
+test('Complete JavaScript is a full beginner-to-advanced reference course', () => {
+  assert.equal(javascriptTopics.length, 22);
+  assert.equal(javascriptLessons.length, 95);
+  assert.equal(javascriptQuizQuestions.length, 95);
   assert.equal(javascriptSkillCheckQuestions.length, 24);
-  assert.equal(javascriptPracticeTasks.length, 24);
-  assert.equal(javascriptInterviewQuestions.length, 30);
+  assert.equal(javascriptPracticeTasks.length, 44);
+  assert.equal(javascriptInterviewQuestions.length, 44);
   assert.equal(javascriptRoadmapTemplates.length, 3);
 
   assert.equal(javascriptSkillCheckQuestions.filter((item) => item.difficulty === 'intermediate').length, 12);
   assert.equal(javascriptSkillCheckQuestions.filter((item) => item.difficulty === 'advanced').length, 12);
-  assert.equal(javascriptInterviewQuestions.filter((item) => item.difficulty === 'beginner').length, 10);
-  assert.equal(javascriptInterviewQuestions.filter((item) => item.difficulty === 'intermediate').length, 10);
-  assert.equal(javascriptInterviewQuestions.filter((item) => item.difficulty === 'advanced').length, 10);
-  assert.equal(javascriptPracticeTasks.filter((item) => item.difficulty === 'beginner').length, 14);
-  assert.equal(javascriptPracticeTasks.filter((item) => item.difficulty === 'intermediate').length, 6);
-  assert.equal(javascriptPracticeTasks.filter((item) => item.difficulty === 'advanced').length, 4);
+  assert.equal(javascriptPracticeTasks.filter((item) => item.difficulty === 'beginner').length, 30);
+  assert.equal(javascriptPracticeTasks.filter((item) => item.difficulty === 'intermediate').length, 8);
+  assert.equal(javascriptPracticeTasks.filter((item) => item.difficulty === 'advanced').length, 6);
 });
 
-test('Complete JavaScript seed references only known topics and lessons', () => {
+test('every Complete JavaScript lesson is detailed and learner-ready', () => {
+  for (const lesson of javascriptLessons) {
+    assert.ok(lesson.theory.length >= 700, `${lesson.title} theory should be elaborative`);
+    assert.ok(lesson.codeExample.length >= 20, `${lesson.title} should include a useful code example`);
+    assert.ok(lesson.codeExplanation.length >= 80, `${lesson.title} should explain its example`);
+    assert.ok(lesson.commonMistakes.length >= 3, `${lesson.title} should explain common mistakes`);
+    assert.ok(lesson.interviewDefinition.length >= 40, `${lesson.title} should include an interview-ready definition`);
+    assert.ok(lesson.interviewQuestions.length >= 1, `${lesson.title} should include interview practice`);
+    assert.ok(lesson.practiceTask.length >= 30, `${lesson.title} should include a small practice step`);
+    assert.ok(lesson.knowledgeCheck?.question && lesson.knowledgeCheck?.correctAnswer, `${lesson.title} should include a knowledge check`);
+  }
+});
+
+test('Complete JavaScript references only known topics and lessons', () => {
   const topicKeys = new Set(javascriptTopics.map((item) => item.key));
   const lessonKeys = new Set(javascriptLessons.map((item) => item.key));
 
@@ -51,9 +61,38 @@ test('Complete JavaScript seed references only known topics and lessons', () => 
   assert.ok(javascriptPracticeTasks.every((item) => topicKeys.has(item.topicKey) && item.relatedLessonKeys.every((key) => lessonKeys.has(key))));
   assert.ok(javascriptInterviewQuestions.every((item) => topicKeys.has(item.topicKey)));
   assert.ok(javascriptRoadmapTemplates.every((template) => template.modules.every((module) => module.lessonKeys.every((key) => lessonKeys.has(key)))));
+});
 
+test('each topic has lessons quizzes practice and interview coverage', () => {
   for (const topic of javascriptTopics) {
-    const quizCount = javascriptQuizQuestions.filter((item) => item.topicKey === topic.key).length;
-    assert.equal(quizCount, 4, `${topic.title} should have four module quiz questions`);
+    const lessons = javascriptLessons.filter((item) => item.topicKey === topic.key);
+    const quizzes = javascriptQuizQuestions.filter((item) => item.topicKey === topic.key);
+    const practiceTasks = javascriptPracticeTasks.filter((item) => item.topicKey === topic.key);
+    const interviews = javascriptInterviewQuestions.filter((item) => item.topicKey === topic.key);
+
+    assert.ok(lessons.length >= 4, `${topic.title} should have at least four focused lessons`);
+    assert.equal(quizzes.length, lessons.length, `${topic.title} should have one quiz check per lesson`);
+    assert.equal(practiceTasks.length, 2, `${topic.title} should have two coding practice tasks`);
+    assert.equal(interviews.length, 2, `${topic.title} should have two dedicated interview questions`);
   }
+});
+
+test('roadmaps use level as an entry point and still progress toward advanced JavaScript', () => {
+  const beginner = javascriptRoadmapTemplates.find((item) => item.level === 'beginner');
+  const intermediate = javascriptRoadmapTemplates.find((item) => item.level === 'intermediate');
+  const advanced = javascriptRoadmapTemplates.find((item) => item.level === 'advanced');
+
+  assert.equal(beginner.modules.length, 22);
+  assert.equal(intermediate.modules.length, 16);
+  assert.equal(advanced.modules.length, 7);
+  assert.equal(beginner.modules[0].title, 'Getting Started with JavaScript');
+  assert.equal(beginner.modules.at(-1).title, 'Event Loop, Memory and Performance');
+  assert.equal(intermediate.modules[0].title, 'Functions');
+  assert.equal(intermediate.modules.at(-1).title, 'Event Loop, Memory and Performance');
+  assert.equal(advanced.modules[0].title, 'Modern JavaScript Syntax');
+  assert.equal(advanced.modules.at(-1).title, 'Event Loop, Memory and Performance');
+
+  const beginnerLessonKeys = new Set(beginner.modules.flatMap((module) => module.lessonKeys));
+  assert.equal(beginnerLessonKeys.size, javascriptLessons.length);
+  assert.ok(javascriptLessons.every((lesson) => beginnerLessonKeys.has(lesson.key)));
 });
