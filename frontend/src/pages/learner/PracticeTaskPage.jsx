@@ -7,8 +7,8 @@ import {
   CheckCircle2,
   ChevronDown,
   Code2,
+  Dumbbell,
   FileText,
-  FolderCode,
 } from "lucide-react";
 import Loader from "../../components/common/Loader.jsx";
 import EmptyState from "../../components/common/EmptyState.jsx";
@@ -21,10 +21,10 @@ import InlineAlert from "../../components/common/InlineAlert.jsx";
 import PageShell from "../../components/common/PageShell.jsx";
 import PageHeader from "../../components/common/PageHeader.jsx";
 import FormTextarea from "../../components/form/FormTextarea.jsx";
-import { projectApi } from '../../api/projectApi.js';
-import { projectSubmissionSchema } from "../../validations/project.schema.js";
+import { practiceApi } from '../../api/practiceApi.js';
+import { practiceSubmissionSchema } from "../../validations/practice.schema.js";
 import { formatDate } from "../../utils/formatDate.js";
-import ProjectSubmissionFeedback from "../../components/project/ProjectSubmissionFeedback.jsx";
+import PracticeSubmissionFeedback from "../../components/practice/PracticeSubmissionFeedback.jsx";
 
 const isFallbackReview = (submission) =>
   submission.reviewMode === "fallback" ||
@@ -33,7 +33,7 @@ const isFallbackReview = (submission) =>
 const isAiReview = (submission) =>
   submission.reviewMode === "ai" && submission.status === "reviewed";
 
-export default function ProjectTaskPage() {
+export default function PracticeTaskPage() {
   const { taskId } = useParams();
   const navigate = useNavigate();
   const [taskData, setTaskData] = useState(null);
@@ -54,7 +54,7 @@ export default function ProjectTaskPage() {
     setError,
     formState: { errors, isSubmitting },
   } = useForm({
-    resolver: zodResolver(projectSubmissionSchema),
+    resolver: zodResolver(practiceSubmissionSchema),
     defaultValues: { submittedCode: "", submittedExplanation: "" },
   });
 
@@ -63,7 +63,7 @@ export default function ProjectTaskPage() {
     let active = true;
     setLoadError(null);
 
-    projectApi.task(taskId)
+    practiceApi.task(taskId)
       .then((result) => {
         if (active) setTaskData(result);
       })
@@ -79,15 +79,15 @@ export default function ProjectTaskPage() {
     };
   }, [taskId, loadAttempt]);
 
-  if (isLoading) return <Loader label="Loading project task..." />;
+  if (isLoading) return <Loader label="Loading practice task..." />;
 
   if (loadError) {
     return (
       <EmptyState
-        title="Project task is unavailable"
+        title="Practice task is unavailable"
         description={loadError.message}
-        actionLabel="Back to projects"
-        onAction={() => navigate("/projects")}
+        actionLabel="Back to practice"
+        onAction={() => navigate("/practice")}
       />
     );
   }
@@ -96,7 +96,7 @@ export default function ProjectTaskPage() {
   if (!task) {
     return (
       <EmptyState
-        title="Project task not found"
+        title="Practice task not found"
         description="This task is not available for your account."
         actionLabel="Try again"
         onAction={() => setLoadAttempt((value) => value + 1)}
@@ -111,12 +111,12 @@ export default function ProjectTaskPage() {
 
   const submit = async (values) => {
     try {
-      await projectApi.submit({ projectTaskId: taskId, ...values });
+      await practiceApi.submit({ practiceTaskId: taskId, ...values });
       reset();
       setLoadAttempt((value) => value + 1);
     } catch (err) {
       setError("root", {
-        message: err?.message || "Could not save your project submission.",
+        message: err?.message || "Could not save your practice attempt.",
       });
     }
   };
@@ -146,7 +146,7 @@ export default function ProjectTaskPage() {
     setReviewingId(submissionId);
 
     try {
-      await projectApi.review(submissionId);
+      await practiceApi.review(submissionId);
       setLoadAttempt((value) => value + 1);
     } catch (requestError) {
       setReviewError(requestError);
@@ -159,17 +159,17 @@ export default function ProjectTaskPage() {
     <PageShell className="space-y-5 pb-6">
       <PageHeader
         variant="compact"
-        eyebrow="Project task"
-        eyebrowIcon={FolderCode}
+        eyebrow="Practice task"
+        eyebrowIcon={Dumbbell}
         title={task.title}
         description={task.description}
         actions={
           <Link
-            to="/projects"
+            to="/practice"
             className="ui-button ui-button--secondary min-h-9 gap-2 px-3.5 text-xs sm:text-sm"
           >
             <ArrowLeft size={16} aria-hidden="true" />
-            All projects
+            All practice
           </Link>
         }
       />
@@ -189,7 +189,7 @@ export default function ProjectTaskPage() {
       {task.isLocked && (
         <InlineAlert tone="warning" title="Task locked">
           {task.lockedReason ||
-            "Complete the required learning steps before opening this project."}
+            "Complete the required learning steps before opening this practice task."}
         </InlineAlert>
       )}
 
@@ -276,7 +276,7 @@ export default function ProjectTaskPage() {
               Submit your solution
             </h2>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              You can submit up to {maxAttempts} solutions. Your work is saved
+              You can submit up to {maxAttempts} attempts. Your work is saved
               before the review begins.
             </p>
           </div>
@@ -288,10 +288,10 @@ export default function ProjectTaskPage() {
           <InlineAlert
             className="mt-4"
             tone="warning"
-            title="Submissions closed"
+            title="Attempts closed"
           >
             {task.isLocked
-              ? "Unlock this project before submitting."
+              ? "Unlock this practice task before submitting."
               : `You have used all ${maxAttempts} attempts for this task.`}
           </InlineAlert>
         )}
@@ -317,9 +317,9 @@ export default function ProjectTaskPage() {
             type="submit"
             disabled={!canSubmit}
             isLoading={isSubmitting}
-            loadingLabel="Saving submission..."
+            loadingLabel="Saving attempt..."
           >
-            Save submission
+            Save attempt
           </Button>
         </form>
       </Card>
@@ -327,7 +327,7 @@ export default function ProjectTaskPage() {
       <Card className="shadow-sm">
         <div>
           <p className="ui-eyebrow">Attempt history</p>
-          <h2 className="ui-section-title">Your submissions and feedback</h2>
+          <h2 className="ui-section-title">Your attempts and feedback</h2>
           <p className="ui-section-description">
             If detailed feedback was unavailable earlier, you can retry the
             review without using another attempt.
@@ -427,7 +427,7 @@ export default function ProjectTaskPage() {
 
                       {isReviewing && (
                         <InlineAlert className="mt-4" title="Review in progress">
-                          Your saved submission is being reviewed. Refreshing the
+                          Your saved attempt is being reviewed. Refreshing the
                           page will not use another attempt.
                         </InlineAlert>
                       )}
@@ -457,7 +457,7 @@ export default function ProjectTaskPage() {
                         </div>
                       )}
 
-                      <ProjectSubmissionFeedback submission={submission} />
+                      <PracticeSubmissionFeedback submission={submission} />
                     </div>
                   )}
                 </article>
@@ -465,7 +465,7 @@ export default function ProjectTaskPage() {
             })
           ) : (
             <EmptyState
-              title="No submissions yet"
+              title="No attempts yet"
               description="Save your first solution when you are ready. Your work will remain available even if detailed feedback is temporarily unavailable."
             />
           )}

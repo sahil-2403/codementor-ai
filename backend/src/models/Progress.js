@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const weakTopicSchema = new mongoose.Schema(
   {
     topic: String,
-    source: { type: String, enum: ['assessment', 'quiz', 'mentor_chat', 'project_submission', 'interview_mode', 'manual'], default: 'quiz' },
+    source: { type: String, enum: ['assessment', 'quiz', 'mentor_chat', 'practice_submission', 'interview_mode', 'manual'], default: 'quiz' },
     severity: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'medium' },
     score: { type: Number, default: 0 },
     attempts: { type: Number, default: 1 },

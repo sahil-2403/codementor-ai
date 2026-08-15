@@ -28,10 +28,10 @@ import {
   idParamSchema
 } from '../validations/admin.validation.js';
 import {
-  projectTaskSchema,
-  projectTaskUpdateSchema,
-  projectTaskStatusSchema
-} from '../validations/adminProject.validation.js';
+  practiceTaskSchema,
+  practiceTaskUpdateSchema,
+  practiceTaskStatusSchema
+} from '../validations/adminPractice.validation.js';
 import {
   listTopics,
   getTopic,
@@ -89,13 +89,13 @@ import {
   deleteLearningPath
 } from '../controllers/adminCatalog.controller.js';
 import {
-  listAdminProjectTasks,
-  getAdminProjectTask,
-  createAdminProjectTask,
-  updateAdminProjectTask,
-  updateAdminProjectTaskStatus,
-  deleteAdminProjectTask
-} from '../controllers/adminProject.controller.js';
+  listAdminPracticeTasks,
+  getAdminPracticeTask,
+  createAdminPracticeTask,
+  updateAdminPracticeTask,
+  updateAdminPracticeTaskStatus,
+  deleteAdminPracticeTask
+} from '../controllers/adminPractice.controller.js';
 import { courseWorkspace } from '../controllers/courseWorkspace.controller.js';
 import { contentOverview } from '../controllers/adminOverview.controller.js';
 
@@ -158,12 +158,12 @@ router.patch('/interview-questions/:id', adminWriteLimiter, validate(idParamSche
 router.patch('/interview-questions/:id/status', adminWriteLimiter, validate(idParamSchema), validate(questionStatusUpdateSchema), updateInterviewQuestionStatus);
 router.delete('/interview-questions/:id', adminWriteLimiter, validate(idParamSchema), deleteInterviewQuestion);
 
-router.get('/project-tasks', listAdminProjectTasks);
-router.post('/project-tasks', adminWriteLimiter, validate(projectTaskSchema), createAdminProjectTask);
-router.get('/project-tasks/:id', validate(idParamSchema), getAdminProjectTask);
-router.patch('/project-tasks/:id', adminWriteLimiter, validate(idParamSchema), validate(projectTaskUpdateSchema), updateAdminProjectTask);
-router.patch('/project-tasks/:id/status', adminWriteLimiter, validate(idParamSchema), validate(projectTaskStatusSchema), updateAdminProjectTaskStatus);
-router.delete('/project-tasks/:id', adminWriteLimiter, validate(idParamSchema), deleteAdminProjectTask);
+router.get('/practice-tasks', listAdminPracticeTasks);
+router.post('/practice-tasks', adminWriteLimiter, validate(practiceTaskSchema), createAdminPracticeTask);
+router.get('/practice-tasks/:id', validate(idParamSchema), getAdminPracticeTask);
+router.patch('/practice-tasks/:id', adminWriteLimiter, validate(idParamSchema), validate(practiceTaskUpdateSchema), updateAdminPracticeTask);
+router.patch('/practice-tasks/:id/status', adminWriteLimiter, validate(idParamSchema), validate(practiceTaskStatusSchema), updateAdminPracticeTaskStatus);
+router.delete('/practice-tasks/:id', adminWriteLimiter, validate(idParamSchema), deleteAdminPracticeTask);
 
 router.get('/templates', listTemplates);
 router.post('/templates', adminWriteLimiter, validate(templateSchema), createTemplate);

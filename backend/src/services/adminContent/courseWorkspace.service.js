@@ -3,7 +3,7 @@ import { Topic } from '../../models/Topic.js';
 import { Lesson } from '../../models/Lesson.js';
 import { QuizQuestion } from '../../models/QuizQuestion.js';
 import { InterviewQuestion } from '../../models/InterviewQuestion.js';
-import { ProjectTask } from '../../models/ProjectTask.js';
+import { PracticeTask } from '../../models/PracticeTask.js';
 import { RoadmapTemplate } from '../../models/RoadmapTemplate.js';
 import { ensureFound } from './common.js';
 
@@ -36,7 +36,7 @@ export const getCourseWorkspace = async (courseId) => {
     quizRaw,
     skillRaw,
     interviewRaw,
-    projectsRaw,
+    practiceRaw,
     templatesRaw,
     templates
   ] = await Promise.all([
@@ -45,7 +45,7 @@ export const getCourseWorkspace = async (courseId) => {
     statusCounts(QuizQuestion, { course: course._id, bank: 'quiz' }),
     statusCounts(QuizQuestion, { course: course._id, bank: 'skill_check' }),
     statusCounts(InterviewQuestion, { course: course._id }),
-    statusCounts(ProjectTask, { course: course._id }),
+    statusCounts(PracticeTask, { course: course._id }),
     statusCounts(RoadmapTemplate, { course: course._id }),
     RoadmapTemplate.find({ course: course._id }).select('_id level title status modules estimatedDurationDays').lean()
   ]);
@@ -66,7 +66,7 @@ export const getCourseWorkspace = async (courseId) => {
       quizQuestions: normalized(quizRaw, ['draft', 'published', 'archived']),
       skillChecks: normalized(skillRaw, ['draft', 'published', 'archived']),
       interviewQuestions: normalized(interviewRaw, ['draft', 'published', 'archived']),
-      projects: normalized(projectsRaw, ['draft', 'published', 'archived']),
+      practiceTasks: normalized(practiceRaw, ['draft', 'published', 'archived']),
       templates: normalized(templatesRaw, ['draft', 'published', 'archived'])
     },
     templateCoverage

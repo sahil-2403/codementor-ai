@@ -121,7 +121,7 @@ npm run seed
 - [ ] Mentor pending indicator disappears when the answer returns
 - [ ] Dashboard, Progress, and Reports reflect persisted data after writes/refresh
 - [ ] Switching current Enrollment updates learner pages
-- [ ] Projects and Interview questions allow two attempts and reject a third
+- [ ] Practice and Interview questions allow two attempts and reject a third
 
 ### Gemini and fallback honesty
 
@@ -129,7 +129,7 @@ Test once with Gemini enabled and once unavailable:
 
 - [ ] Mentor distinguishes live responses from saved explanations
 - [ ] Quiz explanation uses fallback content honestly
-- [ ] Project submission is saved before review
+- [ ] Practice submission is saved before review
 - [ ] Interview answer is saved before review
 - [ ] Successful reviews may show a score
 - [ ] Fallback reviews remain scoreless
@@ -138,7 +138,7 @@ Test once with Gemini enabled and once unavailable:
 
 - [ ] Non-admin users cannot access admin routes
 - [ ] Catalog Technologies/Courses/Learning Paths can be managed
-- [ ] Course-owned Topics, Lessons, Questions, Projects, Interview Questions, and Templates can be managed
+- [ ] Course-owned Topics, Lessons, Questions, Practice Tasks, Interview Questions, and Templates can be managed
 - [ ] Publishing requires backend readiness validation
 - [ ] Archive is required before permanent deletion for every admin content type
 - [ ] Course archive cascades through Course-owned curriculum

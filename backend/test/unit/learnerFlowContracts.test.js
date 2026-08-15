@@ -30,14 +30,14 @@ test('onboarding moves from level directly to assessment choice or roadmap', () 
   assert.doesNotMatch(prompt, /dailyStudyTime|targetDurationDays|learningStyle|knownBasics|mainFocus/);
 });
 
-test('projects interview quizzes and revisions stay inside the current course', () => {
-  const projects = source('services/project.service.js');
+test('practice interview quizzes and revisions stay inside the current course', () => {
+  const practice = source('services/practice.service.js');
   const interview = source('services/interview.service.js');
   const quiz = source('services/quiz.service.js');
   const revision = source('services/revision.service.js');
 
-  assert.match(projects, /course:\s*course\.course/);
-  assert.match(projects, /belongs to a different course/);
+  assert.match(practice, /course:\s*course\.course/);
+  assert.match(practice, /belongs to a different course/);
   assert.match(interview, /course:\s*course\.course/);
   assert.match(interview, /belongs to a different course/);
   assert.match(quiz, /coursePlan:\s*course\._id/);

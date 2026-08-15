@@ -10,7 +10,7 @@ import { cn } from '../../utils/cn.js';
 const learnerLinks = [
   ['Dashboard', '/dashboard'],
   ['Roadmap', '/roadmap'],
-  ['Projects', '/projects'],
+  ['Practice', '/practice'],
   ['Interview', '/interview'],
   ['Mentor', '/mentor'],
   ['Progress', '/progress'],

@@ -10,7 +10,7 @@ import { Topic } from '../models/Topic.js';
 import { Lesson } from '../models/Lesson.js';
 import { QuizQuestion } from '../models/QuizQuestion.js';
 import { RoadmapTemplate } from '../models/RoadmapTemplate.js';
-import { ProjectTask } from '../models/ProjectTask.js';
+import { PracticeTask } from '../models/PracticeTask.js';
 import { InterviewQuestion } from '../models/InterviewQuestion.js';
 import { generateSlug } from '../utils/generateSlug.js';
 
@@ -177,12 +177,12 @@ const seed = async () => {
       });
     }
 
-    await ProjectTask.create({
+    await PracticeTask.create({
       course: course._id,
       technologies: technologyIds,
-      title: `${definition.title} Practice Project`,
-      slug: generateSlug(`${definition.title} Practice Project`),
-      description: `Build a focused project that demonstrates the core workflow of ${definition.title}.`,
+      title: `${definition.title} Practice Task`,
+      slug: generateSlug(`${definition.title} Practice Task`),
+      description: `Complete a focused coding task that demonstrates the core workflow of ${definition.title}.`,
       moduleTitle: 'Core Module',
       difficulty: 'beginner',
       relatedLessons: [lessons.beginner._id],
@@ -190,7 +190,7 @@ const seed = async () => {
       starterHints: ['Start with the smallest working version'],
       expectedOutput: 'A working implementation and short explanation.',
       evaluationChecklist: ['Core feature works', 'Implementation is explained'],
-      tags: [generateSlug(definition.title), 'project'],
+      tags: [generateSlug(definition.title), 'practice'],
       estimatedMinutes: 90,
       status: 'published'
     });
@@ -198,7 +198,7 @@ const seed = async () => {
     await InterviewQuestion.create({
       course: course._id,
       technologies: technologyIds,
-      question: `How would you explain the core architecture of a ${definition.title} project?`,
+      question: `How would you explain the core architecture of a ${definition.title} application?`,
       topic: topic.title,
       topicRef: topic._id,
       type: 'concept',

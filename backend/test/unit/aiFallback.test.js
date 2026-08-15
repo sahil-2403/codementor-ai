@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {
   interviewFeedbackFallback,
   mentorFallback,
-  projectReviewFallback
+  practiceReviewFallback
 } from '../../src/services/aiFallback.service.js';
 
-test('project fallback is honest and unscored', () => {
-  const result = projectReviewFallback({ task: { evaluationChecklist: ['Validation', 'Error handling'] } });
+test('practice fallback is honest and unscored', () => {
+  const result = practiceReviewFallback({ task: { evaluationChecklist: ['Validation', 'Error handling'] } });
   assert.equal(result.score, null);
   assert.equal(result.aiAvailable, false);
   assert.deepEqual(result.weakTopicsDetected, []);

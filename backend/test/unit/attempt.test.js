@@ -26,7 +26,7 @@ test('second attempt is numbered two', async () => {
 
   const result = await createAttempt({
     model,
-    identityFilter: { user: 'u1', projectTask: 'p1' },
+    identityFilter: { user: 'u1', practiceTask: 'p1' },
     payload: { submittedCode: 'const value = 1;' },
     limitMessage: 'Attempt limit reached'
   });

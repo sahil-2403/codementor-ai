@@ -3,14 +3,14 @@ import { geminiClient } from './geminiClient.js';
 import { AI_ERROR_CODES, AIServiceError } from './aiErrors.js';
 import {
   interviewReviewResponseSchema,
-  projectReviewResponseSchema,
+  practiceReviewResponseSchema,
   roadmapResponseSchema,
   weeklyReportResponseSchema
 } from './aiSchemas.js';
 import {
   buildInterviewFeedbackPrompt,
   buildMentorPrompt,
-  buildProjectReviewPrompt,
+  buildPracticeReviewPrompt,
   buildQuizExplanationPrompt,
   buildRoadmapPrompt,
   buildWeeklyReportPrompt
@@ -71,12 +71,12 @@ export const aiProvider = {
     };
   },
 
-  async reviewProjectSubmission({ task, submission, userLevel = 'learner', weakTopics = [] }) {
+  async reviewPracticeSubmission({ task, submission, userLevel = 'learner', weakTopics = [] }) {
     ensureGeminiAvailable();
     const result = await geminiClient.generate({
-      ...buildProjectReviewPrompt({ task, submission, userLevel, weakTopics }),
-      schema: projectReviewResponseSchema,
-      validationMessage: 'Gemini project review did not match the expected schema'
+      ...buildPracticeReviewPrompt({ task, submission, userLevel, weakTopics }),
+      schema: practiceReviewResponseSchema,
+      validationMessage: 'Gemini practice review did not match the expected schema'
     });
     return { ...result.data, ...resultInfo(result) };
   },

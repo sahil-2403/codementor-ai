@@ -108,9 +108,9 @@ Page / Component
   -> Axios
 ```
 
-## Project and interview practice
+## Practice and interview attempts
 
-Each Project task or Interview question allows two attempts. The backend simply counts existing attempts and creates attempt 1 or 2. A third attempt is rejected.
+Each Practice task or Interview question allows two attempts. The backend simply counts existing attempts and creates attempt 1 or 2. A third attempt is rejected.
 
 The learner answer/submission is saved before Gemini review. If Gemini is unavailable, the saved attempt receives scoreless fallback guidance.
 
@@ -151,7 +151,7 @@ Also exercise the affected browser flow when changing routing, cookies, CSRF, on
 5. Complete Lessons and confirm progression updates.
 6. Submit a Quiz and confirm Dashboard/Progress updates.
 7. Open Mentor from a Lesson and confirm the preloaded prompt sends once.
-8. Create Project and Interview attempts and verify the two-attempt limit.
+8. Create Practice and Interview attempts and verify the two-attempt limit.
 9. Disable Gemini and verify honest fallback behavior.
 10. Generate a weekly report.
 11. Exercise admin archive/restore/delete and dependency messages.

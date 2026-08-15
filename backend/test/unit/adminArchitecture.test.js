@@ -4,13 +4,13 @@ import { readFileSync } from 'node:fs';
 
 const source = (relativePath) => readFileSync(new URL(`../../src/${relativePath}`, import.meta.url), 'utf8');
 
-test('admin router mounts catalog workspace and project task endpoints', () => {
+test('admin router mounts catalog workspace and practice task endpoints', () => {
   const routes = source('routes/admin.routes.js');
   assert.match(routes, /get\('\/courses\/:id\/workspace'[\s\S]*courseWorkspace/);
-  assert.match(routes, /get\('\/project-tasks'[\s\S]*listAdminProjectTasks/);
-  assert.match(routes, /post\('\/project-tasks'[\s\S]*createAdminProjectTask/);
-  assert.match(routes, /patch\('\/project-tasks\/:id\/status'[\s\S]*updateAdminProjectTaskStatus/);
-  assert.match(routes, /delete\('\/project-tasks\/:id'[\s\S]*deleteAdminProjectTask/);
+  assert.match(routes, /get\('\/practice-tasks'[\s\S]*listAdminPracticeTasks/);
+  assert.match(routes, /post\('\/practice-tasks'[\s\S]*createAdminPracticeTask/);
+  assert.match(routes, /patch\('\/practice-tasks\/:id\/status'[\s\S]*updateAdminPracticeTaskStatus/);
+  assert.match(routes, /delete\('\/practice-tasks\/:id'[\s\S]*deleteAdminPracticeTask/);
 });
 
 test('archived publishable catalog entities restore only to draft', () => {
@@ -25,7 +25,7 @@ test('all permanent admin deletion requires archived state', () => {
   const lesson = source('services/adminContent/lesson.service.js');
   const question = source('services/adminContent/question.service.js');
   const interview = source('services/adminContent/interviewQuestion.service.js');
-  const project = source('services/adminContent/projectTask.service.js');
+  const practice = source('services/adminContent/practiceTask.service.js');
   const template = source('services/adminContent/template.service.js');
 
   assert.match(common, /export const requireArchivedForDelete/);
@@ -36,7 +36,7 @@ test('all permanent admin deletion requires archived state', () => {
   assert.match(lesson, /requireArchivedForDelete\(lesson, 'Lesson'\)/);
   assert.match(question, /requireArchivedForDelete\(question,/);
   assert.match(interview, /requireArchivedForDelete\(impact\.question, 'Interview question'\)/);
-  assert.match(project, /requireArchivedForDelete\(project, 'Project task'\)/);
+  assert.match(practice, /requireArchivedForDelete\(practiceTask, 'Practice task'\)/);
   assert.match(template, /requireArchivedForDelete\(template, 'Roadmap template'\)/);
 });
 
@@ -56,16 +56,16 @@ test('course-owned model validation tolerates populated references', () => {
     'models/Lesson.js',
     'models/QuizQuestion.js',
     'models/InterviewQuestion.js',
-    'models/ProjectTask.js',
+    'models/PracticeTask.js',
     'models/RoadmapTemplate.js'
   ]) {
     assert.match(source(path), /referenceId/);
   }
 });
 
-test('project task history checks use the projectTask submission reference', () => {
-  const service = source('services/adminContent/projectTask.service.js');
-  assert.match(service, /ProjectSubmission\.countDocuments\(\{ projectTask: project\._id \}\)/);
+test('practice task history checks use the practiceTask submission reference', () => {
+  const service = source('services/adminContent/practiceTask.service.js');
+  assert.match(service, /PracticeSubmission\.countDocuments\(\{ practiceTask: practiceTask\._id \}\)/);
 });
 
 test('course lifecycle uses simple downward status updates', () => {
@@ -75,7 +75,7 @@ test('course lifecycle uses simple downward status updates', () => {
   assert.match(lifecycle, /const restoreCourseOwnedContent/);
   assert.match(lifecycle, /Topic\.updateMany\(\{ course: courseId \}, \{ status: 'archived' \}\)/);
   assert.match(lifecycle, /Topic\.updateMany\(\{ course: courseId \}, \{ status: 'active' \}\)/);
-  for (const model of ['Lesson', 'QuizQuestion', 'InterviewQuestion', 'ProjectTask', 'RoadmapTemplate']) {
+  for (const model of ['Lesson', 'QuizQuestion', 'InterviewQuestion', 'PracticeTask', 'RoadmapTemplate']) {
     assert.match(lifecycle, new RegExp(`${model}\\.updateMany\\(\\{ course: courseId \\}, \\{ status: 'draft' \\}\\)`));
   }
   assert.doesNotMatch(lifecycle, /statusBefore|manualArchive|archivedBy|\$cond/);
@@ -115,7 +115,7 @@ test('course permanent deletion cascades owned content but protects external ref
   assert.match(lifecycle, /Course\.countDocuments\(\{ recommendedPrerequisites: id \}\)/);
   assert.match(lifecycle, /Enrollment\.countDocuments/);
   assert.match(lifecycle, /CoursePlan\.countDocuments\(\{ course: id \}\)/);
-  for (const model of ['RoadmapTemplate', 'ProjectTask', 'InterviewQuestion', 'QuizQuestion', 'Lesson', 'Topic']) {
+  for (const model of ['RoadmapTemplate', 'PracticeTask', 'InterviewQuestion', 'QuizQuestion', 'Lesson', 'Topic']) {
     assert.match(lifecycle, new RegExp(`${model}\\.deleteMany\\(\\{ course: id \\}\\)`));
   }
   assert.match(lifecycle, /Learner enrollments or roadmaps already reference this Course/);

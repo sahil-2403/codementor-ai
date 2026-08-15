@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 import { Lesson } from '../../models/Lesson.js';
 import { QuizQuestion } from '../../models/QuizQuestion.js';
-import { ProjectTask } from '../../models/ProjectTask.js';
-import { ProjectSubmission } from '../../models/ProjectSubmission.js';
+import { PracticeTask } from '../../models/PracticeTask.js';
+import { PracticeSubmission } from '../../models/PracticeSubmission.js';
 import { QuizAttempt } from '../../models/QuizAttempt.js';
 import { CoursePlan } from '../../models/CoursePlan.js';
 import { Progress } from '../../models/Progress.js';
@@ -68,12 +68,12 @@ export const resolveLessonImpact = async (lessonId) => {
     'Lesson'
   );
   const quizDocs = await QuizQuestion.find({ relatedLesson: lesson._id }).select('_id');
-  const projectDocs = await ProjectTask.find({ relatedLessons: lesson._id }).select('_id');
+  const practiceDocs = await PracticeTask.find({ relatedLessons: lesson._id }).select('_id');
   const quizQuestionIds = ids(quizDocs);
-  const projectTaskIds = ids(projectDocs);
+  const practiceTaskIds = ids(practiceDocs);
 
-  const [projectSubmissions, quizAttempts, affectedCoursePlans, progressRecords, revisionItems, weeklyReports, templates] = await Promise.all([
-    projectTaskIds.length ? ProjectSubmission.countDocuments({ projectTask: { $in: projectTaskIds } }) : 0,
+  const [practiceSubmissions, quizAttempts, affectedCoursePlans, progressRecords, revisionItems, weeklyReports, templates] = await Promise.all([
+    practiceTaskIds.length ? PracticeSubmission.countDocuments({ practiceTask: { $in: practiceTaskIds } }) : 0,
     quizQuestionIds.length ? QuizAttempt.countDocuments({ 'answers.question': { $in: quizQuestionIds } }) : 0,
     CoursePlan.countDocuments({ $or: [{ 'modules.lessons.lesson': lesson._id }, ...(quizQuestionIds.length ? [{ 'modules.quizQuestions': { $in: quizQuestionIds } }] : [])] }),
     Progress.countDocuments({ completedLessons: lesson._id }),
@@ -85,11 +85,11 @@ export const resolveLessonImpact = async (lessonId) => {
   return {
     lesson,
     quizQuestionIds,
-    projectTaskIds,
+    practiceTaskIds,
     counts: {
       quizQuestions: quizQuestionIds.length,
-      projects: projectTaskIds.length,
-      projectSubmissions,
+      practiceTasks: practiceTaskIds.length,
+      practiceSubmissions,
       quizAttempts,
       affectedCoursePlans,
       progressRecords,
@@ -206,7 +206,7 @@ export const changeLessonStatus = async ({ id, status, confirmPublish = false })
     await lesson.save();
     await Promise.all([
       QuizQuestion.updateMany({ _id: { $in: impact.quizQuestionIds } }, { status: 'archived' }),
-      ProjectTask.updateMany({ _id: { $in: impact.projectTaskIds } }, { status: 'archived' })
+      PracticeTask.updateMany({ _id: { $in: impact.practiceTaskIds } }, { status: 'archived' })
     ]);
   } else {
     if (lesson.status !== PUBLISHABLE_STATUS.ARCHIVED) return { lesson, counts: impact.counts };
@@ -225,7 +225,7 @@ export const changeLessonStatus = async ({ id, status, confirmPublish = false })
     await lesson.save();
     await Promise.all([
       QuizQuestion.updateMany({ _id: { $in: impact.quizQuestionIds } }, { status: 'draft' }),
-      ProjectTask.updateMany({ _id: { $in: impact.projectTaskIds } }, { status: 'draft' })
+      PracticeTask.updateMany({ _id: { $in: impact.practiceTaskIds } }, { status: 'draft' })
     ]);
   }
 
@@ -234,11 +234,11 @@ export const changeLessonStatus = async ({ id, status, confirmPublish = false })
 
 export const deleteLesson = async (id) => {
   const impact = await resolveLessonImpact(id);
-  const { lesson, quizQuestionIds, projectTaskIds, counts } = impact;
+  const { lesson, quizQuestionIds, practiceTaskIds, counts } = impact;
   requireArchivedForDelete(lesson, 'Lesson');
   await assertNotUsedByTemplate(lesson._id);
 
-  const historicalUsage = counts.projectSubmissions + counts.quizAttempts + counts.affectedCoursePlans +
+  const historicalUsage = counts.practiceSubmissions + counts.quizAttempts + counts.affectedCoursePlans +
     counts.progressRecords + counts.revisionItems + counts.weeklyReports;
   if (historicalUsage > 0) {
     throw new ApiError(
@@ -250,7 +250,7 @@ export const deleteLesson = async (id) => {
   }
 
   await Promise.all([
-    ProjectTask.deleteMany({ _id: { $in: projectTaskIds } }),
+    PracticeTask.deleteMany({ _id: { $in: practiceTaskIds } }),
     QuizQuestion.deleteMany({ _id: { $in: quizQuestionIds } })
   ]);
   await Lesson.deleteOne({ _id: lesson._id });

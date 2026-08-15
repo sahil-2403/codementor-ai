@@ -15,7 +15,7 @@ const lifecyclePages = [
   'src/pages/admin/CourseLessonsPage.jsx',
   'src/pages/admin/CourseQuestionBankPage.jsx',
   'src/pages/admin/CourseInterviewQuestionsPage.jsx',
-  'src/pages/admin/CourseProjectsPage.jsx',
+  'src/pages/admin/CoursePracticeTasksPage.jsx',
   'src/pages/admin/TemplatesPage.jsx'
 ];
 
@@ -48,7 +48,7 @@ test('course UI explains simple downward archive and restore behavior', async ()
   assert.match(page, /Learning Paths and prerequisite references are not changed/);
   assert.match(page, /Restore this Course to Draft/);
   assert.match(page, /Topics become Active/);
-  assert.match(page, /Lessons, Questions, Projects, and Roadmap Templates become Draft/);
+  assert.match(page, /Lessons, Questions, Practice Tasks, and Roadmap Templates become Draft/);
 });
 
 test('technology admin pages call the real admin api methods', async () => {

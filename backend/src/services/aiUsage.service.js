@@ -9,7 +9,7 @@ const limitMap = {
   [AI_FEATURES.ROADMAP_GENERATION]: () => env.aiLimits.roadmap,
   [AI_FEATURES.QUIZ_EXPLANATION]: () => env.aiLimits.quizExplanation,
   [AI_FEATURES.WEEKLY_REPORT]: () => env.aiLimits.weeklyReport,
-  [AI_FEATURES.PROJECT_REVIEW]: () => env.aiLimits.projectReview,
+  [AI_FEATURES.PRACTICE_REVIEW]: () => env.aiLimits.practiceReview,
   [AI_FEATURES.INTERVIEW_FEEDBACK]: () => env.aiLimits.interviewFeedback
 };
 
@@ -18,7 +18,7 @@ const learnerFeatures = Object.freeze([
   AI_FEATURES.ROADMAP_GENERATION,
   AI_FEATURES.QUIZ_EXPLANATION,
   AI_FEATURES.WEEKLY_REPORT,
-  AI_FEATURES.PROJECT_REVIEW,
+  AI_FEATURES.PRACTICE_REVIEW,
   AI_FEATURES.INTERVIEW_FEEDBACK
 ]);
 
