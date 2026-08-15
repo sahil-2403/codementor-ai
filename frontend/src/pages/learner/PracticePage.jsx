@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from "react-router-dom";
-import { Code2, FolderCode, LockKeyhole } from "lucide-react";
+import { Code2, Dumbbell, LockKeyhole } from "lucide-react";
 import Loader from "../../components/common/Loader.jsx";
 import Card from "../../components/common/Card.jsx";
 import Badge from "../../components/common/Badge.jsx";
 import PageShell from "../../components/common/PageShell.jsx";
 import PageHeader from "../../components/common/PageHeader.jsx";
 import EmptyState from "../../components/common/EmptyState.jsx";
-import { projectApi } from '../../api/projectApi.js';
+import { practiceApi } from '../../api/practiceApi.js';
 
 const reviewLabel = (submission) => {
   if (!submission) return null;
@@ -23,10 +23,10 @@ const reviewLabel = (submission) => {
   if (submission.status === "reviewing") {
     return { label: "Reviewing", variant: "info" };
   }
-  return { label: "Submission saved", variant: "neutral" };
+  return { label: "Attempt saved", variant: "neutral" };
 };
 
-export default function ProjectsPage() {
+export default function PracticePage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +37,7 @@ export default function ProjectsPage() {
     setIsLoading(true);
     setError(null);
 
-    projectApi.tasks()
+    practiceApi.tasks()
       .then((result) => {
         if (active) setData(result);
       })
@@ -53,11 +53,11 @@ export default function ProjectsPage() {
     };
   }, [loadAttempt]);
 
-  if (isLoading) return <Loader label="Loading project tasks..." />;
+  if (isLoading) return <Loader label="Loading practice tasks..." />;
   if (error) {
     return (
       <EmptyState
-        title="Projects are unavailable"
+        title="Practice is unavailable"
         description={error.message}
         actionLabel="Try again"
         onAction={() => setLoadAttempt((value) => value + 1)}
@@ -67,7 +67,7 @@ export default function ProjectsPage() {
 
   const tasks = data?.tasks || [];
   const grouped = tasks.reduce((groups, task) => {
-    const key = task.moduleTitle || "Practice projects";
+    const key = task.moduleTitle || "Practice tasks";
     groups[key] = [...(groups[key] || []), task];
     return groups;
   }, {});
@@ -76,21 +76,21 @@ export default function ProjectsPage() {
     <PageShell className="space-y-5 pb-6">
       <PageHeader
         variant="compact"
-        eyebrow="Project practice"
-        eyebrowIcon={FolderCode}
-        title="Practice projects"
-        description="Apply what you learn through coding tasks, save your solutions, and review available feedback."
+        eyebrow="Coding practice"
+        eyebrowIcon={Dumbbell}
+        title="Practice"
+        description="Apply what you learn with focused coding tasks, save your attempts, and review available feedback."
       />
 
       {!tasks.length ? (
         <EmptyState
-          title="No project tasks yet"
-          description="Project tasks will appear here when they are available for your learning path."
+          title="No practice tasks yet"
+          description="Practice tasks will appear here when they are available for your current course."
         />
       ) : (
         <div className="space-y-10">
           {Object.entries(grouped).map(([moduleTitle, moduleTasks]) => {
-            const sectionId = `projects-${moduleTitle.replaceAll(" ", "-").toLowerCase()}`;
+            const sectionId = `practice-${moduleTitle.replaceAll(" ", "-").toLowerCase()}`;
 
             return (
               <section key={moduleTitle} aria-labelledby={sectionId}>
@@ -178,11 +178,11 @@ export default function ProjectsPage() {
                             </span>
                           ) : (
                             <Link
-                              to={`/projects/${task._id}`}
+                              to={`/practice/${task._id}`}
                               className="ui-button ui-button--primary min-h-9 gap-2 px-3.5 text-xs sm:text-sm"
                             >
                               <Code2 size={16} aria-hidden="true" />
-                              Open task
+                              Start practice
                             </Link>
                           )}
                         </div>

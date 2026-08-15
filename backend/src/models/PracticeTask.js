@@ -5,7 +5,7 @@ import { Lesson } from './Lesson.js';
 const referenceId = (value) => value?._id || value;
 const referenceString = (value) => String(referenceId(value) || '');
 
-const projectTaskSchema = new mongoose.Schema(
+const practiceTaskSchema = new mongoose.Schema(
   {
     course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true, index: true },
     technologies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Technology' }],
@@ -28,7 +28,7 @@ const projectTaskSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-projectTaskSchema.pre('validate', async function validateOwnership() {
+practiceTaskSchema.pre('validate', async function validateOwnership() {
   const courseId = referenceId(this.course);
   const lessonIds = (this.relatedLessons || []).map(referenceId).filter(Boolean);
   if (!courseId) return;
@@ -38,16 +38,16 @@ projectTaskSchema.pre('validate', async function validateOwnership() {
     lessonIds.length ? Lesson.find({ _id: { $in: lessonIds } }).select('_id course').lean() : []
   ]);
 
-  if (!course || course.status === 'archived') this.invalidate('course', 'Project must belong to an available course');
+  if (!course || course.status === 'archived') this.invalidate('course', 'Practice task must belong to an available course');
   if (lessons.length !== new Set(lessonIds.map(String)).size) this.invalidate('relatedLessons', 'One or more related lessons do not exist');
   else if (lessons.some((lesson) => referenceString(lesson.course) !== referenceString(courseId))) {
     this.invalidate('relatedLessons', 'All related lessons must belong to the same course');
   }
 });
 
-projectTaskSchema.index({ course: 1, slug: 1 }, { unique: true });
-projectTaskSchema.index({ course: 1, status: 1, difficulty: 1, moduleTitle: 1 });
-projectTaskSchema.index({ technologies: 1, status: 1 });
-projectTaskSchema.index({ title: 'text', description: 'text', tags: 'text' });
+practiceTaskSchema.index({ course: 1, slug: 1 }, { unique: true });
+practiceTaskSchema.index({ course: 1, status: 1, difficulty: 1, moduleTitle: 1 });
+practiceTaskSchema.index({ technologies: 1, status: 1 });
+practiceTaskSchema.index({ title: 'text', description: 'text', tags: 'text' });
 
-export const ProjectTask = mongoose.model('ProjectTask', projectTaskSchema);
+export const PracticeTask = mongoose.model('PracticeTask', practiceTaskSchema);

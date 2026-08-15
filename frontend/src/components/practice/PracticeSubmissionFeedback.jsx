@@ -23,7 +23,7 @@ const normalizeChecklistItem = (entry) => {
   return { label: "Review item", detail: "", passed: false };
 };
 
-export default function ProjectSubmissionFeedback({ submission }) {
+export default function PracticeSubmissionFeedback({ submission }) {
   const fallback = isFallbackReview(submission);
   const feedback = submission.aiFeedback;
   if (!feedback?.summary) return null;
@@ -42,7 +42,7 @@ export default function ProjectSubmissionFeedback({ submission }) {
           title="Detailed review unavailable"
           className="mb-4"
         >
-          Your submission is saved. This checklist has no score, does not add
+          Your attempt is saved. This checklist has no score, does not add
           practice topics, and does not change your progress.
         </InlineAlert>
       )}

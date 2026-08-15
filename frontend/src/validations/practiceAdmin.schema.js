@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const csv = (value) => String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 
-export const projectTaskFormSchema = z.object({
+export const practiceTaskFormSchema = z.object({
   course: z.string().min(1, 'Select a Course'),
   title: z.string().trim().min(2, 'Title is required').max(180),
   description: z.string().trim().min(10, 'Description must contain at least 10 characters').max(4000),
@@ -19,7 +19,7 @@ export const projectTaskFormSchema = z.object({
   estimatedMinutes: z.coerce.number().int().min(15).max(1440).default(90)
 });
 
-export const parseProjectTaskForm = (values) => ({
+export const parsePracticeTaskForm = (values) => ({
   course: values.course,
   title: values.title.trim(),
   description: values.description.trim(),

@@ -29,8 +29,8 @@ const MentorPage = lazy(() => import('../pages/learner/MentorPage.jsx'));
 const ProgressPage = lazy(() => import('../pages/learner/ProgressPage.jsx'));
 const ReportsPage = lazy(() => import('../pages/learner/ReportsPage.jsx'));
 const ProfilePage = lazy(() => import('../pages/learner/ProfilePage.jsx'));
-const ProjectsPage = lazy(() => import('../pages/learner/ProjectsPage.jsx'));
-const ProjectTaskPage = lazy(() => import('../pages/learner/ProjectTaskPage.jsx'));
+const PracticePage = lazy(() => import('../pages/learner/PracticePage.jsx'));
+const PracticeTaskPage = lazy(() => import('../pages/learner/PracticeTaskPage.jsx'));
 const InterviewPage = lazy(() => import('../pages/learner/InterviewPage.jsx'));
 
 const AdminDashboardPage = lazy(() => import('../pages/admin/AdminDashboardPage.jsx'));
@@ -51,8 +51,8 @@ const CourseQuestionBankPage = lazy(() => import('../pages/admin/CourseQuestionB
 const CourseQuestionEditorPage = lazy(() => import('../pages/admin/CourseQuestionEditorPage.jsx'));
 const CourseInterviewQuestionsPage = lazy(() => import('../pages/admin/CourseInterviewQuestionsPage.jsx'));
 const CourseInterviewQuestionEditorPage = lazy(() => import('../pages/admin/CourseInterviewQuestionEditorPage.jsx'));
-const CourseProjectsPage = lazy(() => import('../pages/admin/CourseProjectsPage.jsx'));
-const CourseProjectEditorPage = lazy(() => import('../pages/admin/CourseProjectEditorPage.jsx'));
+const CoursePracticeTasksPage = lazy(() => import('../pages/admin/CoursePracticeTasksPage.jsx'));
+const CoursePracticeTaskEditorPage = lazy(() => import('../pages/admin/CoursePracticeTaskEditorPage.jsx'));
 const TemplatesPage = lazy(() => import('../pages/admin/TemplatesPage.jsx'));
 const TemplateEditorPage = lazy(() => import('../pages/admin/TemplateEditorPage.jsx'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage.jsx'));
@@ -90,8 +90,8 @@ export default function AppRoutes() {
             <Route path="/progress" element={<ProgressPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/projects/:taskId" element={<ProjectTaskPage />} />
+            <Route path="/practice" element={<PracticePage />} />
+            <Route path="/practice/:taskId" element={<PracticeTaskPage />} />
             <Route path="/interview" element={<InterviewPage />} />
           </Route>
         </Route>
@@ -133,9 +133,9 @@ export default function AppRoutes() {
             <Route path="/admin/questions/interview/new" element={<CourseInterviewQuestionEditorPage />} />
             <Route path="/admin/questions/interview/:questionId/edit" element={<CourseInterviewQuestionEditorPage />} />
 
-            <Route path="/admin/project-tasks" element={<CourseProjectsPage />} />
-            <Route path="/admin/project-tasks/new" element={<CourseProjectEditorPage />} />
-            <Route path="/admin/project-tasks/:projectId/edit" element={<CourseProjectEditorPage />} />
+            <Route path="/admin/practice-tasks" element={<CoursePracticeTasksPage />} />
+            <Route path="/admin/practice-tasks/new" element={<CoursePracticeTaskEditorPage />} />
+            <Route path="/admin/practice-tasks/:practiceTaskId/edit" element={<CoursePracticeTaskEditorPage />} />
 
             <Route path="/admin/templates" element={<TemplatesPage />} />
             <Route path="/admin/templates/new" element={<TemplateEditorPage />} />

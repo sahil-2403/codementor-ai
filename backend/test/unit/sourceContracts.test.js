@@ -12,22 +12,22 @@ const collectSourceFiles = (directory) => readdirSync(directory, { withFileTypes
 
 test('Gemini schemas constrain scores and require roadmap modules', () => {
   const schemas = source('ai/aiSchemas.js');
-  assert.match(schemas, /projectReviewResponseSchema[\s\S]*score:\s*z\.coerce\.number\(\)\.min\(0\)\.max\(100\)/);
+  assert.match(schemas, /practiceReviewResponseSchema[\s\S]*score:\s*z\.coerce\.number\(\)\.min\(0\)\.max\(100\)/);
   assert.match(schemas, /interviewReviewResponseSchema[\s\S]*score:\s*z\.coerce\.number\(\)\.min\(0\)\.max\(100\)/);
   assert.match(schemas, /roadmapResponseSchema[\s\S]*modules:[\s\S]*\.min\(1\)/);
 });
 
-test('project and interview attempts use a simple two-attempt helper', () => {
+test('practice and interview attempts use a simple two-attempt helper', () => {
   const helper = source('services/attempt.service.js');
-  const projects = source('models/ProjectSubmission.js');
+  const practice = source('models/PracticeSubmission.js');
   const interviews = source('models/InterviewAttempt.js');
 
   assert.match(helper, /countDocuments\(identityFilter\)/);
   assert.match(helper, /attemptsUsed >= 2/);
   assert.match(helper, /attemptNumber: attemptsUsed \+ 1/);
-  assert.match(projects, /attemptNumber:[\s\S]*required: true/);
+  assert.match(practice, /attemptNumber:[\s\S]*required: true/);
   assert.match(interviews, /attemptNumber:[\s\S]*required: true/);
-  assert.doesNotMatch(projects, /partialFilterExpression|attempt_slot_unique/);
+  assert.doesNotMatch(practice, /partialFilterExpression|attempt_slot_unique/);
   assert.doesNotMatch(interviews, /partialFilterExpression|attempt_slot_unique/);
 });
 

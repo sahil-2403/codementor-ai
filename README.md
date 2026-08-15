@@ -1,13 +1,13 @@
 # CodeMentor AI
 
-CodeMentor AI is a MERN learning platform for structured coding practice. Learners can start an individual Course or follow an ordered Learning Path, receive a Course-level roadmap, study Lessons, complete Quizzes and Projects, practise Interview questions, review progress, and use optional Gemini-assisted guidance.
+CodeMentor AI is a MERN learning platform for structured coding practice. Learners can start an individual Course or follow an ordered Learning Path, receive a Course-level roadmap, study Lessons, complete Quizzes and Practice tasks, practise Interview questions, review progress, and use optional Gemini-assisted guidance.
 
 ## Product principles
 
 - **The server owns learning state.** Enrollments, roadmaps, unlocks, attempts, scores, weak topics, revisions, and content lifecycle are persisted in MongoDB.
-- **Courses own curriculum.** Topics, Lessons, Questions, Project Tasks, Interview practice, and Roadmap Templates are scoped to a Course.
+- **Courses own curriculum.** Topics, Lessons, Questions, Practice Tasks, Interview practice, and Roadmap Templates are scoped to a Course.
 - **Technologies classify content.** A learner can start a Course directly without selecting a programming language first.
-- **Deterministic learning features do not require AI.** Authentication, onboarding, template roadmaps, Lessons, Quizzes, Projects, Interview attempts, Progress, and admin content management remain available when Gemini is disabled.
+- **Deterministic learning features do not require AI.** Authentication, onboarding, template roadmaps, Lessons, Quizzes, Practice, Interview attempts, Progress, and admin content management remain available when Gemini is disabled.
 - **AI output is labelled honestly.** Provider failures use stored/deterministic fallback guidance without presenting fallback content as generated analysis.
 - **Hireflow is the complexity ceiling.** CodeMentor may be simpler than Hireflow, but it must not introduce architecture beyond the current Hireflow project unless the project scope is explicitly raised.
 
@@ -23,7 +23,7 @@ CodeMentor AI is a MERN learning platform for structured coding practice. Learne
 - Ordered modules, Lesson completion, and module Quizzes
 - Weak-topic and Revision tracking
 - Contextual Gemini Mentor with saved Course explanations as fallback
-- Project Tasks and Interview practice with two attempts
+- Practice Tasks and Interview practice with two attempts
 - Dashboard, Progress, and weekly Reports
 - Multiple independent Enrollments with current-Course switching
 
@@ -36,7 +36,7 @@ CodeMentor AI is a MERN learning platform for structured coding practice. Learne
 - Lessons
 - Quiz Questions and Skill Checks
 - Interview Questions
-- Project Tasks
+- Practice Tasks
 - Roadmap Templates
 
 Admin content uses a consistent lifecycle: active/draft/published content is archived before permanent deletion. Archiving a Course archives its owned curriculum; restoring it returns the Course and publishable child content to Draft while Topics become Active. External references can block archive or deletion and return clear resolution instructions.
@@ -163,7 +163,7 @@ GEMINI_API_KEY=your_key
 GEMINI_MODEL=gemini-1.5-flash
 ```
 
-Gemini-assisted features include roadmap adjustment, Mentor answers, Quiz explanations, Project reviews, Interview feedback, and weekly summaries. Each feature keeps an honest stored/deterministic fallback where appropriate.
+Gemini-assisted features include roadmap adjustment, Mentor answers, Quiz explanations, Practice reviews, Interview feedback, and weekly summaries. Each feature keeps an honest stored/deterministic fallback where appropriate.
 
 ## Email
 

@@ -20,7 +20,7 @@ export const roadmapResponseSchema = z.object({
   })).min(1)
 });
 
-export const projectReviewResponseSchema = z.object({
+export const practiceReviewResponseSchema = z.object({
   score: z.coerce.number().min(0).max(100),
   summary: z.string().min(1),
   strengths: z.array(z.string()).default([]),

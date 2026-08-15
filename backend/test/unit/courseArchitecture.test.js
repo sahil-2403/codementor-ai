@@ -18,7 +18,7 @@ test('catalog separates technology classification from independently learnable c
 });
 
 test('course is the ownership boundary for curriculum content', () => {
-  for (const model of ['Topic.js', 'Lesson.js', 'QuizQuestion.js', 'InterviewQuestion.js', 'ProjectTask.js']) {
+  for (const model of ['Topic.js', 'Lesson.js', 'QuizQuestion.js', 'InterviewQuestion.js', 'PracticeTask.js']) {
     const content = source(`models/${model}`);
     assert.match(content, /course:[\s\S]*ref:\s*['"]Course['"]/);
   }
@@ -70,5 +70,6 @@ test('course workspace exposes scoped curriculum management', () => {
   assert.match(workspace, /Lesson[\s\S]*course:\s*course\._id/);
   assert.match(workspace, /QuizQuestion[\s\S]*bank:\s*'quiz'/);
   assert.match(workspace, /QuizQuestion[\s\S]*bank:\s*'skill_check'/);
+  assert.match(workspace, /PracticeTask[\s\S]*course:\s*course\._id/);
   assert.match(workspace, /RoadmapTemplate[\s\S]*course:\s*course\._id/);
 });

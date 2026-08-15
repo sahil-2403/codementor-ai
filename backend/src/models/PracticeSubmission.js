@@ -9,10 +9,10 @@ const checklistFeedbackSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const projectSubmissionSchema = new mongoose.Schema(
+const practiceSubmissionSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    projectTask: { type: mongoose.Schema.Types.ObjectId, ref: 'ProjectTask', required: true, index: true },
+    practiceTask: { type: mongoose.Schema.Types.ObjectId, ref: 'PracticeTask', required: true, index: true },
     attemptNumber: { type: Number, enum: [1, 2], required: true },
     submittedCode: { type: String, default: '' },
     submittedExplanation: { type: String, default: '' },
@@ -40,6 +40,6 @@ const projectSubmissionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-projectSubmissionSchema.index({ user: 1, projectTask: 1, createdAt: -1 });
+practiceSubmissionSchema.index({ user: 1, practiceTask: 1, createdAt: -1 });
 
-export const ProjectSubmission = mongoose.model('ProjectSubmission', projectSubmissionSchema);
+export const PracticeSubmission = mongoose.model('PracticeSubmission', practiceSubmissionSchema);

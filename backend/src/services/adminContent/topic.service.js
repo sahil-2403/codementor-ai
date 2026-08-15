@@ -2,9 +2,9 @@ import mongoose from 'mongoose';
 import { Topic } from '../../models/Topic.js';
 import { Lesson } from '../../models/Lesson.js';
 import { QuizQuestion } from '../../models/QuizQuestion.js';
-import { ProjectTask } from '../../models/ProjectTask.js';
+import { PracticeTask } from '../../models/PracticeTask.js';
 import { InterviewQuestion } from '../../models/InterviewQuestion.js';
-import { ProjectSubmission } from '../../models/ProjectSubmission.js';
+import { PracticeSubmission } from '../../models/PracticeSubmission.js';
 import { InterviewAttempt } from '../../models/InterviewAttempt.js';
 import { QuizAttempt } from '../../models/QuizAttempt.js';
 import { CoursePlan } from '../../models/CoursePlan.js';
@@ -27,18 +27,18 @@ export const resolveTopicImpact = async (topicId) => {
   const quizDocs = await QuizQuestion.find({ topic: topic._id }).select('_id');
   const lessonIds = ids(lessonDocs);
   const quizQuestionIds = ids(quizDocs);
-  const projectDocs = lessonIds.length
-    ? await ProjectTask.find({ course: topic.course?._id || topic.course, relatedLessons: { $in: lessonIds } }).select('_id')
+  const practiceDocs = lessonIds.length
+    ? await PracticeTask.find({ course: topic.course?._id || topic.course, relatedLessons: { $in: lessonIds } }).select('_id')
     : [];
   const interviewDocs = await InterviewQuestion.find({
     course: topic.course?._id || topic.course,
     topicRef: topic._id
   }).select('_id');
-  const projectTaskIds = ids(projectDocs);
+  const practiceTaskIds = ids(practiceDocs);
   const interviewQuestionIds = ids(interviewDocs);
 
-  const [projectSubmissions, interviewAttempts, quizAttempts, affectedCoursePlans, templates] = await Promise.all([
-    projectTaskIds.length ? ProjectSubmission.countDocuments({ projectTask: { $in: projectTaskIds } }) : 0,
+  const [practiceSubmissions, interviewAttempts, quizAttempts, affectedCoursePlans, templates] = await Promise.all([
+    practiceTaskIds.length ? PracticeSubmission.countDocuments({ practiceTask: { $in: practiceTaskIds } }) : 0,
     interviewQuestionIds.length ? InterviewAttempt.countDocuments({ question: { $in: interviewQuestionIds } }) : 0,
     quizQuestionIds.length ? QuizAttempt.countDocuments({ 'answers.question': { $in: quizQuestionIds } }) : 0,
     lessonIds.length || quizQuestionIds.length
@@ -56,14 +56,14 @@ export const resolveTopicImpact = async (topicId) => {
     topic,
     lessonIds,
     quizQuestionIds,
-    projectTaskIds,
+    practiceTaskIds,
     interviewQuestionIds,
     counts: {
       lessons: lessonIds.length,
       quizQuestions: quizQuestionIds.length,
-      projects: projectTaskIds.length,
+      practiceTasks: practiceTaskIds.length,
       interviewQuestions: interviewQuestionIds.length,
-      projectSubmissions,
+      practiceSubmissions,
       interviewAttempts,
       quizAttempts,
       affectedCoursePlans,
@@ -168,7 +168,7 @@ export const changeTopicStatus = async ({ id, status }) => {
     await Promise.all([
       Lesson.updateMany({ _id: { $in: impact.lessonIds } }, { status: 'archived' }),
       QuizQuestion.updateMany({ _id: { $in: impact.quizQuestionIds } }, { status: 'archived' }),
-      ProjectTask.updateMany({ _id: { $in: impact.projectTaskIds } }, { status: 'archived' }),
+      PracticeTask.updateMany({ _id: { $in: impact.practiceTaskIds } }, { status: 'archived' }),
       InterviewQuestion.updateMany({ _id: { $in: impact.interviewQuestionIds } }, { status: 'archived' })
     ]);
   } else {
@@ -183,7 +183,7 @@ export const changeTopicStatus = async ({ id, status }) => {
     await Promise.all([
       Lesson.updateMany({ _id: { $in: impact.lessonIds } }, { status: 'draft' }),
       QuizQuestion.updateMany({ _id: { $in: impact.quizQuestionIds } }, { status: 'draft' }),
-      ProjectTask.updateMany({ _id: { $in: impact.projectTaskIds } }, { status: 'draft' }),
+      PracticeTask.updateMany({ _id: { $in: impact.practiceTaskIds } }, { status: 'draft' }),
       InterviewQuestion.updateMany({ _id: { $in: impact.interviewQuestionIds } }, { status: 'draft' })
     ]);
   }
@@ -193,7 +193,7 @@ export const changeTopicStatus = async ({ id, status }) => {
 
 export const deleteTopic = async (id) => {
   const impact = await resolveTopicImpact(id);
-  const { topic, lessonIds, quizQuestionIds, projectTaskIds, interviewQuestionIds, counts } = impact;
+  const { topic, lessonIds, quizQuestionIds, practiceTaskIds, interviewQuestionIds, counts } = impact;
   requireArchivedForDelete(topic, 'Topic');
 
   if (counts.templates) {
@@ -205,7 +205,7 @@ export const deleteTopic = async (id) => {
     );
   }
 
-  const history = counts.projectSubmissions + counts.interviewAttempts + counts.quizAttempts + counts.affectedCoursePlans;
+  const history = counts.practiceSubmissions + counts.interviewAttempts + counts.quizAttempts + counts.affectedCoursePlans;
   if (history > 0) {
     throw new ApiError(
       409,
@@ -216,7 +216,7 @@ export const deleteTopic = async (id) => {
   }
 
   await Promise.all([
-    ProjectTask.deleteMany({ _id: { $in: projectTaskIds } }),
+    PracticeTask.deleteMany({ _id: { $in: practiceTaskIds } }),
     InterviewQuestion.deleteMany({ _id: { $in: interviewQuestionIds } }),
     QuizQuestion.deleteMany({ _id: { $in: quizQuestionIds } }),
     Lesson.deleteMany({ _id: { $in: lessonIds } })

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BookOpen, ClipboardCheck, FileQuestion, Hammer, Layers3, MessageSquareText, Pencil, Tags } from 'lucide-react';
+import { ArrowLeft, BookOpen, ClipboardCheck, Dumbbell, FileQuestion, Layers3, MessageSquareText, Pencil, Tags } from 'lucide-react';
 import Card from '../../components/common/Card.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
@@ -16,7 +16,7 @@ const sections = [
   { key: 'quizQuestions', title: 'Quiz questions', icon: FileQuestion, path: '/admin/questions/quiz', detail: (item) => `${item.published || 0} published · ${item.draft || 0} draft` },
   { key: 'skillChecks', title: 'Skill checks', icon: ClipboardCheck, path: '/admin/questions/skill-checks', detail: (item) => `${item.published || 0} published · ${item.draft || 0} draft` },
   { key: 'interviewQuestions', title: 'Interview practice', icon: MessageSquareText, path: '/admin/questions/interview', detail: (item) => `${item.published || 0} published · ${item.draft || 0} draft` },
-  { key: 'projects', title: 'Project tasks', icon: Hammer, path: '/admin/project-tasks', detail: (item) => `${item.published || 0} published · ${item.draft || 0} draft` },
+  { key: 'practiceTasks', title: 'Practice tasks', icon: Dumbbell, path: '/admin/practice-tasks', detail: (item) => `${item.published || 0} published · ${item.draft || 0} draft` },
   { key: 'templates', title: 'Roadmap templates', icon: Layers3, path: '/admin/templates', detail: (item) => `${item.published || 0} published · ${item.draft || 0} draft` }
 ];
 

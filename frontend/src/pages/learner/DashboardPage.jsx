@@ -6,7 +6,6 @@ import {
   BookOpenCheck,
   ClipboardCheck,
   Code2,
-  FolderCode,
   MessageSquareText,
   RefreshCw,
   Route,
@@ -70,7 +69,6 @@ const getPlanTone = (label = '') => {
   }
   if (normalized.includes('quiz')) return planTones.quiz;
   if (
-    normalized.includes('project') ||
     normalized.includes('practice') ||
     normalized.includes('interview')
   ) {
@@ -83,9 +81,9 @@ const getRecommendationMeta = (item = {}) => {
   const path = String(item.actionPath || '').toLowerCase();
   const text = `${item.title || ''} ${item.description || ''}`.toLowerCase();
 
-  if (path.includes('/projects') || text.includes('project')) {
+  if (path.includes('/practice') || text.includes('practice')) {
     return {
-      icon: FolderCode,
+      icon: Code2,
       iconClass: 'bg-emerald-50 text-emerald-600',
       linkClass: 'text-emerald-700'
     };

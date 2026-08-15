@@ -5,7 +5,7 @@ import { Topic } from '../../models/Topic.js';
 import { Lesson } from '../../models/Lesson.js';
 import { QuizQuestion } from '../../models/QuizQuestion.js';
 import { InterviewQuestion } from '../../models/InterviewQuestion.js';
-import { ProjectTask } from '../../models/ProjectTask.js';
+import { PracticeTask } from '../../models/PracticeTask.js';
 import { RoadmapTemplate } from '../../models/RoadmapTemplate.js';
 import { CoursePlan } from '../../models/CoursePlan.js';
 import { Enrollment } from '../../models/Enrollment.js';
@@ -113,7 +113,7 @@ const archiveCourseOwnedContent = async (courseId) => {
     Lesson.updateMany({ course: courseId }, { status: 'archived' }),
     QuizQuestion.updateMany({ course: courseId }, { status: 'archived' }),
     InterviewQuestion.updateMany({ course: courseId }, { status: 'archived' }),
-    ProjectTask.updateMany({ course: courseId }, { status: 'archived' }),
+    PracticeTask.updateMany({ course: courseId }, { status: 'archived' }),
     RoadmapTemplate.updateMany({ course: courseId }, { status: 'archived' })
   ]);
 };
@@ -124,7 +124,7 @@ const restoreCourseOwnedContent = async (courseId) => {
     Lesson.updateMany({ course: courseId }, { status: 'draft' }),
     QuizQuestion.updateMany({ course: courseId }, { status: 'draft' }),
     InterviewQuestion.updateMany({ course: courseId }, { status: 'draft' }),
-    ProjectTask.updateMany({ course: courseId }, { status: 'draft' }),
+    PracticeTask.updateMany({ course: courseId }, { status: 'draft' }),
     RoadmapTemplate.updateMany({ course: courseId }, { status: 'draft' })
   ]);
 };
@@ -222,7 +222,7 @@ export const deleteCourseSafely = async (id) => {
 
   await Promise.all([
     RoadmapTemplate.deleteMany({ course: id }),
-    ProjectTask.deleteMany({ course: id }),
+    PracticeTask.deleteMany({ course: id }),
     InterviewQuestion.deleteMany({ course: id }),
     QuizQuestion.deleteMany({ course: id }),
     Lesson.deleteMany({ course: id }),

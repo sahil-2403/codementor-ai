@@ -74,7 +74,7 @@ Services handle:
 - Roadmap creation and simple retry recovery
 - Lesson completion and Learning Path course advancement
 - Quizzes, progress, and revisions
-- Two-attempt Project/Interview practice
+- Two-attempt Practice/Interview flows
 - Mentor learning-context lookup
 - Admin content lifecycle rules
 
@@ -88,7 +88,7 @@ There is no application cache, queue/worker layer, repository layer, event bus, 
 
 1. A learner may have multiple active/completed Enrollments.
 2. `User.currentEnrollment` identifies the Enrollment currently used by learner pages.
-3. Dashboard, Roadmap, Lessons, Quizzes, Revisions, Mentor, Projects, Interview, and Reports resolve data through that Enrollment.
+3. Dashboard, Roadmap, Lessons, Quizzes, Revisions, Mentor, Practice, Interview, and Reports resolve data through that Enrollment.
 4. The learner can switch Enrollment from Profile.
 5. If an older user record has no current pointer, the backend chooses the latest active Enrollment, then falls back to the latest completed one.
 
@@ -115,7 +115,7 @@ When all Lessons in the current Learning Path Course are complete:
 5. Send the learner through the normal roadmap generation request for the next Course.
 6. If there is no next Course, mark the Learning Path Enrollment completed.
 
-### Project and interview attempts
+### Practice and interview attempts
 
 Each task/question allows two attempts:
 
@@ -124,7 +124,7 @@ Each task/question allows two attempts:
 3. Otherwise create attempt 1 or attempt 2.
 4. Save Gemini review when available, or scoreless fallback guidance when unavailable.
 
-Project Tasks and Interview Questions are always filtered to the learner's current Course.
+Practice Tasks and Interview Questions are always filtered to the learner's current Course.
 
 ### Mentor context
 
@@ -144,7 +144,7 @@ Draft / Published / Active
 
 - Permanent deletion requires Archived state.
 - A Course with active learner CoursePlans cannot be archived.
-- Archiving a Course archives its owned Topics, Lessons, Questions, Projects, Interview Questions, and Roadmap Templates.
+- Archiving a Course archives its owned Topics, Lessons, Questions, Practice Tasks, Interview Questions, and Roadmap Templates.
 - Restoring a Course returns the Course and publishable children to Draft; Topics become Active.
 - Quiz Questions used by active learner roadmaps cannot be archived independently.
 - Lower-level actions never change their parent.

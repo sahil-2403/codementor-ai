@@ -1,5 +1,5 @@
-import { ProjectTask } from '../../models/ProjectTask.js';
-import { ProjectSubmission } from '../../models/ProjectSubmission.js';
+import { PracticeTask } from '../../models/PracticeTask.js';
+import { PracticeSubmission } from '../../models/PracticeSubmission.js';
 import { Course } from '../../models/Course.js';
 import { Lesson } from '../../models/Lesson.js';
 import { ApiError } from '../../utils/ApiError.js';
@@ -28,7 +28,7 @@ const validateLessons = async ({ courseId, lessonIds = [], requirePublished = fa
     if (unavailable.length) {
       throw new ApiError(
         400,
-        'Publish all related lessons before publishing this project',
+        'Publish all related lessons before publishing this practice task',
         unavailable.map((lesson) => ({ field: 'relatedLessons', message: lesson.title })),
         'CONTENT_NOT_READY'
       );
@@ -38,29 +38,29 @@ const validateLessons = async ({ courseId, lessonIds = [], requirePublished = fa
   return lessons;
 };
 
-const validatePublish = async (project) => {
-  const courseId = referenceId(project.course);
+const validatePublish = async (practiceTask) => {
+  const courseId = referenceId(practiceTask.course);
   const course = await Course.findById(courseId).select('status title').lean();
   if (!course || course.status === 'archived') {
-    throw new ApiError(400, 'Project task must belong to an available Course', [
-      { field: 'course', message: 'Restore the parent Course before publishing this Project task.' }
+    throw new ApiError(400, 'Practice task must belong to an available Course', [
+      { field: 'course', message: 'Restore the parent Course before publishing this Practice task.' }
     ], 'CONTENT_NOT_READY');
   }
 
-  await validateLessons({ courseId, lessonIds: project.relatedLessons || [], requirePublished: true });
-  if (!project.requirements?.length) {
-    throw new ApiError(400, 'Add at least one project requirement before publishing', [
+  await validateLessons({ courseId, lessonIds: practiceTask.relatedLessons || [], requirePublished: true });
+  if (!practiceTask.requirements?.length) {
+    throw new ApiError(400, 'Add at least one practice requirement before publishing', [
       { field: 'requirements', message: 'At least one requirement is required' }
     ], 'CONTENT_NOT_READY');
   }
-  if (!String(project.expectedOutput || '').trim()) {
+  if (!String(practiceTask.expectedOutput || '').trim()) {
     throw new ApiError(400, 'Describe the expected output before publishing', [
       { field: 'expectedOutput', message: 'Expected output is required' }
     ], 'CONTENT_NOT_READY');
   }
 };
 
-export const listProjectTasks = async (query = {}) => {
+export const listPracticeTasks = async (query = {}) => {
   const search = makeSearchRegex(query.search);
   const filter = {};
   if (query.course) filter.course = query.course;
@@ -69,7 +69,7 @@ export const listProjectTasks = async (query = {}) => {
   if (search) filter.$or = [{ title: search }, { description: search }, { moduleTitle: search }, { tags: search }];
 
   return listWithPagination({
-    model: ProjectTask,
+    model: PracticeTask,
     filter,
     query,
     populate: [
@@ -79,77 +79,77 @@ export const listProjectTasks = async (query = {}) => {
   });
 };
 
-export const getProjectTask = async (id) => ensureFound(
-  await ProjectTask.findById(id)
+export const getPracticeTask = async (id) => ensureFound(
+  await PracticeTask.findById(id)
     .populate('course', 'title slug status technologies availableLevels')
     .populate('relatedLessons', 'title slug status difficulty topic'),
-  'Project task'
+  'Practice task'
 );
 
-export const createProjectTask = async (payload) => {
+export const createPracticeTask = async (payload) => {
   const course = ensureFound(await Course.findById(payload.course).select('_id status'), 'Course');
-  if (course.status === 'archived') throw new ApiError(409, 'Archived Courses cannot receive project tasks', [], 'COURSE_ARCHIVED');
+  if (course.status === 'archived') throw new ApiError(409, 'Archived Courses cannot receive practice tasks', [], 'COURSE_ARCHIVED');
   await validateLessons({ courseId: course._id, lessonIds: payload.relatedLessons || [] });
 
-  return ProjectTask.create({
+  return PracticeTask.create({
     ...payload,
     slug: generateSlug(payload.title),
     status: 'draft'
   });
 };
 
-export const updateProjectTask = async ({ id, payload }) => {
-  const project = ensureFound(await ProjectTask.findById(id), 'Project task');
-  if (project.status === 'archived') {
-    throw new ApiError(409, 'Archived project tasks are read-only. Restore the project first.', [], 'CONTENT_ARCHIVED');
+export const updatePracticeTask = async ({ id, payload }) => {
+  const practiceTask = ensureFound(await PracticeTask.findById(id), 'Practice task');
+  if (practiceTask.status === 'archived') {
+    throw new ApiError(409, 'Archived practice tasks are read-only. Restore the practice task first.', [], 'CONTENT_ARCHIVED');
   }
 
-  await validateLessons({ courseId: project.course, lessonIds: payload.relatedLessons ?? project.relatedLessons ?? [] });
+  await validateLessons({ courseId: practiceTask.course, lessonIds: payload.relatedLessons ?? practiceTask.relatedLessons ?? [] });
   const normalized = { ...payload };
   delete normalized.course;
   delete normalized.status;
   if (normalized.title) normalized.slug = generateSlug(normalized.title);
 
-  Object.assign(project, normalized);
-  if (project.status === 'published') await validatePublish(project);
-  await project.save();
-  return project;
+  Object.assign(practiceTask, normalized);
+  if (practiceTask.status === 'published') await validatePublish(practiceTask);
+  await practiceTask.save();
+  return practiceTask;
 };
 
-export const changeProjectTaskStatus = async (args) => {
-  const project = ensureFound(await ProjectTask.findById(args.id).select('course status'), 'Project task');
+export const changePracticeTaskStatus = async (args) => {
+  const practiceTask = ensureFound(await PracticeTask.findById(args.id).select('course status'), 'Practice task');
 
-  if (args.status === 'draft' && project.status === 'archived') {
-    const course = await Course.findById(project.course).select('status').lean();
+  if (args.status === 'draft' && practiceTask.status === 'archived') {
+    const course = await Course.findById(practiceTask.course).select('status').lean();
     if (!course || course.status === 'archived') {
-      throw new ApiError(409, 'This project task cannot be restored while its Course is archived.', [
+      throw new ApiError(409, 'This practice task cannot be restored while its Course is archived.', [
         { field: 'course', message: 'Restore the parent Course first.' }
       ], 'PARENT_ARCHIVED');
     }
   }
 
   return transitionStatus({
-    model: ProjectTask,
-    label: 'Project task',
+    model: PracticeTask,
+    label: 'Practice task',
     validatePublish,
     ...args
   });
 };
 
-export const deleteProjectTask = async (id) => {
-  const project = ensureFound(await ProjectTask.findById(id), 'Project task');
-  requireArchivedForDelete(project, 'Project task');
-  const submissions = await ProjectSubmission.countDocuments({ projectTask: project._id });
+export const deletePracticeTask = async (id) => {
+  const practiceTask = ensureFound(await PracticeTask.findById(id), 'Practice task');
+  requireArchivedForDelete(practiceTask, 'Practice task');
+  const submissions = await PracticeSubmission.countDocuments({ practiceTask: practiceTask._id });
 
   if (submissions) {
     throw new ApiError(
       409,
-      'This project task has learner submissions, so it cannot be permanently deleted.',
-      [{ field: 'submissions', message: `Keep the project archived. ${submissions} learner submission(s) must remain connected to it.` }],
+      'This practice task has learner submissions, so it cannot be permanently deleted.',
+      [{ field: 'submissions', message: `Keep the practice task archived. ${submissions} learner submission(s) must remain connected to it.` }],
       'CONTENT_HAS_HISTORY'
     );
   }
 
-  await project.deleteOne();
-  return project;
+  await practiceTask.deleteOne();
+  return practiceTask;
 };

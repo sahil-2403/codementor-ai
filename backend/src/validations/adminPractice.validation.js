@@ -4,7 +4,7 @@ import { objectIdSchema } from '../utils/zod.js';
 const cleanString = z.string().trim();
 const difficultyEnum = z.enum(['beginner', 'intermediate', 'advanced']);
 
-const projectTaskBody = z.object({
+const practiceTaskBody = z.object({
   course: objectIdSchema,
   title: cleanString.min(2).max(180),
   description: cleanString.min(10).max(4000),
@@ -21,13 +21,13 @@ const projectTaskBody = z.object({
   estimatedMinutes: z.coerce.number().int().min(15).max(1440).optional().default(90)
 });
 
-export const projectTaskSchema = z.object({ body: projectTaskBody });
+export const practiceTaskSchema = z.object({ body: practiceTaskBody });
 
-export const projectTaskUpdateSchema = z.object({
-  body: projectTaskBody.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
+export const practiceTaskUpdateSchema = z.object({
+  body: practiceTaskBody.partial().refine((body) => Object.keys(body).length > 0, 'Provide at least one field to update')
 });
 
-export const projectTaskStatusSchema = z.object({
+export const practiceTaskStatusSchema = z.object({
   body: z.object({
     status: z.enum(['draft', 'published', 'archived']),
     confirmPublish: z.boolean().optional().default(false)
@@ -36,7 +36,7 @@ export const projectTaskStatusSchema = z.object({
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['confirmPublish'],
-        message: 'Confirm that the project task has been reviewed before publishing'
+        message: 'Confirm that the practice task has been reviewed before publishing'
       });
     }
   })

@@ -27,14 +27,14 @@ export const quizExplanationFallback = ({ attempt, relatedContext = [] }) => ({
   aiAvailable: false
 });
 
-export const projectReviewFallback = ({ task }) => ({
+export const practiceReviewFallback = ({ task }) => ({
   score: null,
-  summary: 'Gemini review is unavailable. Your submission was saved. Review it manually against the project requirements.',
+  summary: 'Gemini review is unavailable. Your submission was saved. Review it manually against the practice task requirements.',
   strengths: [],
   improvements: [
-    'Check every project requirement against your code or pseudocode.',
+    'Check every practice task requirement against your code or pseudocode.',
     'Explain your approach, validation, edge cases, and tradeoffs.',
-    'Retry Gemini review later without creating another project attempt.'
+    'Retry Gemini review later without creating another practice attempt.'
   ],
   checklist: (task?.evaluationChecklist || []).map((item) => ({
     item,
@@ -43,7 +43,7 @@ export const projectReviewFallback = ({ task }) => ({
   })),
   weakTopicsDetected: [],
   provider: 'fallback',
-  model: 'manual-project-checklist',
+  model: 'manual-practice-checklist',
   inputTokens: 0,
   outputTokens: 0,
   estimatedCost: 0,

@@ -60,8 +60,8 @@ export const buildQuizExplanationPrompt = ({ userLevel = 'learner', weakTopics =
   maxTokens: 900
 });
 
-export const buildProjectReviewPrompt = ({ task, submission, userLevel = 'learner', weakTopics = [] }) => ({
-  system: 'You are CodeMentor AI. Review a software-development learner project submission using the supplied checklist. Return only JSON with score, summary, strengths[], improvements[], checklist[{item,passed,feedback}], and weakTopicsDetected[{topic,score}]. Base every judgment only on the submitted code, explanation, and task requirements.',
+export const buildPracticeReviewPrompt = ({ task, submission, userLevel = 'learner', weakTopics = [] }) => ({
+  system: 'You are CodeMentor AI. Review a software-development learner practice submission using the supplied checklist. Return only JSON with score, summary, strengths[], improvements[], checklist[{item,passed,feedback}], and weakTopicsDetected[{topic,score}]. Base every judgment only on the submitted code, explanation, and practice task requirements.',
   user: stringify({
     userLevel,
     task: {

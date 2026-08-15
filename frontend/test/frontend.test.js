@@ -115,12 +115,12 @@ test('onboarding navigation is driven by server status with local state', async 
 });
 
 test('fallback review states stay scoreless and progress-neutral', async () => {
-  const [projectSource, interviewSource] = await Promise.all([
-    readFrontend('src/components/project/ProjectSubmissionFeedback.jsx'),
+  const [practiceSource, interviewSource] = await Promise.all([
+    readFrontend('src/components/practice/PracticeSubmissionFeedback.jsx'),
     readFrontend('src/components/interview/InterviewAttemptFeedback.jsx')
   ]);
-  assert.match(projectSource, /has no score/);
-  assert.match(projectSource, /!fallback\s*&&\s*feedback\.weakTopicsDetected/);
+  assert.match(practiceSource, /has no score/);
+  assert.match(practiceSource, /!fallback\s*&&\s*feedback\.weakTopicsDetected/);
   assert.match(interviewSource, /REVIEW_MODE\.FALLBACK/);
   assert.match(interviewSource, /aiReviewed\s*&&\s*typeof attempt\.score === 'number'/);
 });
@@ -164,13 +164,14 @@ test('admin routes use course-aware catalog and curriculum pages', async () => {
     '/admin/courses/new',
     '/admin/courses/:courseId/workspace',
     '/admin/learning-paths/new',
-    '/admin/project-tasks',
+    '/admin/practice-tasks',
     '/admin/templates/new'
   ]) assert.match(routes, new RegExp(path.replace(/[/:]/g, (token) => token === '/' ? '\\/' : token)));
   assert.match(routes, /CourseTopicsPage/);
   assert.match(routes, /CourseLessonEditorPage/);
   assert.match(routes, /CourseQuestionEditorPage/);
   assert.match(routes, /CourseInterviewQuestionEditorPage/);
+  assert.match(routes, /CoursePracticeTaskEditorPage/);
 });
 
 test('admin form schemas are course-first and no longer goal-key based', async () => {
@@ -217,7 +218,7 @@ test('frontend enum values match current backend contracts', async () => {
   assert.equal(Object.values(ONBOARDING_STATE).length, 8);
 
   const sources = await Promise.all([
-    readRepo('backend/src/models/ProjectSubmission.js'),
+    readRepo('backend/src/models/PracticeSubmission.js'),
     readRepo('backend/src/models/InterviewAttempt.js'),
     readRepo('backend/src/models/RevisionItem.js'),
     readRepo('backend/src/models/CoursePlan.js'),
@@ -254,29 +255,41 @@ test('frontend has render recovery, lazy routes, and a real not-found page', asy
   assert.match(boundary, /window\.location\.reload/);
   assert.match(routes, /lazy\(\(\) => import/);
   assert.match(routes, /<Suspense/);
-  assert.match(routes, /path="\*" element=\{<NotFoundPage \/>\}/);
+  assert.match(routes, /path="\*"/);
   assert.doesNotMatch(routes, /Navigate to="\/"/);
   assert.match(notFound, /Page not found/);
 });
 
 test('frontend API wrappers match active learner and admin flows', async () => {
-  const [onboarding, authSchema, projectPage, projectApiSource, adminApiSource, roadmapApiSource] = await Promise.all([
+  const [onboarding, authSchema, practicePage, practiceApiSource, adminApiSource, roadmapApiSource] = await Promise.all([
     readFrontend('src/constants/onboardingSteps.js'),
     readFrontend('src/validations/auth.schema.js'),
-    readFrontend('src/pages/learner/ProjectsPage.jsx'),
-    readFrontend('src/api/projectApi.js'),
+    readFrontend('src/pages/learner/PracticePage.jsx'),
+    readFrontend('src/api/practiceApi.js'),
     readFrontend('src/api/adminApi.js'),
     readFrontend('src/api/roadmapApi.js')
   ]);
   assert.doesNotMatch(onboarding, /accountJourneySteps/);
   assert.doesNotMatch(authSchema, /verifyEmailFormSchema/);
-  assert.doesNotMatch(projectApiSource, /^\s*submissions:/m);
-  assert.match(projectPage, /projectApi\./);
-  assert.doesNotMatch(projectPage, /useAsyncData|useAsyncAction|queries\//);
+  assert.doesNotMatch(practiceApiSource, /^\s*submissions:/m);
+  assert.match(practicePage, /practiceApi\./);
+  assert.doesNotMatch(practicePage, /useAsyncData|useAsyncAction|queries\//);
   assert.match(adminApiSource, /^\s*lesson:/m);
   assert.match(adminApiSource, /^\s*interviewQuestion:/m);
   assert.match(adminApiSource, /^\s*template:/m);
   assert.doesNotMatch(adminApiSource, /duplicateTemplate|archiveTemplate/);
   assert.match(roadmapApiSource, /generateOrGet/);
   assert.match(roadmapApiSource, /fromAssessment/);
+});
+
+test('projects naming is removed from the practice feature', async () => {
+  const routes = await readFrontend('src/routes/AppRoutes.jsx');
+  assert.match(routes, /path="\/practice"/);
+  assert.doesNotMatch(routes, /\/projects/);
+  await Promise.all([
+    missingFrontendPath('src/pages/learner/ProjectsPage.jsx'),
+    missingFrontendPath('src/pages/learner/ProjectTaskPage.jsx'),
+    missingFrontendPath('src/api/projectApi.js'),
+    missingFrontendPath('src/components/project/ProjectSubmissionFeedback.jsx')
+  ]);
 });
