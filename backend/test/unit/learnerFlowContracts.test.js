@@ -44,6 +44,17 @@ test('practice interview quizzes and revisions stay inside the current course', 
   assert.match(revision, /coursePlan:\s*course\._id/);
 });
 
+test('practice tasks unlock from roadmap progress instead of the original onboarding level', () => {
+  const practice = source('services/practice.service.js');
+
+  assert.match(practice, /getUnlockedLessonIds/);
+  assert.match(practice, /module\.status !== 'locked'/);
+  assert.match(practice, /item\.status !== 'locked'/);
+  assert.match(practice, /relatedLessons/);
+  assert.match(practice, /Complete the earlier roadmap modules to unlock this practice task/);
+  assert.match(practice, /if \(!relatedLessonIds\.length\) return allowedByLevel/);
+});
+
 test('learning path completion advances with simple sequential enrollment updates', () => {
   const progress = source('services/progress.service.js');
 
