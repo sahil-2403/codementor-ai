@@ -28,9 +28,18 @@ const interviewLessonKeys = {
 
 const lessonByKey = new Map(javascriptLessons.map((lesson) => [lesson.key, lesson]));
 
-export const javascriptInterviewQuestions = javascriptTopics.flatMap((topic) =>
-  interviewLessonKeys[topic.key].map((lessonKey) => {
+export const javascriptInterviewQuestions = javascriptTopics.flatMap((topic) => {
+  const selectedLessonKeys = interviewLessonKeys[topic.key];
+  if (!selectedLessonKeys) {
+    throw new Error(`Missing interview lesson mapping for JavaScript topic: ${topic.key}`);
+  }
+
+  return selectedLessonKeys.map((lessonKey) => {
     const lesson = lessonByKey.get(lessonKey);
+    if (!lesson) {
+      throw new Error(`Missing JavaScript lesson for interview question: ${lessonKey}`);
+    }
+
     return {
       topicKey: topic.key,
       question: lesson.interviewQuestions[0].question,
@@ -40,5 +49,5 @@ export const javascriptInterviewQuestions = javascriptTopics.flatMap((topic) =>
       answerChecklist: lesson.interviewChecklist,
       tags: ['javascript', topic.key, ...lesson.tags]
     };
-  })
-);
+  });
+});
