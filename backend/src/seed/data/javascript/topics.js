@@ -19,6 +19,6 @@ export const javascriptTopics = [
   { key: 'errors-debugging-modules', title: 'Errors, Debugging and Modules', category: 'javascript', difficulty: 'intermediate', tags: ['errors', 'try-catch', 'debugging', 'modules'], order: 18 },
   { key: 'asynchronous-javascript', title: 'Asynchronous JavaScript', category: 'javascript', difficulty: 'intermediate', tags: ['async', 'callbacks', 'promises', 'async-await', 'fetch', 'concurrency'], order: 19 },
   { key: 'javascript-internals', title: 'How JavaScript Works Internally', category: 'javascript', difficulty: 'advanced', tags: ['execution-context', 'call-stack', 'closures', 'this'], order: 20 },
-  { key: 'prototypes-classes', title: 'Objects, Prototypes and Classes', category: 'javascript', difficulty: 'advanced', tags: ['prototype', 'constructor', 'new', 'classes', 'inheritance', 'composition'], order: 21 },
+  { key: 'prototypes-object-model', title: 'Objects, Prototypes and Classes', category: 'javascript', difficulty: 'advanced', tags: ['prototype', 'constructor', 'new', 'classes', 'inheritance', 'composition'], order: 21 },
   { key: 'event-loop-performance', title: 'Event Loop, Memory and Performance', category: 'javascript', difficulty: 'advanced', tags: ['event-loop', 'microtasks', 'memory', 'garbage-collection', 'debounce', 'throttle'], order: 22 }
 ];
