@@ -96,6 +96,14 @@ test('roadmap personalization keeps real modules and stores learner-friendly pri
   assert.match(dashboard, /canPersonalizeLater/);
 });
 
+test('interview mentor feedback addresses the learner directly', () => {
+  const prompt = source('ai/promptBuilders.js');
+
+  assert.match(prompt, /Speak directly to the learner using you and your/);
+  assert.match(prompt, /You correctly identified/);
+  assert.match(prompt, /Never refer to them as the learner/);
+});
+
 test('skipping an unfinished assessment moves setup to roadmap generation', () => {
   const onboarding = source('services/onboarding.service.js');
   const roadmapPending = onboarding.indexOf('enrollment.onboardingState === ONBOARDING_STATES.ROADMAP_PENDING');
