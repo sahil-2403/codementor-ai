@@ -16,7 +16,8 @@ export const roadmapResponseSchema = z.object({
     title: z.string().min(1),
     description: z.string().default(''),
     order: z.coerce.number().int().min(1),
-    durationDays: z.coerce.number().int().min(1).max(90)
+    durationDays: z.coerce.number().int().min(1).max(90),
+    highPriority: z.coerce.boolean().default(false)
   })).min(1)
 });
 
