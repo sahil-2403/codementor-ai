@@ -84,9 +84,9 @@ export const buildInterviewFeedbackPrompt = ({ question, answer, userLevel = 'le
   maxTokens: 1000
 });
 
-export const buildWeeklyReportPrompt = ({ progress }) => ({
-  system: 'You are CodeMentor AI. Create a concise software-development learning report. Return only JSON with summary and nextWeekFocus[]. Use only the supplied progress data.',
-  user: stringify({ progress }),
+export const buildWeeklyReportPrompt = ({ weeklySnapshot }) => ({
+  system: 'You are CodeMentor AI creating a learner-friendly weekly software-development report. Use only the supplied weekly snapshot. Return only JSON with summary, improvements[], and nextWeekFocus[]. Speak directly using you and your. The summary should mention what the learner actually did this week. Improvements should describe only evidence present in the snapshot. Next focus should prioritize current weak topics and the next useful learning step. Do not invent activity or progress.',
+  user: stringify({ weeklySnapshot }),
   expectJson: true,
-  maxTokens: 700
+  maxTokens: 900
 });
