@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { ArrowRight, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import Button from '../../components/common/Button.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import ModuleCard from '../../components/roadmap/ModuleCard.jsx';
+import { onboardingApi } from '../../api/onboardingApi.js';
 import { roadmapApi } from '../../api/roadmapApi.js';
 
 function findDefaultExpandedModule(modules = []) {
@@ -41,6 +44,8 @@ export default function RoadmapPage() {
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [isStartingNextLevel, setIsStartingNextLevel] = useState(false);
+  const [nextLevelError, setNextLevelError] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -88,11 +93,30 @@ export default function RoadmapPage() {
   }
 
   const modules = course.modules || [];
+  const completion = data?.completion || {};
   const sourceLabel = course.aiGenerated
     ? 'Personalized roadmap'
     : 'Standard roadmap';
   const defaultExpandedIndex = findDefaultExpandedModule(modules);
   const headerEyebrow = `${sourceLabel} · ${course.level || 'learner'} level · Version ${course.version || 1}`;
+
+  const startNextLevel = async () => {
+    if (!completion.nextLevel || !completion.enrollmentId) return;
+
+    setIsStartingNextLevel(true);
+    setNextLevelError(null);
+    try {
+      await onboardingApi.saveLevel({
+        enrollmentId: completion.enrollmentId,
+        level: completion.nextLevel
+      });
+      navigate('/onboarding/assessment-intro');
+    } catch (requestError) {
+      setNextLevelError(requestError);
+    } finally {
+      setIsStartingNextLevel(false);
+    }
+  };
 
   return (
     <PageShell className="space-y-5 pb-6">
@@ -103,6 +127,38 @@ export default function RoadmapPage() {
         title={course.title}
         description={course.description}
       />
+
+      {completion.isComplete && (
+        <section className="flex flex-col gap-4 rounded-panel border border-success/20 bg-success-soft/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+          <div>
+            <p className="text-sm font-semibold text-success">{course.level} level complete</p>
+            <h2 className="mt-1 text-lg font-bold text-foreground">
+              {completion.nextLevel
+                ? `Ready to continue with ${completion.nextLevel}?`
+                : 'You completed the highest available level.'}
+            </h2>
+            {completion.nextLevel && (
+              <p className="mt-1 text-sm text-muted-foreground">
+                Continue to the next level and choose whether to take a short skill check before your new roadmap is created.
+              </p>
+            )}
+          </div>
+
+          {completion.nextLevel && (
+            <Button
+              onClick={startNextLevel}
+              isLoading={isStartingNextLevel}
+              loadingLabel="Starting next level..."
+              className="shrink-0 gap-2"
+            >
+              Continue to {completion.nextLevel}
+              <ArrowRight size={16} aria-hidden="true" />
+            </Button>
+          )}
+        </section>
+      )}
+
+      <ErrorMessage message={nextLevelError?.message} />
 
       <section aria-labelledby="modules-title">
         <div className="mb-4">
