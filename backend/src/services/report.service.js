@@ -27,6 +27,7 @@ const buildFallbackReport = ({ activity, weakTopics, improvements }) => {
 
   return {
     summary,
+    improvements,
     nextWeekFocus: weakTopics.length
       ? weakTopics.slice(0, 3)
       : ['Continue the next available lesson', 'Complete one practice or quiz activity', 'Review your recent lesson notes']
@@ -145,7 +146,7 @@ export const generateWeeklyReportForUser = async (userId) => {
   const { completedLessonIds, activity } = await buildWeeklyActivity({ userId, course, weekStart });
   const weakTopics = progress.weakTopics.map((item) => item.topic).filter(Boolean);
   const { items: improvements, resolvedTopics } = buildImprovements({ previousReport, progress, weakTopics });
-  const reportData = {
+  const weeklySnapshot = {
     activity,
     improvements,
     weakTopics,
@@ -153,13 +154,13 @@ export const generateWeeklyReportForUser = async (userId) => {
     overallCompletion: Number(progress.overallCompletion || 0)
   };
 
-  let reportContent = buildFallbackReport(reportData);
+  let reportContent = buildFallbackReport(weeklySnapshot);
   let generationMode = 'fallback';
 
   if (isGeminiAvailable()) {
     try {
       await checkAIUsageLimit(userId, AI_FEATURES.WEEKLY_REPORT);
-      const aiResult = await aiProvider.generateWeeklyReport({ reportData });
+      const aiResult = await aiProvider.generateWeeklyReport({ weeklySnapshot });
       reportContent = aiResult;
       generationMode = 'ai';
       await saveUsage({
@@ -168,7 +169,7 @@ export const generateWeeklyReportForUser = async (userId) => {
         model: aiResult.model || env.geminiModel
       });
     } catch (error) {
-      reportContent = buildFallbackReport(reportData);
+      reportContent = buildFallbackReport(weeklySnapshot);
       await saveUsage({
         user: userId,
         feature: AI_FEATURES.WEEKLY_REPORT,
@@ -184,11 +185,11 @@ export const generateWeeklyReportForUser = async (userId) => {
     weekStart,
     completedLessons: completedLessonIds,
     activity,
-    improvements,
+    improvements: reportContent.improvements?.length ? reportContent.improvements : improvements,
     weakTopics,
     strongTopics: resolvedTopics,
-    quizAverage: reportData.quizAverage,
-    overallCompletion: reportData.overallCompletion,
+    quizAverage: weeklySnapshot.quizAverage,
+    overallCompletion: weeklySnapshot.overallCompletion,
     summary: reportContent.summary,
     nextWeekFocus: reportContent.nextWeekFocus || [],
     generationMode
