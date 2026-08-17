@@ -23,6 +23,14 @@ const reasonByRoadmapType = {
   [ROADMAP_TYPES.ASSESSMENT_AI_PERSONALIZED]: 'assessment_personalized'
 };
 
+const buildAssessmentSummary = (assessment) => assessment ? {
+  score: assessment.score,
+  level: assessment.level,
+  categoryScores: assessment.categoryScores || [],
+  weakTopics: assessment.weakTopics || [],
+  strongTopics: assessment.strongTopics || []
+} : null;
+
 const mergeAiModules = (templateModules = [], aiModules = []) => {
   if (!templateModules.length || aiModules.length !== templateModules.length) return null;
   const bySourceOrder = new Map(templateModules.map((module) => [Number(module.order), module]));
@@ -39,7 +47,8 @@ const mergeAiModules = (templateModules = [], aiModules = []) => {
       title: aiModule.title || source.title,
       description: aiModule.description ?? source.description,
       order: Number(aiModule.order) || source.order,
-      durationDays: Number(aiModule.durationDays) || source.durationDays
+      durationDays: Number(aiModule.durationDays) || source.durationDays,
+      highPriority: Boolean(aiModule.highPriority)
     });
   }
 
@@ -107,7 +116,7 @@ export const createCourseFromTemplate = async ({
         template,
         enrollment: enrollment.toObject(),
         course: catalogCourse.toObject(),
-        assessment
+        assessment: buildAssessmentSummary(assessment)
       });
       const personalizedModules = mergeAiModules(template.modules || [], aiRoadmap?.modules || []);
 
