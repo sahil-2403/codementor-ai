@@ -45,5 +45,6 @@ export const interviewReviewResponseSchema = z.object({
 
 export const weeklyReportResponseSchema = z.object({
   summary: z.string().min(1),
+  improvements: z.array(z.string()).default([]),
   nextWeekFocus: z.array(z.string()).default([])
 });
