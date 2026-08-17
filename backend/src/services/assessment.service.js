@@ -19,6 +19,39 @@ const getSuggestedRoadmapType = ({ weakTopics, score }) => {
 
 const normalizeIdSet = (ids = []) => ids.map((id) => id.toString()).sort();
 
+const selectBalancedQuestions = (questions, limit = 12) => {
+  const byTopic = new Map();
+
+  questions
+    .sort((a, b) => (a.topic?.order ?? 999) - (b.topic?.order ?? 999))
+    .forEach((question) => {
+      const topicKey = question.topic?._id?.toString() || 'general';
+      const group = byTopic.get(topicKey) || [];
+      group.push(question);
+      byTopic.set(topicKey, group);
+    });
+
+  const groups = [...byTopic.values()];
+  const selected = [];
+  let questionIndex = 0;
+
+  while (selected.length < limit) {
+    let addedQuestion = false;
+
+    for (const group of groups) {
+      if (group[questionIndex] && selected.length < limit) {
+        selected.push(group[questionIndex]);
+        addedQuestion = true;
+      }
+    }
+
+    if (!addedQuestion) break;
+    questionIndex += 1;
+  }
+
+  return selected;
+};
+
 const requireEnrollment = async ({ userId, enrollmentId }) => {
   const enrollment = await Enrollment.findOne({ _id: enrollmentId, user: userId })
     .populate('course', 'title slug availableLevels status')
@@ -41,24 +74,24 @@ export const getAssessmentQuestions = async ({ userId, enrollmentId, level }) =>
     level,
     status: 'started',
     createdAt: { $gte: new Date(Date.now() - 2 * 60 * 60 * 1000) }
-  }).populate({ path: 'questionIds', select: '-correctAnswer -explanation', populate: { path: 'topic', select: 'title category' } }).sort({ createdAt: -1 });
+  }).populate({ path: 'questionIds', select: '-correctAnswer -explanation', populate: { path: 'topic', select: 'title category order' } }).sort({ createdAt: -1 });
 
   if (recentSession?.questionIds?.length) {
     await markAssessmentStarted({ userId, enrollmentId });
     return { sessionId: recentSession._id, questions: recentSession.questionIds, course };
   }
 
-  const questions = await QuizQuestion.find({
+  const questionPool = await QuizQuestion.find({
     course: course._id,
     bank: 'skill_check',
     difficulty: level,
     status: 'published'
   })
-    .populate('topic', 'title category')
-    .limit(12)
+    .populate('topic', 'title category order')
     .select('-correctAnswer -explanation')
     .lean();
 
+  const questions = selectBalancedQuestions(questionPool, 12);
   if (!questions.length) throw new ApiError(404, 'No skill-check questions found for this course and level');
 
   const session = await Assessment.create({
@@ -102,7 +135,7 @@ export const submitAssessment = async ({ userId, enrollmentId, sessionId, answer
     _id: { $in: session.questionIds },
     course: course._id,
     bank: 'skill_check'
-  }).populate('topic', 'title category');
+  }).populate('topic', 'title category order');
   if (questions.length !== requiredIds.length) throw new ApiError(400, 'Some assessment questions are no longer available');
   if (questions.some((question) => question.difficulty !== enrollment.level)) throw new ApiError(400, 'Assessment question level mismatch');
 
@@ -159,7 +192,7 @@ export const buildAssessmentReport = (assessment) => ({
   suggestedRoadmapType: getSuggestedRoadmapType({ weakTopics: assessment.weakTopics, score: assessment.score }),
   summary: assessment.weakTopics?.length
     ? `Your roadmap should focus on ${assessment.weakTopics.slice(0, 3).map((item) => item.topic).join(', ')}.`
-    : 'Your assessment looks strong. You can move into a faster roadmap with project and interview practice.'
+    : 'Your assessment looks strong. You can move into a faster roadmap with practice and interview preparation.'
 });
 
 export const getAssessmentReport = async ({ userId, assessmentId }) => {
