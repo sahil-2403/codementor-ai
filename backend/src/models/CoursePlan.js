@@ -16,6 +16,7 @@ const courseModuleSchema = new mongoose.Schema(
     description: { type: String, default: '' },
     order: { type: Number, default: 0 },
     durationDays: { type: Number, default: 7 },
+    highPriority: { type: Boolean, default: false },
     status: { type: String, enum: ['locked', 'available', 'in_progress', 'completed'], default: 'available' },
     lessons: [courseLessonSchema],
     quizQuestions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'QuizQuestion' }]
