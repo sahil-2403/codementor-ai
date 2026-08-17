@@ -44,15 +44,28 @@ test('practice interview quizzes and revisions stay inside the current course', 
   assert.match(revision, /coursePlan:\s*course\._id/);
 });
 
-test('practice tasks unlock from roadmap progress instead of the original onboarding level', () => {
+test('practice keeps current-level roadmap locks while lower levels stay available', () => {
   const practice = source('services/practice.service.js');
 
   assert.match(practice, /getUnlockedLessonIds/);
-  assert.match(practice, /module\.status !== 'locked'/);
-  assert.match(practice, /item\.status !== 'locked'/);
+  assert.match(practice, /difficultyRank\[task\.difficulty\] < difficultyRank\[userLevel\]/);
+  assert.match(practice, /if \(!allowedByLevel\(userLevel, task\.difficulty\)\) return false/);
   assert.match(practice, /relatedLessons/);
+  assert.match(practice, /if \(!relatedLessonIds\.length\) return true/);
   assert.match(practice, /Complete the earlier roadmap modules to unlock this practice task/);
-  assert.match(practice, /if \(!relatedLessonIds\.length\) return allowedByLevel/);
+});
+
+test('single-course completion exposes the next available level and reuses onboarding', () => {
+  const progress = source('services/progress.service.js');
+  const onboarding = source('services/onboarding.service.js');
+
+  assert.match(progress, /getNextAvailableCourseLevel/);
+  assert.match(progress, /levelOrder\.slice\(currentIndex \+ 1\)/);
+  assert.match(progress, /courseCompleted:\s*isComplete/);
+  assert.match(progress, /nextLevel/);
+  assert.match(onboarding, /const changingLevel = Boolean\(enrollment\.level && enrollment\.level !== level\)/);
+  assert.match(onboarding, /enrollment\.status = 'draft'/);
+  assert.match(onboarding, /ONBOARDING_STATES\.ASSESSMENT_CHOICE_PENDING/);
 });
 
 test('learning path completion advances with simple sequential enrollment updates', () => {
@@ -64,14 +77,19 @@ test('learning path completion advances with simple sequential enrollment update
   assert.match(progress, /nextPath: '\/onboarding\/generating'/);
 });
 
-test('roadmap retry repairs progress and fallback is not labelled personalized', () => {
+test('roadmap personalization keeps real modules and stores learner-friendly priority', () => {
   const controller = source('controllers/roadmap.controller.js');
   const roadmap = source('services/roadmap.service.js');
+  const prompt = source('ai/promptBuilders.js');
   const dashboard = source('controllers/progress.controller.js');
 
   assert.match(controller, /repairExistingRoadmap/);
   assert.match(controller, /createProgressForCourse/);
   assert.match(controller, /roadmapType:\s*ROADMAP_TYPES\.TEMPLATE/);
+  assert.match(roadmap, /buildAssessmentSummary/);
+  assert.match(roadmap, /highPriority:\s*Boolean\(aiModule\.highPriority\)/);
+  assert.match(prompt, /Do not add or remove modules or invent lessons\/questions/);
+  assert.match(prompt, /priority is represented only by the highPriority boolean/);
   assert.match(roadmap, /const finalReason = aiGenerated \|\| roadmapType === ROADMAP_TYPES\.TEMPLATE/);
   assert.match(roadmap, /: 'initial_template'/);
   assert.match(dashboard, /assessmentPreference === 'take'/);
