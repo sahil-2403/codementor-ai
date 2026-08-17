@@ -1,15 +1,33 @@
 import { Progress } from '../models/Progress.js';
 import { CoursePlan } from '../models/CoursePlan.js';
+import { Course } from '../models/Course.js';
 import { Enrollment } from '../models/Enrollment.js';
 import { getWeakTopicSeverity, getNextLessonFromCourse, buildLearningRecommendations, buildStudyPlan } from './recommendation.service.js';
 import { scheduleRevisionForWeakTopic, getDueRevisions, getRevisionStats } from './revision.service.js';
 import { assertLessonBelongsToCourse, getActiveCourseForUser } from './dataIntegrity.service.js';
 import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
 
+const levelOrder = ['beginner', 'intermediate', 'advanced'];
+
 const calculateCompletion = (course, completedLessonIds) => {
   const totalLessons = course.modules.reduce((sum, module) => sum + module.lessons.length, 0);
   if (!totalLessons) return 0;
   return Math.round((completedLessonIds.length / totalLessons) * 100);
+};
+
+export const getNextAvailableCourseLevel = async (coursePlan) => {
+  if (!coursePlan?.course || !coursePlan?.enrollment || !coursePlan?.level) return null;
+
+  const enrollment = await Enrollment.findById(coursePlan.enrollment).select('type').lean();
+  if (!enrollment || enrollment.type !== 'course') return null;
+
+  const course = await Course.findById(coursePlan.course).select('availableLevels').lean();
+  const currentIndex = levelOrder.indexOf(coursePlan.level);
+  if (!course || currentIndex < 0) return null;
+
+  return levelOrder
+    .slice(currentIndex + 1)
+    .find((level) => (course.availableLevels || []).includes(level)) || null;
 };
 
 export const createProgressForCourse = async ({ userId, coursePlanId }) => Progress.findOneAndUpdate(
@@ -35,8 +53,24 @@ const buildCurrentProgressPayload = async (userId) => {
   const nextLesson = getNextLessonFromCourse(course);
   const recommendations = buildLearningRecommendations({ course, progress, dueRevisions });
   const studyPlan = buildStudyPlan({ nextLesson, dueRevisions, progress });
+  const isComplete = (progress?.overallCompletion || 0) >= 100;
+  const nextLevel = isComplete ? await getNextAvailableCourseLevel(course) : null;
 
-  return { course, progress, nextLesson, dueRevisions, revisionStats, recommendations, studyPlan, roadmapVersions };
+  return {
+    course,
+    progress,
+    nextLesson,
+    dueRevisions,
+    revisionStats,
+    recommendations,
+    studyPlan,
+    roadmapVersions,
+    completion: {
+      isComplete,
+      nextLevel,
+      enrollmentId: course.enrollment
+    }
+  };
 };
 
 export const getCurrentProgress = (userId) => buildCurrentProgressPayload(userId);
@@ -114,7 +148,18 @@ export const markLessonComplete = async ({ userId, lessonId }) => {
   await progress.save();
 
   const pathResult = await advanceLearningPathIfNeeded({ course, progress });
-  return { progress, ...pathResult };
+  const isComplete = progress.overallCompletion >= 100;
+  const nextLevel = isComplete && !pathResult
+    ? await getNextAvailableCourseLevel(course)
+    : null;
+
+  return {
+    progress,
+    courseCompleted: isComplete,
+    nextLevel,
+    enrollmentId: course.enrollment,
+    ...pathResult
+  };
 };
 
 export const mergeWeakTopics = async ({ progress, weakTopics, source = 'quiz' }) => {
