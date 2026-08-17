@@ -104,6 +104,26 @@ test('interview mentor feedback addresses the learner directly', () => {
   assert.match(prompt, /Never refer to them as the learner/);
 });
 
+test('weekly reports use weekly activity and progress evidence', () => {
+  const report = source('services/report.service.js');
+  const model = source('models/WeeklyReport.js');
+  const prompt = source('ai/promptBuilders.js');
+
+  assert.match(report, /ActivityLog/);
+  assert.match(report, /QuizAttempt/);
+  assert.match(report, /PracticeSubmission/);
+  assert.match(report, /InterviewAttempt/);
+  assert.match(report, /MentorChat/);
+  assert.match(report, /buildImprovements/);
+  assert.match(report, /weekStart/);
+  assert.match(model, /lessonsCompleted/);
+  assert.match(model, /mentorQuestions/);
+  assert.match(model, /improvements/);
+  assert.match(model, /overallCompletion/);
+  assert.match(prompt, /weeklySnapshot/);
+  assert.match(prompt, /Do not invent activity or progress/);
+});
+
 test('skipping an unfinished assessment moves setup to roadmap generation', () => {
   const onboarding = source('services/onboarding.service.js');
   const roadmapPending = onboarding.indexOf('enrollment.onboardingState === ONBOARDING_STATES.ROADMAP_PENDING');
