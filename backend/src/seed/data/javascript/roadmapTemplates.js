@@ -40,15 +40,15 @@ const makeModules = (topicKeys, durationByKey = {}) => topicKeys.map((topicKey, 
     title: topic.title,
     description: moduleDescriptions[topicKey],
     order: index + 1,
-    durationDays: durationByKey[topicKey] || (topic.difficulty === 'advanced' ? 6 : topic.difficulty === 'intermediate' ? 5 : 4),
+    durationDays: durationByKey[topicKey] || 5,
     lessonKeys: lessonsForTopic(topicKey),
     quizTags: [quizTag(topicKey)]
   };
 });
 
-const beginnerTopics = javascriptTopics.map((topic) => topic.key);
-const intermediateTopics = javascriptTopics.filter((topic) => topic.order >= 7).map((topic) => topic.key);
-const advancedTopics = javascriptTopics.filter((topic) => topic.order >= 16).map((topic) => topic.key);
+const topicsForLevel = (level) => javascriptTopics
+  .filter((topic) => topic.difficulty === level)
+  .map((topic) => topic.key);
 
 const beginnerDurations = {
   'getting-started-javascript': 5,
@@ -65,69 +65,46 @@ const beginnerDurations = {
   'array-methods': 7,
   'dom-fundamentals': 6,
   'events-interaction': 6,
-  'forms-browser-data': 6,
-  'modern-javascript-syntax': 6,
-  'functional-javascript': 6,
-  'errors-debugging-modules': 6,
-  'asynchronous-javascript': 10,
-  'javascript-internals': 8,
-  'prototypes-object-model': 7,
-  'event-loop-performance': 8
+  'forms-browser-data': 6
 };
 
 const intermediateDurations = {
-  functions: 4,
-  'scope-hoisting': 4,
-  arrays: 4,
-  objects: 4,
-  'references-copying': 4,
-  'array-methods': 5,
-  'dom-fundamentals': 4,
-  'events-interaction': 4,
-  'forms-browser-data': 4,
   'modern-javascript-syntax': 5,
   'functional-javascript': 5,
   'errors-debugging-modules': 5,
-  'asynchronous-javascript': 8,
-  'javascript-internals': 7,
-  'prototypes-object-model': 6,
-  'event-loop-performance': 7
+  'asynchronous-javascript': 8
 };
 
 const advancedDurations = {
-  'modern-javascript-syntax': 4,
-  'functional-javascript': 4,
-  'errors-debugging-modules': 4,
-  'asynchronous-javascript': 7,
   'javascript-internals': 7,
   'prototypes-object-model': 6,
   'event-loop-performance': 7
 };
 
 const totalDuration = (modules) => modules.reduce((sum, module) => sum + module.durationDays, 0);
-const beginnerModules = makeModules(beginnerTopics, beginnerDurations);
-const intermediateModules = makeModules(intermediateTopics, intermediateDurations);
-const advancedModules = makeModules(advancedTopics, advancedDurations);
+const beginnerModules = makeModules(topicsForLevel('beginner'), beginnerDurations);
+const intermediateModules = makeModules(topicsForLevel('intermediate'), intermediateDurations);
+const advancedModules = makeModules(topicsForLevel('advanced'), advancedDurations);
 
 export const javascriptRoadmapTemplates = [
   {
     level: 'beginner',
-    title: 'Complete JavaScript — Beginner to Advanced Roadmap',
-    description: 'Start from your first JavaScript program and move step by step through programming fundamentals, browser development, modern JavaScript, asynchronous code, and advanced language internals. The language stays simple and learner-friendly even when the concepts become advanced.',
+    title: 'Complete JavaScript — Beginner Roadmap',
+    description: 'Build a strong JavaScript foundation with syntax, functions, collections, browser programming, DOM events, forms, and practical problem solving.',
     estimatedDurationDays: totalDuration(beginnerModules),
     modules: beginnerModules
   },
   {
     level: 'intermediate',
-    title: 'Complete JavaScript — Intermediate to Advanced Roadmap',
-    description: 'Begin with a focused refresher of functions, scope, arrays, objects, and browser fundamentals, then continue through modern syntax, functional patterns, asynchronous JavaScript, and advanced language mechanics.',
+    title: 'Complete JavaScript — Intermediate Roadmap',
+    description: 'Continue with modern JavaScript syntax, functional patterns, debugging and modules, then build confidence with asynchronous JavaScript.',
     estimatedDurationDays: totalDuration(intermediateModules),
     modules: intermediateModules
   },
   {
     level: 'advanced',
     title: 'Complete JavaScript — Advanced Roadmap',
-    description: 'Refresh the modern patterns an advanced learner is expected to know, then focus on async reasoning, closures, this, prototypes, the event loop, memory, and practical performance decisions.',
+    description: 'Go deeper into execution contexts, closures, this, prototypes, classes, the event loop, memory, and practical performance decisions.',
     estimatedDurationDays: totalDuration(advancedModules),
     modules: advancedModules
   }
