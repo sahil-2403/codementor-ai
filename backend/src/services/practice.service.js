@@ -27,8 +27,15 @@ const getUnlockedLessonIds = (course) => new Set(
 );
 
 const isPracticeTaskUnlocked = ({ course, task, unlockedLessonIds = getUnlockedLessonIds(course) }) => {
+  const userLevel = course.level || 'beginner';
+  if (!allowedByLevel(userLevel, task.difficulty)) return false;
+
+  if (difficultyRank[task.difficulty] < difficultyRank[userLevel]) {
+    return true;
+  }
+
   const relatedLessonIds = (task.relatedLessons || []).map(referenceId).filter(Boolean);
-  if (!relatedLessonIds.length) return allowedByLevel(course.level || 'beginner', task.difficulty);
+  if (!relatedLessonIds.length) return true;
   return relatedLessonIds.some((id) => unlockedLessonIds.has(id.toString()));
 };
 
