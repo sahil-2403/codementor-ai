@@ -85,6 +85,7 @@ export default function LessonPage() {
       const result = await lessonApi.complete(lesson._id);
       setData((current) => ({ ...current, isCompleted: true }));
       if (result?.nextPath) navigate(result.nextPath);
+      else if (result?.courseCompleted) navigate('/roadmap');
     } catch (requestError) {
       setCompleteError(requestError);
     } finally {
