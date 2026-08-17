@@ -191,7 +191,7 @@ export default function ReportsPage() {
             isLoading={isGenerating}
             loadingLabel="Creating report..."
             disabled={reportAlreadyCreated}
-            variant={reportAlreadyCreated ? 'secondary' : 'secondary'}
+            variant="secondary"
             className={reportAlreadyCreated ? '' : 'border-primary/20 bg-primary-soft text-primary-strong hover:bg-primary-soft/70'}
           >
             {reportAlreadyCreated ? <><CheckCircle2 size={16} aria-hidden="true" /> Report created this week</> : <><Sparkles size={16} aria-hidden="true" /> Create weekly report</>}
