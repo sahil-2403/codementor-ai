@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CalendarDays, CheckCircle2, ChevronDown, FileText } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronDown, Sparkles } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -191,9 +191,10 @@ export default function ReportsPage() {
             isLoading={isGenerating}
             loadingLabel="Creating report..."
             disabled={reportAlreadyCreated}
-            variant={reportAlreadyCreated ? 'secondary' : 'primary'}
+            variant={reportAlreadyCreated ? 'secondary' : 'secondary'}
+            className={reportAlreadyCreated ? '' : 'border-primary/20 bg-primary-soft text-primary-strong hover:bg-primary-soft/70'}
           >
-            {reportAlreadyCreated ? <><CheckCircle2 size={16} aria-hidden="true" /> Report created this week</> : <><FileText size={16} aria-hidden="true" /> Create weekly report</>}
+            {reportAlreadyCreated ? <><CheckCircle2 size={16} aria-hidden="true" /> Report created this week</> : <><Sparkles size={16} aria-hidden="true" /> Create weekly report</>}
           </Button>
         }
       />
