@@ -91,10 +91,10 @@ export const aiProvider = {
     return { ...result.data, ...resultInfo(result) };
   },
 
-  async generateWeeklyReport({ progress }) {
+  async generateWeeklyReport({ reportData }) {
     ensureGeminiAvailable();
     const result = await geminiClient.generate({
-      ...buildWeeklyReportPrompt({ progress }),
+      ...buildWeeklyReportPrompt({ reportData }),
       schema: weeklyReportResponseSchema,
       validationMessage: 'Gemini weekly report response did not match the expected schema'
     });
