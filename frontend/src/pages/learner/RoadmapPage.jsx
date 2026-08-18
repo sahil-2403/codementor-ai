@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, ChevronDown, Sparkles } from 'lucide-react';
+import { ArrowRight, ChevronDown, Sparkles, Target } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -63,6 +63,7 @@ function LevelRoadmapGroup({ group, currentLevel, defaultExpandedIndex, currentM
     (total, item) => total + (item.module.lessons || []).length,
     0
   );
+  const priorityCount = group.modules.filter((item) => item.module.highPriority).length;
   let lessonNumberStart = 1;
 
   return (
@@ -77,8 +78,8 @@ function LevelRoadmapGroup({ group, currentLevel, defaultExpandedIndex, currentM
           <LevelBadge level={group.level} />
           <p className="text-xs font-semibold text-muted-foreground">
             {isCurrentLevel
-              ? `Current level · ${group.modules.length} modules · ${lessonCount} lessons`
-              : `Revision access · ${group.modules.length} modules · ${lessonCount} lessons`}
+              ? `Current level · ${group.modules.length} modules · ${lessonCount} lessons${priorityCount ? ` · ${priorityCount} priority ${priorityCount === 1 ? 'area' : 'areas'}` : ''}`
+              : `Revision access · ${group.modules.length} modules · ${lessonCount} lessons${priorityCount ? ` · ${priorityCount} revision ${priorityCount === 1 ? 'area' : 'areas'}` : ''}`}
           </p>
         </div>
         <ChevronDown
@@ -103,6 +104,7 @@ function LevelRoadmapGroup({ group, currentLevel, defaultExpandedIndex, currentM
                 isLast={groupIndex === group.modules.length - 1}
                 defaultExpanded={index === defaultExpandedIndex}
                 isCurrent={index === currentModuleIndex}
+                isRevisionLevel={!isCurrentLevel}
               />
             );
           })}
@@ -167,8 +169,9 @@ export default function RoadmapPage() {
 
   const modules = course.modules || [];
   const completion = data?.completion || {};
-  const sourceLabel = course.aiGenerated
-    ? 'Personalized roadmap'
+  const isSkillCheckPersonalized = course.generatedReason === 'assessment_personalized' || Boolean(course.assessment);
+  const sourceLabel = isSkillCheckPersonalized
+    ? 'Personalized from skill check'
     : 'Standard roadmap';
   const defaultExpandedIndex = findDefaultExpandedModule(modules, course.level);
   const currentModuleIndex = completion.isComplete
@@ -206,6 +209,19 @@ export default function RoadmapPage() {
         description={course.description}
         actions={<LevelBadge level={course.level} />}
       />
+
+      {isSkillCheckPersonalized && course.personalizationSummary && (
+        <section className="flex items-start gap-3 rounded-surface border border-primary/20 bg-primary-soft/40 p-4 sm:p-5">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary text-white" aria-hidden="true">
+            <Target size={18} />
+          </span>
+          <div>
+            <p className="text-sm font-bold text-foreground">Your skill-check focus</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{course.personalizationSummary}</p>
+            <p className="mt-2 text-xs font-semibold text-muted-foreground">Based on your verified skill-check scores.</p>
+          </div>
+        </section>
+      )}
 
       {completion.isComplete && (
         <section className="flex flex-col gap-4 rounded-surface border border-success/20 bg-success-soft/50 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
