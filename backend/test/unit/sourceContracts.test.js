@@ -10,11 +10,12 @@ const collectSourceFiles = (directory) => readdirSync(directory, { withFileTypes
   return entry.name.endsWith('.js') ? [path] : [];
 });
 
-test('Gemini schemas constrain scores and require roadmap modules', () => {
+test('Gemini schemas constrain scores and keep roadmap guidance simple', () => {
   const schemas = source('ai/aiSchemas.js');
   assert.match(schemas, /practiceReviewResponseSchema[\s\S]*score:\s*z\.coerce\.number\(\)\.min\(0\)\.max\(100\)/);
   assert.match(schemas, /interviewReviewResponseSchema[\s\S]*score:\s*z\.coerce\.number\(\)\.min\(0\)\.max\(100\)/);
-  assert.match(schemas, /roadmapResponseSchema[\s\S]*modules:[\s\S]*\.min\(1\)/);
+  assert.match(schemas, /roadmapResponseSchema[\s\S]*summary:[\s\S]*focusAreas:[\s\S]*focusKey:[\s\S]*advice:/);
+  assert.doesNotMatch(schemas, /roadmapResponseSchema[\s\S]*sourceOrder/);
 });
 
 test('practice and interview attempts use a simple two-attempt helper', () => {
