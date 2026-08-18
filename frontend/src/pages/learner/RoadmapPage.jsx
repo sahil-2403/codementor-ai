@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, ChevronDown, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/common/Button.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -55,6 +55,62 @@ const groupModulesByLevel = (modules = [], currentLevel) => {
 const titleCase = (value = '') => value
   ? `${value.charAt(0).toUpperCase()}${value.slice(1)}`
   : '';
+
+function LevelRoadmapGroup({ group, currentLevel, defaultExpandedIndex, currentModuleIndex }) {
+  const isCurrentLevel = group.level === currentLevel;
+  const [expanded, setExpanded] = useState(isCurrentLevel);
+  const lessonCount = group.modules.reduce(
+    (total, item) => total + (item.module.lessons || []).length,
+    0
+  );
+  let lessonNumberStart = 1;
+
+  return (
+    <section aria-label={`${titleCase(group.level)} level roadmap`}>
+      <button
+        type="button"
+        className="flex w-full items-center justify-between gap-4 rounded-surface border border-border bg-surface px-4 py-3 text-left transition hover:border-primary/20 sm:px-5"
+        onClick={() => setExpanded((value) => !value)}
+        aria-expanded={expanded}
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <LevelBadge level={group.level} />
+          <p className="text-xs font-semibold text-muted-foreground">
+            {isCurrentLevel
+              ? `Current level · ${group.modules.length} modules · ${lessonCount} lessons`
+              : `Revision access · ${group.modules.length} modules · ${lessonCount} lessons`}
+          </p>
+        </div>
+        <ChevronDown
+          size={18}
+          className={`shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
+      </button>
+
+      {expanded && (
+        <div className="mt-4 space-y-4">
+          {group.modules.map(({ module, index }, groupIndex) => {
+            const currentLessonNumberStart = lessonNumberStart;
+            lessonNumberStart += (module.lessons || []).length;
+
+            return (
+              <ModuleCard
+                key={module._id || `${module.title}-${index}`}
+                module={module}
+                index={groupIndex}
+                lessonNumberStart={currentLessonNumberStart}
+                isLast={groupIndex === group.modules.length - 1}
+                defaultExpanded={index === defaultExpandedIndex}
+                isCurrent={index === currentModuleIndex}
+              />
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function RoadmapPage() {
   const navigate = useNavigate();
@@ -183,35 +239,16 @@ export default function RoadmapPage() {
 
       <section aria-label="Roadmap modules">
         {modules.length ? (
-          <div className="space-y-7">
-            {moduleGroups.map((group) => {
-              const isCurrentLevel = group.level === course.level;
-              return (
-                <section key={group.level} aria-label={`${titleCase(group.level)} level roadmap`}>
-                  <div className="mb-3 flex flex-wrap items-center gap-2 pl-12 sm:pl-14">
-                    <LevelBadge level={group.level} />
-                    <p className="text-xs font-semibold text-muted-foreground">
-                      {isCurrentLevel
-                        ? 'Current level · complete these modules to progress'
-                        : 'Revision access · revisit these lessons anytime'}
-                    </p>
-                  </div>
-
-                  <div className="space-y-4">
-                    {group.modules.map(({ module, index }, groupIndex) => (
-                      <ModuleCard
-                        key={module._id || `${module.title}-${index}`}
-                        module={module}
-                        index={index}
-                        isLast={groupIndex === group.modules.length - 1}
-                        defaultExpanded={index === defaultExpandedIndex}
-                        isCurrent={index === currentModuleIndex}
-                      />
-                    ))}
-                  </div>
-                </section>
-              );
-            })}
+          <div className="space-y-5">
+            {moduleGroups.map((group) => (
+              <LevelRoadmapGroup
+                key={group.level}
+                group={group}
+                currentLevel={course.level}
+                defaultExpandedIndex={defaultExpandedIndex}
+                currentModuleIndex={currentModuleIndex}
+              />
+            ))}
           </div>
         ) : (
           <EmptyState
