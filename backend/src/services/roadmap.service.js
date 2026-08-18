@@ -1,6 +1,7 @@
 import { CoursePlan } from '../models/CoursePlan.js';
 import { Enrollment } from '../models/Enrollment.js';
 import { Assessment } from '../models/Assessment.js';
+import { Lesson } from '../models/Lesson.js';
 import { ROADMAP_TYPES, COURSE_STATUS } from '../constants/roadmapTypes.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { getPublishedTemplate, resolveTemplateModules } from './templateRoadmap.service.js';
@@ -25,40 +26,37 @@ const reasonByRoadmapType = {
   [ROADMAP_TYPES.ASSESSMENT_AI_PERSONALIZED]: 'assessment_personalized'
 };
 
+const referenceId = (value) => value?._id || value;
+const referenceString = (value) => referenceId(value)?.toString?.() || '';
+const normalizeTopicName = (value = '') => String(value).trim().toLowerCase();
+
+const sanitizeTopicScoresForAI = (items = []) => items.map((item) => ({
+  topic: item.topic,
+  score: item.score,
+  ...(Number.isFinite(Number(item.total)) ? { total: item.total } : {})
+}));
+
 const buildAssessmentSummary = (assessment) => assessment ? {
   score: assessment.score,
   level: assessment.level,
-  categoryScores: assessment.categoryScores || [],
-  weakTopics: assessment.weakTopics || [],
-  strongTopics: assessment.strongTopics || []
+  categoryScores: sanitizeTopicScoresForAI(assessment.categoryScores || []),
+  weakTopics: sanitizeTopicScoresForAI(assessment.weakTopics || []),
+  strongTopics: sanitizeTopicScoresForAI(assessment.strongTopics || [])
 } : null;
 
-const mergeAiModules = (templateModules = [], aiModules = []) => {
-  if (!templateModules.length || aiModules.length !== templateModules.length) return null;
-  const bySourceOrder = new Map(templateModules.map((module) => [Number(module.order), module]));
-  const used = new Set();
-  const merged = [];
-
-  for (const aiModule of aiModules) {
-    const sourceOrder = Number(aiModule.sourceOrder);
-    const source = bySourceOrder.get(sourceOrder);
-    if (!source || used.has(sourceOrder)) return null;
-    used.add(sourceOrder);
-    merged.push({
-      ...source,
-      title: aiModule.title || source.title,
-      description: aiModule.description ?? source.description,
-      order: Number(aiModule.order) || source.order,
-      durationDays: Number(aiModule.durationDays) || source.durationDays,
-      highPriority: Boolean(aiModule.highPriority)
-    });
+const buildFallbackSummary = (assessment) => {
+  const weakTopics = assessment?.weakTopics || [];
+  if (!weakTopics.length) {
+    return 'Your skill check did not identify any urgent weak topics. Continue with your selected level and keep practicing.';
   }
+  return `Focus first on ${weakTopics.slice(0, 3).map((item) => item.topic).join(', ')}. These were the main gaps found in your skill check.`;
+};
 
-  const outputOrders = merged.map((module) => Number(module.order));
-  if (new Set(outputOrders).size !== outputOrders.length || outputOrders.some((order) => !Number.isInteger(order) || order < 1)) {
-    return null;
-  }
-  return merged;
+const buildFallbackFocusReason = (focusArea) => {
+  const details = focusArea.weakTopics
+    .map((item) => `${item.topic} (${item.score}%)`)
+    .join(', ');
+  return `Your skill check showed that ${details} needs more practice. Review the related lessons before moving on.`;
 };
 
 const resolveEnrollmentCourse = async ({ userId, enrollmentId }) => {
@@ -120,6 +118,96 @@ const resolveCumulativeModules = async ({ catalogCourse, level, currentTemplate 
   return resolvedModules;
 };
 
+const buildVerifiedFocusAreas = async ({ catalogCourse, modules, assessment }) => {
+  const weakTopics = assessment?.weakTopics || [];
+  if (!weakTopics.length) return [];
+
+  const lessonIds = modules
+    .flatMap((module) => module.lessons || [])
+    .map((item) => referenceId(item.lesson))
+    .filter(Boolean);
+  if (!lessonIds.length) return [];
+
+  const lessons = await Lesson.find({
+    _id: { $in: lessonIds },
+    course: catalogCourse._id,
+    status: 'published'
+  })
+    .select('_id title topic')
+    .populate('topic', 'title')
+    .lean();
+
+  const lessonById = new Map(lessons.map((lesson) => [lesson._id.toString(), lesson]));
+  const weakByRef = new Map();
+  const weakByTitle = new Map();
+
+  weakTopics.forEach((weak) => {
+    const topicRef = referenceString(weak.topicRef);
+    if (topicRef) weakByRef.set(topicRef, weak);
+    if (weak.topic) weakByTitle.set(normalizeTopicName(weak.topic), weak);
+  });
+
+  return modules.map((module, moduleIndex) => {
+    const matchedWeakTopics = new Map();
+    const lessonTitles = [];
+
+    (module.lessons || []).forEach((item) => {
+      const lesson = lessonById.get(referenceString(item.lesson));
+      if (!lesson) return;
+      lessonTitles.push(lesson.title);
+
+      const lessonTopicRef = referenceString(lesson.topic);
+      const lessonTopicTitle = lesson.topic?.title || '';
+      const weak = weakByRef.get(lessonTopicRef) || weakByTitle.get(normalizeTopicName(lessonTopicTitle));
+      if (!weak) return;
+
+      const weakKey = referenceString(weak.topicRef) || normalizeTopicName(weak.topic);
+      if (!matchedWeakTopics.has(weakKey)) {
+        matchedWeakTopics.set(weakKey, { topic: weak.topic, score: weak.score });
+      }
+    });
+
+    if (!matchedWeakTopics.size) return null;
+
+    return {
+      focusKey: `${module.level || 'current'}-module-${module.order}`,
+      moduleIndex,
+      moduleTitle: module.title,
+      level: module.level,
+      weakTopics: [...matchedWeakTopics.values()],
+      lessonTitles: lessonTitles.slice(0, 6)
+    };
+  }).filter(Boolean);
+};
+
+const getAiAdviceByFocusKey = ({ verifiedFocusAreas, aiFocusAreas = [] }) => {
+  const allowedKeys = new Set(verifiedFocusAreas.map((item) => item.focusKey));
+  const adviceByKey = new Map();
+
+  aiFocusAreas.forEach((item) => {
+    if (!allowedKeys.has(item.focusKey) || adviceByKey.has(item.focusKey)) return;
+    const advice = String(item.advice || '').trim();
+    if (advice) adviceByKey.set(item.focusKey, advice);
+  });
+
+  return adviceByKey;
+};
+
+const applyVerifiedFocusToModules = ({ modules, verifiedFocusAreas, adviceByKey }) => {
+  const focusByModuleIndex = new Map(verifiedFocusAreas.map((item) => [item.moduleIndex, item]));
+
+  return modules.map((module, moduleIndex) => {
+    const focusArea = focusByModuleIndex.get(moduleIndex);
+    if (!focusArea) return module;
+
+    return {
+      ...module,
+      highPriority: true,
+      focusReason: adviceByKey.get(focusArea.focusKey) || buildFallbackFocusReason(focusArea)
+    };
+  });
+};
+
 export const getActiveRoadmapForEnrollment = async ({ userId, enrollmentId }) => {
   const { course, level } = await resolveEnrollmentCourse({ userId, enrollmentId });
   return CoursePlan.findOne({
@@ -147,37 +235,53 @@ export const createCourseFromTemplate = async ({
       user: userId,
       enrollment: enrollmentId,
       course: catalogCourse._id,
+      level,
       status: 'completed'
     }).lean()
     : null;
-  let roadmapTitle = template.title;
-  let roadmapDescription = template.description;
-  let templateForResolution = template;
+
+  if (assessmentId && !assessment) {
+    throw new ApiError(404, 'Completed skill check not found for the selected course level');
+  }
+
+  let modules = await resolveCumulativeModules({
+    catalogCourse,
+    level,
+    currentTemplate: template
+  });
+  const verifiedFocusAreas = await buildVerifiedFocusAreas({ catalogCourse, modules, assessment });
+  let personalizationSummary = assessment ? buildFallbackSummary(assessment) : '';
+  let adviceByKey = new Map();
   let aiGenerated = false;
-  const shouldUseAI = isGeminiAvailable() && roadmapType === ROADMAP_TYPES.ASSESSMENT_AI_PERSONALIZED;
+  const shouldUseAI = isGeminiAvailable() && roadmapType === ROADMAP_TYPES.ASSESSMENT_AI_PERSONALIZED && Boolean(assessment);
 
   if (shouldUseAI) {
     try {
       await checkAIUsageLimit(userId, AI_FEATURES.ROADMAP_GENERATION);
       const aiRoadmap = await aiProvider.generateRoadmap({
-        template,
         enrollment: enrollment.toObject(),
         course: catalogCourse.toObject(),
-        assessment: buildAssessmentSummary(assessment)
+        assessment: buildAssessmentSummary(assessment),
+        focusAreas: verifiedFocusAreas.map(({ focusKey, moduleTitle, level: focusLevel, weakTopics, lessonTitles }) => ({
+          focusKey,
+          moduleTitle,
+          level: focusLevel,
+          weakTopics,
+          lessonTitles
+        }))
       });
-      const personalizedModules = mergeAiModules(template.modules || [], aiRoadmap?.modules || []);
 
-      if (personalizedModules) {
-        roadmapTitle = aiRoadmap.title || template.title;
-        roadmapDescription = aiRoadmap.description || template.description;
-        templateForResolution = { ...template, modules: personalizedModules };
-        aiGenerated = true;
-        await logAIUsage({
-          user: userId,
-          feature: AI_FEATURES.ROADMAP_GENERATION,
-          model: aiRoadmap.model || env.geminiModel
-        });
-      }
+      personalizationSummary = aiRoadmap.summary || personalizationSummary;
+      adviceByKey = getAiAdviceByFocusKey({
+        verifiedFocusAreas,
+        aiFocusAreas: aiRoadmap.focusAreas || []
+      });
+      aiGenerated = true;
+      await logAIUsage({
+        user: userId,
+        feature: AI_FEATURES.ROADMAP_GENERATION,
+        model: aiRoadmap.model || env.geminiModel
+      });
     } catch (error) {
       await logAIUsage({
         user: userId,
@@ -189,11 +293,8 @@ export const createCourseFromTemplate = async ({
     }
   }
 
-  const modules = await resolveCumulativeModules({
-    catalogCourse,
-    level,
-    currentTemplate: templateForResolution
-  });
+  modules = applyVerifiedFocusToModules({ modules, verifiedFocusAreas, adviceByKey });
+
   const planFilter = { enrollment: enrollmentId, course: catalogCourse._id };
   const previousActive = await CoursePlan.findOne({
     ...planFilter,
@@ -209,25 +310,24 @@ export const createCourseFromTemplate = async ({
   );
 
   const requestedReason = generatedReason || reasonByRoadmapType[roadmapType] || 'manual_regeneration';
-  const finalReason = aiGenerated || roadmapType === ROADMAP_TYPES.TEMPLATE
-    ? requestedReason
-    : 'initial_template';
 
   const coursePlan = await CoursePlan.create({
     user: userId,
     enrollment: enrollmentId,
     course: catalogCourse._id,
     learningPath: enrollment.learningPath?._id || enrollment.learningPath || null,
-    title: roadmapTitle,
-    description: roadmapDescription,
+    assessment: assessment?._id || null,
+    title: template.title,
+    description: template.description,
+    personalizationSummary,
     level,
-    roadmapType: aiGenerated ? roadmapType : ROADMAP_TYPES.TEMPLATE,
+    roadmapType: assessment ? roadmapType : ROADMAP_TYPES.TEMPLATE,
     modules,
     status: COURSE_STATUS.ACTIVE,
     aiGenerated,
     version: nextVersion,
     parentCoursePlan: previousActive?._id || null,
-    generatedReason: finalReason,
+    generatedReason: requestedReason,
     isActive: true
   });
 
