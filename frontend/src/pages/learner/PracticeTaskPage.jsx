@@ -176,7 +176,7 @@ export default function PracticeTaskPage() {
         </InlineAlert>
       )}
 
-      <section className="border-b border-border pb-5">
+      <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
         <h2 className="text-lg font-bold text-foreground">Task requirements</h2>
 
         {task.requirements?.length ? (
@@ -263,12 +263,12 @@ export default function PracticeTaskPage() {
         </form>
       </section>
 
-      <section>
+      <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
         <h2 className="text-lg font-bold text-foreground">Attempt history</h2>
         <p className="mt-1 text-sm text-muted-foreground">Open an attempt to view your answer or ask the AI mentor for feedback.</p>
 
         {submissions.length ? (
-          <div className="mt-3 divide-y divide-border overflow-hidden rounded-surface border border-border bg-surface">
+          <div className="mt-3 divide-y divide-border">
             {submissions.map((submission) => {
               const fallback = isFallbackReview(submission);
               const aiReviewed = isAiReview(submission);
@@ -277,7 +277,7 @@ export default function PracticeTaskPage() {
               const isExpanded = expandedSubmissionIds.has(submission._id);
 
               return (
-                <article key={submission._id} className="p-4 sm:p-5">
+                <article key={submission._id} className="py-4 first:pt-0 last:pb-0">
                   <div className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
