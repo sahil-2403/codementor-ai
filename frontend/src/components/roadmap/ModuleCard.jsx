@@ -49,7 +49,7 @@ const getLessonIcon = (status, locked) => {
 
 const cleanPriorityTitle = (title = '') => title.replace(/^priority review\s*[:–—-]?\s*/i, '').trim();
 
-export default function ModuleCard({ module, index = 0, isLast = false, defaultExpanded = false }) {
+export default function ModuleCard({ module, index = 0, isLast = false, defaultExpanded = false, isCurrent = false }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const contentId = useId();
   const lessons = module.lessons || [];
@@ -129,6 +129,7 @@ export default function ModuleCard({ module, index = 0, isLast = false, defaultE
                 </div>
 
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {isCurrent && <Badge variant="info">Current</Badge>}
                   {highPriority && <Badge variant="warning">High priority</Badge>}
                   <StatusPill status={module.status || 'available'} />
                   <ChevronDown
