@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Code2, Dumbbell, LockKeyhole, SlidersHorizontal } from 'lucide-react';
 import Badge from '../../components/common/Badge.jsx';
@@ -69,14 +69,9 @@ export default function PracticePage() {
   }
 
   const tasks = data?.tasks || [];
-  const moduleOptions = useMemo(
-    () => [...new Set(tasks.map((task) => task.moduleTitle || 'Practice tasks'))],
-    [tasks]
-  );
-  const levelOptions = useMemo(
-    () => ['beginner', 'intermediate', 'advanced'].filter((level) => tasks.some((task) => task.difficulty === level)),
-    [tasks]
-  );
+  const moduleOptions = [...new Set(tasks.map((task) => task.moduleTitle || 'Practice tasks'))];
+  const levelOptions = ['beginner', 'intermediate', 'advanced']
+    .filter((level) => tasks.some((task) => task.difficulty === level));
   const filteredTasks = tasks.filter((task) => {
     const moduleTitle = task.moduleTitle || 'Practice tasks';
     const matchesModule = selectedModule === 'all' || moduleTitle === selectedModule;
