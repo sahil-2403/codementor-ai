@@ -174,7 +174,9 @@ export default function LessonPage() {
         </div>
       </section>
 
-      <LessonContent lesson={lesson} />
+      <section className="rounded-surface border border-border bg-surface p-4 sm:p-6">
+        <LessonContent lesson={lesson} />
+      </section>
     </PageShell>
   );
 }
