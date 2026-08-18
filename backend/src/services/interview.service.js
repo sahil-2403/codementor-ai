@@ -15,6 +15,15 @@ import { assertReviewCanStart } from '../domain/reviewPolicy.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 
 const publicQuestionProjection = '-expectedAnswer -answerChecklist';
+const levelOrder = ['beginner', 'intermediate', 'advanced'];
+
+const allowedDifficultiesForLevel = (level) => {
+  const index = levelOrder.indexOf(level);
+  return index < 0 ? ['beginner'] : levelOrder.slice(0, index + 1);
+};
+
+const questionAllowedForCourse = (course, question) =>
+  allowedDifficultiesForLevel(course.level).includes(question?.difficulty);
 
 const runBestEffort = async (label, action) => {
   try {
@@ -26,9 +35,15 @@ const runBestEffort = async (label, action) => {
 
 export const listInterviewQuestions = async ({ userId, topic, difficulty, type }) => {
   const course = await requireActiveCourseForUser({ userId, lean: true });
-  const filter = { status: 'published', course: course.course };
+  const allowedDifficulties = allowedDifficultiesForLevel(course.level);
+  if (difficulty && !allowedDifficulties.includes(difficulty)) return [];
+
+  const filter = {
+    status: 'published',
+    course: course.course,
+    difficulty: difficulty || { $in: allowedDifficulties }
+  };
   if (topic) filter.topic = new RegExp(escapeRegex(topic), 'i');
-  if (difficulty) filter.difficulty = difficulty;
   if (type) filter.type = type;
 
   return InterviewQuestion.find(filter)
@@ -41,7 +56,12 @@ export const listInterviewQuestions = async ({ userId, topic, difficulty, type }
 export const getInterviewQuestion = async ({ questionId, userId }) => {
   const course = await requireActiveCourseForUser({ userId, lean: true });
   const hasAttempted = await InterviewAttempt.exists({ user: userId, question: questionId });
-  const query = InterviewQuestion.findOne({ _id: questionId, course: course.course, status: 'published' });
+  const query = InterviewQuestion.findOne({
+    _id: questionId,
+    course: course.course,
+    difficulty: { $in: allowedDifficultiesForLevel(course.level) },
+    status: 'published'
+  });
   if (!hasAttempted) query.select(publicQuestionProjection);
   const question = await query;
   if (!question) throw new ApiError(404, 'Interview question not found in your current course');
@@ -50,7 +70,12 @@ export const getInterviewQuestion = async ({ questionId, userId }) => {
 
 const getFullInterviewQuestion = async ({ questionId, userId }) => {
   const course = await requireActiveCourseForUser({ userId, lean: true });
-  const question = await InterviewQuestion.findOne({ _id: questionId, course: course.course, status: 'published' });
+  const question = await InterviewQuestion.findOne({
+    _id: questionId,
+    course: course.course,
+    difficulty: { $in: allowedDifficultiesForLevel(course.level) },
+    status: 'published'
+  });
   if (!question) throw new ApiError(404, 'Interview question not found in your current course');
   return question;
 };
@@ -83,6 +108,9 @@ export const reviewInterviewAttempt = async ({ user, attemptId }) => {
   const course = await requireActiveCourseForUser({ userId: user._id });
   if (attempt.question?.course?.toString() !== course.course.toString()) {
     throw new ApiError(403, 'This interview attempt belongs to a different course');
+  }
+  if (!questionAllowedForCourse(course, attempt.question)) {
+    throw new ApiError(403, 'This interview question is above your current course level');
   }
   if (attempt.status === 'reviewed') return attempt;
   assertReviewCanStart({ status: attempt.status, reviewRequestedAt: attempt.reviewRequestedAt, label: 'This interview attempt' });
@@ -175,7 +203,10 @@ export const submitInterviewAnswer = async ({ user, questionId, answer }) => {
 
 export const listInterviewAttempts = async ({ userId }) => {
   const course = await requireActiveCourseForUser({ userId, lean: true });
-  const questionIds = await InterviewQuestion.find({ course: course.course }).distinct('_id');
+  const questionIds = await InterviewQuestion.find({
+    course: course.course,
+    difficulty: { $in: allowedDifficultiesForLevel(course.level) }
+  }).distinct('_id');
   return InterviewAttempt.find({ user: userId, question: { $in: questionIds } })
     .populate('question')
     .sort({ createdAt: -1 })
