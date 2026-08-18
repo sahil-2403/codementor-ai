@@ -180,7 +180,9 @@ export default function LessonPage() {
         </div>
       </section>
 
-      <LessonContent lesson={lesson} />
+      <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
+        <LessonContent lesson={lesson} />
+      </section>
 
       {isCompleted && (
         <nav className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between" aria-label="Lesson navigation">
