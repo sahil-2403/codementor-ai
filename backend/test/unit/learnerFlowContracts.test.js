@@ -77,21 +77,28 @@ test('learning path completion advances with simple sequential enrollment update
   assert.match(progress, /nextPath: '\/onboarding\/generating'/);
 });
 
-test('roadmap personalization keeps real modules and stores learner-friendly priority', () => {
+test('roadmap personalization keeps curriculum fixed and explains verified priority', () => {
   const controller = source('controllers/roadmap.controller.js');
   const roadmap = source('services/roadmap.service.js');
   const prompt = source('ai/promptBuilders.js');
+  const assessment = source('models/Assessment.js');
   const dashboard = source('controllers/progress.controller.js');
 
   assert.match(controller, /repairExistingRoadmap/);
   assert.match(controller, /createProgressForCourse/);
   assert.match(controller, /roadmapType:\s*ROADMAP_TYPES\.TEMPLATE/);
+  assert.match(assessment, /topicRef/);
   assert.match(roadmap, /buildAssessmentSummary/);
-  assert.match(roadmap, /highPriority:\s*Boolean\(aiModule\.highPriority\)/);
-  assert.match(prompt, /Do not add or remove modules or invent lessons\/questions/);
-  assert.match(prompt, /priority is represented only by the highPriority boolean/);
-  assert.match(roadmap, /const finalReason = aiGenerated \|\| roadmapType === ROADMAP_TYPES\.TEMPLATE/);
-  assert.match(roadmap, /: 'initial_template'/);
+  assert.match(roadmap, /buildVerifiedFocusAreas/);
+  assert.match(roadmap, /applyVerifiedFocusToModules/);
+  assert.match(roadmap, /highPriority:\s*true/);
+  assert.match(roadmap, /focusReason/);
+  assert.match(roadmap, /personalizationSummary/);
+  assert.match(prompt, /backend has already decided which topics are weak/);
+  assert.match(prompt, /do not rename modules/);
+  assert.match(prompt, /focusKey/);
+  assert.doesNotMatch(prompt, /You may adjust module title, description, display order, duration, and highPriority only/);
+  assert.match(roadmap, /generatedReason:\s*requestedReason/);
   assert.match(dashboard, /assessmentPreference === 'take'/);
   assert.match(dashboard, /canPersonalizeLater/);
 });
