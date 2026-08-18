@@ -200,7 +200,7 @@ export default function ReportsPage() {
       />
 
       {latestReport ? (
-        <section>
+        <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-bold text-foreground">Latest report</h2>
             <Badge variant="neutral">Week of {formatDate(latestReport.weekStart || latestReport.createdAt)}</Badge>
@@ -215,7 +215,7 @@ export default function ReportsPage() {
       )}
 
       {reports.length > 1 ? (
-        <section className="border-t border-border pt-5">
+        <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
           <h2 className="text-lg font-bold text-foreground">Previous reports</h2>
           <div className="mt-2">
             {reports.slice(1).map((report) => <ReportHistoryItem key={report._id} report={report} />)}
