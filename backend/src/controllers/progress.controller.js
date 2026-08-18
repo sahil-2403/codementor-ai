@@ -1,9 +1,11 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendResponse } from '../utils/ApiResponse.js';
-import { getCurrentProgress } from '../services/progress.service.js';
+import { getCurrentLevelModules, getCurrentProgress } from '../services/progress.service.js';
 import { updateRevisionStatus } from '../services/revision.service.js';
 import { Enrollment } from '../models/Enrollment.js';
 import { ApiError } from '../utils/ApiError.js';
+
+const referenceId = (value) => value?._id || value;
 
 export const dashboard = asyncHandler(async (req, res) => {
   const data = await getCurrentProgress(req.user._id);
@@ -11,8 +13,16 @@ export const dashboard = asyncHandler(async (req, res) => {
 
   const { course, progress, nextLesson, dueRevisions, revisionStats, recommendations, studyPlan, roadmapVersions } = data;
   const enrollment = await Enrollment.findById(course.enrollment).select('assessmentPreference').lean();
-  const allLessons = course.modules.flatMap((module) => module.lessons.map((item) => item.lesson));
-  const completedCount = progress.completedLessons.length;
+  const currentModules = getCurrentLevelModules(course);
+  const currentLessonIds = new Set(
+    currentModules
+      .flatMap((module) => module.lessons || [])
+      .map((item) => referenceId(item.lesson)?.toString())
+      .filter(Boolean)
+  );
+  const completedCount = (progress.completedLessons || [])
+    .filter((id) => currentLessonIds.has(id.toString()))
+    .length;
   const criticalWeakTopics = (progress.weakTopics || []).filter((topic) => ['high', 'critical'].includes(topic.severity));
   const assessmentStatus = course.level === 'beginner'
     ? 'not_required'
@@ -33,7 +43,7 @@ export const dashboard = asyncHandler(async (req, res) => {
     roadmapVersions,
     criticalWeakTopics,
     stats: {
-      totalLessons: allLessons.length,
+      totalLessons: currentLessonIds.size,
       completedLessons: completedCount,
       overallCompletion: progress.overallCompletion,
       quizAccuracy: progress.quizStats.averageScore,
