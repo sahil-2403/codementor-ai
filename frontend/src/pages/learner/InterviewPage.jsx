@@ -180,7 +180,7 @@ export default function InterviewPage() {
         />
       ) : (
         <>
-          <section className="border-b border-border pb-5">
+          <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-foreground">Choose a question</h2>
               <span className="text-xs font-semibold text-muted-foreground">{questions.length} questions</span>
@@ -244,7 +244,7 @@ export default function InterviewPage() {
             </section>
           ) : null}
 
-          <section>
+          <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-lg font-bold text-foreground">Your attempts</h2>
               <span className="text-xs font-semibold text-muted-foreground">{selectedAttempts.length}/{MAX_ATTEMPTS} attempts</span>
@@ -252,7 +252,7 @@ export default function InterviewPage() {
 
             {selectedAttempts.length ? (
               <>
-                <div className="mt-3 border-l-2 border-primary pl-4">
+                <div className="mt-4 border-l-2 border-primary pl-4">
                   <div className="flex items-center gap-2 text-primary-strong">
                     <Sparkles size={16} aria-hidden="true" />
                     <h3 className="font-bold">Expected answer</h3>
@@ -262,7 +262,7 @@ export default function InterviewPage() {
                   </p>
                 </div>
 
-                <div className="mt-5 divide-y divide-border border-y border-border">
+                <div className="mt-5 divide-y divide-border">
                   {selectedAttempts.map((attempt, index) => (
                     <InterviewAttemptFeedback
                       key={attempt._id}
