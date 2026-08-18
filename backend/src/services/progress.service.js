@@ -2,6 +2,7 @@ import { Progress } from '../models/Progress.js';
 import { CoursePlan } from '../models/CoursePlan.js';
 import { Course } from '../models/Course.js';
 import { Enrollment } from '../models/Enrollment.js';
+import { Lesson } from '../models/Lesson.js';
 import { getWeakTopicSeverity, getNextLessonFromCourse, buildLearningRecommendations, buildStudyPlan } from './recommendation.service.js';
 import { scheduleRevisionForWeakTopic, getDueRevisions, getRevisionStats } from './revision.service.js';
 import { assertLessonBelongsToCourse, getActiveCourseForUser } from './dataIntegrity.service.js';
@@ -246,6 +247,21 @@ const resolveRelatedLessons = async ({ course, roadmapLessonIds, weak }) => {
     .filter((id) => id && roadmapLessonIds.has(id.toString()));
   if (supplied.length) return supplied.slice(0, 3);
 
+  const topicRef = referenceId(weak.topicRef);
+  if (topicRef) {
+    const topicLessons = await Lesson.find({
+      course: course.course,
+      topic: topicRef,
+      status: 'published'
+    }).select('_id').limit(5).lean();
+
+    const matchingLessonIds = topicLessons
+      .map((lesson) => lesson._id)
+      .filter((id) => roadmapLessonIds.has(id.toString()))
+      .slice(0, 3);
+    if (matchingLessonIds.length) return matchingLessonIds;
+  }
+
   const matches = await findRelevantLessons({
     query: weak.topic,
     courseId: course.course,
@@ -273,7 +289,12 @@ export const mergeWeakTopics = async ({ progress, weakTopics, source = 'quiz' })
     const relatedLessons = course
       ? await resolveRelatedLessons({ course, roadmapLessonIds, weak })
       : [];
-    const existing = progress.weakTopics.find((item) => item.topic === weak.topic);
+    const weakTopicRef = referenceId(weak.topicRef);
+    const existing = progress.weakTopics.find((item) => (
+      weakTopicRef
+        ? referenceString(item.topicRef) === weakTopicRef.toString()
+        : item.topic === weak.topic
+    ));
     let normalizedWeakTopic;
 
     if (existing) {
@@ -282,12 +303,14 @@ export const mergeWeakTopics = async ({ progress, weakTopics, source = 'quiz' })
       existing.source = source;
       existing.severity = getWeakTopicSeverity({ score: existing.score, attempts: existing.attempts });
       existing.lastDetectedAt = new Date();
+      if (weakTopicRef) existing.topicRef = weakTopicRef;
       if (relatedLessons.length) existing.relatedLessons = relatedLessons;
       normalizedWeakTopic = existing;
     } else {
       const severity = getWeakTopicSeverity({ score: weak.score || 0, attempts: 1 });
       progress.weakTopics.push({
         topic: weak.topic,
+        topicRef: weakTopicRef || null,
         score: weak.score || 0,
         source,
         severity,
