@@ -1,7 +1,7 @@
 const stringify = (value) => JSON.stringify(value);
 
-export const buildRoadmapPrompt = ({ template, enrollment, course, assessment }) => ({
-  system: 'You are CodeMentor AI. Personalize a software-development course roadmap from diagnostic assessment evidence. Return only valid JSON with title, description, and modules. Preserve every source module and all backend-owned learning-content references. Do not add or remove modules or invent lessons/questions. For every output module, sourceOrder must equal the original module.order. You may adjust module title, description, display order, duration, and highPriority only. Move weak areas earlier when useful, give them slightly more study time, and mark only genuinely weak areas as highPriority. Strong areas may receive slightly less time. Keep titles natural and learner-friendly. Never put labels such as Priority review, High priority, weak area, or remediation inside a module title; priority is represented only by the highPriority boolean.',
+export const buildRoadmapPrompt = ({ enrollment, course, assessment, focusAreas = [] }) => ({
+  system: 'You are CodeMentor AI. Explain a learner\'s verified skill-check gaps without redesigning the curriculum. The backend has already decided which topics are weak and which roadmap modules they belong to. Return only valid JSON with summary and focusAreas. Do not decide whether a topic is weak, do not add or remove focus areas, do not rename modules, do not change lesson order, and do not invent course content. For each supplied focusKey, write short practical advice that explains what the learner should review and why it matters. Keep advice to one or two concise sentences and use only the supplied topic/module/lesson context. Return each focusKey at most once.',
   user: stringify({
     course: {
       title: course?.title,
@@ -10,15 +10,14 @@ export const buildRoadmapPrompt = ({ template, enrollment, course, assessment })
       level: enrollment?.level
     },
     assessment,
-    template,
+    verifiedFocusAreas: focusAreas,
     outputShape: {
-      title: 'string',
-      description: 'string',
-      modules: [{ sourceOrder: 'original module.order', title: 'string', description: 'string', order: 'positive integer', durationDays: 'positive integer', highPriority: 'boolean' }]
+      summary: 'short learner-friendly summary of the verified skill-check result',
+      focusAreas: [{ focusKey: 'one of the supplied focus keys', advice: 'one or two concise sentences' }]
     }
   }),
   expectJson: true,
-  maxTokens: 1500
+  maxTokens: 1100
 });
 
 export const buildMentorPrompt = ({
