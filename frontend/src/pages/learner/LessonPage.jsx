@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
+  ArrowLeft,
+  ArrowRight,
   BookOpenCheck,
   BookOpenText,
   MessagesSquare,
@@ -72,6 +74,7 @@ export default function LessonPage() {
   }
 
   const isCompleted = Boolean(data?.isCompleted);
+  const navigation = data?.navigation || {};
   const mentorLink = `/mentor?lessonId=${lesson._id}`;
   const sendLessonPrompt = (promptType) =>
     navigate(`/mentor?lessonId=${lesson._id}&promptType=${promptType}&autoSend=true`);
@@ -80,10 +83,13 @@ export default function LessonPage() {
     setIsCompleting(true);
     try {
       const result = await lessonApi.complete(lesson._id);
-      setData((current) => ({ ...current, isCompleted: true }));
+      setData((current) => ({
+        ...current,
+        isCompleted: true,
+        navigation: result?.navigation || current?.navigation || {}
+      }));
       notify.success('Lesson marked complete');
       if (result?.nextPath) navigate(result.nextPath);
-      else if (result?.courseCompleted) navigate('/roadmap');
     } catch (requestError) {
       notify.error(requestError.message || 'Could not mark this lesson complete');
     } finally {
@@ -175,6 +181,25 @@ export default function LessonPage() {
       </section>
 
       <LessonContent lesson={lesson} />
+
+      {isCompleted && (
+        <nav className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between" aria-label="Lesson navigation">
+          <div>
+            {navigation.previousLessonId && (
+              <Link to={`/lessons/${navigation.previousLessonId}`} className="ui-button ui-button--secondary min-h-9 gap-2 px-3.5 text-sm">
+                <ArrowLeft size={15} aria-hidden="true" /> Previous lesson
+              </Link>
+            )}
+          </div>
+          <Link
+            to={navigation.nextLessonId ? `/lessons/${navigation.nextLessonId}` : '/roadmap'}
+            className="ui-button ui-button--primary min-h-9 gap-2 px-3.5 text-sm"
+          >
+            {navigation.nextLessonId ? 'Next lesson' : 'Back to roadmap'}
+            <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+        </nav>
+      )}
     </PageShell>
   );
 }
