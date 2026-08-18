@@ -69,6 +69,7 @@ export default function ModuleCard({
   const hadPriorityTitle = /^priority review\b/i.test(module.title || '');
   const displayTitle = cleanPriorityTitle(module.title) || module.title || `Module ${index + 1}`;
   const highPriority = Boolean(module.highPriority || hadPriorityTitle);
+  const focusTopics = module.focusTopics || [];
   const visual = getModuleVisual(displayTitle);
   const ModuleIcon = visual.icon;
 
@@ -146,8 +147,14 @@ export default function ModuleCard({
                 </div>
               </div>
 
+              {highPriority && focusTopics.length > 0 && (
+                <p className="mt-3 text-xs font-semibold text-warning sm:text-sm">
+                  Skill check: {focusTopics.map((item) => `${item.topic} ${item.score}%`).join(' · ')}
+                </p>
+              )}
+
               {highPriority && module.focusReason && (
-                <p className="mt-3 rounded-control bg-warning-soft px-3 py-2 text-xs font-medium leading-5 text-foreground sm:text-sm">
+                <p className="mt-2 rounded-control bg-warning-soft px-3 py-2 text-xs font-medium leading-5 text-foreground sm:text-sm">
                   {module.focusReason}
                 </p>
               )}
