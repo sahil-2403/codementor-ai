@@ -13,7 +13,7 @@ import PageShell from '../../components/common/PageShell.jsx';
 const banks = [
   {
     title: 'Quiz questions',
-    description: 'Questions used in roadmap module assessments. Quiz questions belong to a Topic and connect back to a related Lesson.',
+    description: 'Questions used in roadmap module assessments and linked to course lessons.',
     path: '/admin/questions/quiz',
     action: 'Manage quiz questions',
     icon: ClipboardCheck,
@@ -21,7 +21,7 @@ const banks = [
   },
   {
     title: 'Skill checks',
-    description: 'Diagnostic questions used before roadmap personalization for intermediate and advanced learners.',
+    description: 'Diagnostic questions used before roadmap personalization for Intermediate and Advanced learners.',
     path: '/admin/questions/skill-checks',
     action: 'Manage skill checks',
     icon: GraduationCap,
@@ -29,7 +29,7 @@ const banks = [
   },
   {
     title: 'Interview practice',
-    description: 'Open-answer interview prompts with expected answers and review points used by AI feedback.',
+    description: 'Open-answer interview questions with expected answers and mentor review points.',
     path: '/admin/questions/interview',
     action: 'Manage interview questions',
     icon: MessageSquareQuote,
@@ -45,7 +45,7 @@ export default function QuestionsPage() {
         eyebrow="Content administration"
         eyebrowIcon={LibraryBig}
         title="Question banks"
-        description="Manage course quizzes, diagnostic skill checks, and interview practice as separate reviewed collections."
+        description="Manage quizzes, skill checks, and interview practice."
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -68,16 +68,6 @@ export default function QuestionsPage() {
           </Card>
         ))}
       </div>
-
-      <Card className="border-primary/15 bg-primary-soft/35 shadow-sm">
-        <div className="flex items-start gap-3">
-          <LibraryBig size={18} className="mt-0.5 shrink-0 text-primary-strong" aria-hidden="true" />
-          <div>
-            <h2 className="text-sm font-bold text-foreground">Each bank has one job</h2>
-            <p className="mt-1 text-sm leading-6 text-muted-foreground">Quiz questions are lesson-linked course assessment content. Skill checks are Topic-level onboarding diagnostics. Interview questions use their own open-answer review model. Keeping those purposes separate prevents content from appearing in the wrong learner flow.</p>
-          </div>
-        </div>
-      </Card>
     </PageShell>
   );
 }

@@ -233,6 +233,12 @@ export const saveLevelSelection = async ({ userId, enrollmentId = null, level })
     throw new ApiError(400, 'Selected level is not available for this learning option', [], 'LEVEL_NOT_AVAILABLE');
   }
 
+  const changingLevel = Boolean(enrollment.level && enrollment.level !== level);
+  if (changingLevel && ['active', 'completed'].includes(enrollment.status)) {
+    enrollment.status = 'draft';
+    enrollment.onboardingCompletedAt = null;
+  }
+
   enrollment.level = level;
   enrollment.assessmentPreference = 'not_applicable';
   enrollment.assessmentChoiceAt = null;

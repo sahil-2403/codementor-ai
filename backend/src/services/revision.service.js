@@ -26,10 +26,12 @@ export const scheduleRevisionForWeakTopic = async ({ userId, coursePlanId, weakT
 
   const priority = weakTopic.severity || 'medium';
   const dueDate = addDays(new Date(), delayByPriority[priority] ?? 3);
+  const relatedLesson = weakTopic.relatedLessons?.[0] || null;
 
   if (existingPending) {
     existingPending.priority = priority;
     existingPending.source = source;
+    if (relatedLesson) existingPending.relatedLesson = relatedLesson;
     existingPending.dueDate = existingPending.dueDate > dueDate ? dueDate : existingPending.dueDate;
     existingPending.reason = `Repeated weakness detected from ${source}.`;
     await existingPending.save();
@@ -40,6 +42,7 @@ export const scheduleRevisionForWeakTopic = async ({ userId, coursePlanId, weakT
     user: userId,
     coursePlan: coursePlanId,
     topic: weakTopic.topic,
+    relatedLesson,
     priority,
     dueDate,
     source,

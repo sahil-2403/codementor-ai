@@ -6,8 +6,18 @@ const weeklyReportSchema = new mongoose.Schema(
     coursePlan: { type: mongoose.Schema.Types.ObjectId, ref: 'CoursePlan', required: true },
     weekStart: { type: Date, default: null },
     completedLessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }],
+    activity: {
+      lessonsCompleted: { type: Number, default: 0 },
+      quizAttempts: { type: Number, default: 0 },
+      practiceAttempts: { type: Number, default: 0 },
+      interviewAttempts: { type: Number, default: 0 },
+      mentorQuestions: { type: Number, default: 0 }
+    },
+    improvements: [{ type: String }],
     strongTopics: [{ type: String }],
     weakTopics: [{ type: String }],
+    quizAverage: { type: Number, default: 0 },
+    overallCompletion: { type: Number, default: 0 },
     summary: { type: String, default: '' },
     nextWeekFocus: [{ type: String }],
     generationMode: { type: String, enum: ['ai', 'fallback'], default: 'fallback' }

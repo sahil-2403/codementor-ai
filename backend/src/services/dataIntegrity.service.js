@@ -3,6 +3,24 @@ import { Enrollment } from '../models/Enrollment.js';
 import { User } from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 
+const activePlanFilterForEnrollment = ({ userId, enrollment }) => {
+  const filter = {
+    user: userId,
+    enrollment: enrollment._id,
+    status: 'active',
+    isActive: true
+  };
+
+  if (enrollment.type === 'course' && enrollment.level) {
+    filter.level = enrollment.level;
+  }
+  if (enrollment.type === 'learning_path' && enrollment.currentCourse) {
+    filter.course = enrollment.currentCourse;
+  }
+
+  return filter;
+};
+
 export const getCurrentEnrollmentForUser = async (userId) => {
   const user = await User.findById(userId).select('currentEnrollment');
   if (!user) return null;
@@ -36,12 +54,7 @@ export const setCurrentEnrollmentForUser = async ({ userId, enrollmentId }) => {
   });
   if (!enrollment) throw new ApiError(404, 'Enrollment not found');
 
-  const coursePlan = await CoursePlan.findOne({
-    user: userId,
-    enrollment: enrollment._id,
-    status: 'active',
-    isActive: true
-  });
+  const coursePlan = await CoursePlan.findOne(activePlanFilterForEnrollment({ userId, enrollment }));
   if (!coursePlan) throw new ApiError(409, 'This enrollment does not have an active roadmap yet');
 
   await User.findByIdAndUpdate(userId, { currentEnrollment: enrollment._id });
@@ -52,12 +65,8 @@ export const getActiveCourseForUser = async ({ userId, populate = false, lean = 
   const enrollment = await getCurrentEnrollmentForUser(userId);
   if (!enrollment) return null;
 
-  let query = CoursePlan.findOne({
-    user: userId,
-    enrollment: enrollment._id,
-    status: 'active',
-    isActive: true
-  }).sort({ createdAt: -1 });
+  let query = CoursePlan.findOne(activePlanFilterForEnrollment({ userId, enrollment }))
+    .sort({ createdAt: -1 });
 
   if (populate) {
     query = query
