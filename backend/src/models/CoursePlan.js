@@ -14,6 +14,7 @@ const courseModuleSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
     description: { type: String, default: '' },
+    level: { type: String, enum: ['beginner', 'intermediate', 'advanced'], default: null },
     order: { type: Number, default: 0 },
     durationDays: { type: Number, default: 7 },
     highPriority: { type: Boolean, default: false },

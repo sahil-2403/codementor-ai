@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
+  ArrowLeft,
+  ArrowRight,
   BookOpenCheck,
   BookOpenText,
   MessagesSquare,
@@ -72,6 +74,7 @@ export default function LessonPage() {
   }
 
   const isCompleted = Boolean(data?.isCompleted);
+  const navigation = data?.navigation || {};
   const mentorLink = `/mentor?lessonId=${lesson._id}`;
   const sendLessonPrompt = (promptType) =>
     navigate(`/mentor?lessonId=${lesson._id}&promptType=${promptType}&autoSend=true`);
@@ -80,10 +83,13 @@ export default function LessonPage() {
     setIsCompleting(true);
     try {
       const result = await lessonApi.complete(lesson._id);
-      setData((current) => ({ ...current, isCompleted: true }));
+      setData((current) => ({
+        ...current,
+        isCompleted: true,
+        navigation: result?.navigation || current?.navigation || {}
+      }));
       notify.success('Lesson marked complete');
       if (result?.nextPath) navigate(result.nextPath);
-      else if (result?.courseCompleted) navigate('/roadmap');
     } catch (requestError) {
       notify.error(requestError.message || 'Could not mark this lesson complete');
     } finally {
@@ -174,9 +180,42 @@ export default function LessonPage() {
         </div>
       </section>
 
-      <section className="rounded-surface border border-border bg-surface p-4 sm:p-6">
+      <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
         <LessonContent lesson={lesson} />
       </section>
+
+      {isCompleted && (
+        <nav
+          className="sticky bottom-4 z-20 mx-auto flex w-full max-w-3xl items-center justify-between gap-3 rounded-surface border border-border bg-surface/95 p-2 shadow-lg backdrop-blur"
+          aria-label="Lesson navigation"
+        >
+          <div>
+            {navigation.previousLessonId ? (
+              <Link
+                to={`/lessons/${navigation.previousLessonId}`}
+                className="ui-button ui-button--secondary min-h-10 min-w-10 gap-2 px-3"
+                aria-label="Previous lesson"
+              >
+                <ArrowLeft size={16} aria-hidden="true" />
+                <span className="hidden sm:inline">Previous lesson</span>
+              </Link>
+            ) : (
+              <span className="block h-10 w-10" aria-hidden="true" />
+            )}
+          </div>
+
+          <Link
+            to={navigation.nextLessonId ? `/lessons/${navigation.nextLessonId}` : '/roadmap'}
+            className="ui-button ui-button--primary min-h-10 min-w-10 gap-2 px-3"
+            aria-label={navigation.nextLessonId ? 'Next lesson' : 'Back to roadmap'}
+          >
+            <span className="hidden sm:inline">
+              {navigation.nextLessonId ? 'Next lesson' : 'Back to roadmap'}
+            </span>
+            <ArrowRight size={16} aria-hidden="true" />
+          </Link>
+        </nav>
+      )}
     </PageShell>
   );
 }

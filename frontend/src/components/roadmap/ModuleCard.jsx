@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import {
   Atom,
   BookOpen,
-  Braces,
   CheckCircle2,
   ChevronDown,
   Circle,
@@ -31,7 +30,6 @@ const moduleVisuals = [
   { match: /test/i, icon: FlaskConical, className: 'bg-rose-50 text-rose-700 ring-rose-100' },
   { match: /express|api|rest/i, icon: Network, className: 'bg-orange-50 text-orange-700 ring-orange-100' },
   { match: /node/i, icon: Server, className: 'bg-green-50 text-green-700 ring-green-100' },
-  { match: /javascript|\bjs\b/i, icon: Braces, className: 'bg-amber-50 text-amber-700 ring-amber-100' },
   { match: /html|css|frontend/i, icon: Code2, className: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
 ];
 
@@ -49,7 +47,14 @@ const getLessonIcon = (status, locked) => {
 
 const cleanPriorityTitle = (title = '') => title.replace(/^priority review\s*[:–—-]?\s*/i, '').trim();
 
-export default function ModuleCard({ module, index = 0, isLast = false, defaultExpanded = false }) {
+export default function ModuleCard({
+  module,
+  index = 0,
+  lessonNumberStart = 1,
+  isLast = false,
+  defaultExpanded = false,
+  isCurrent = false
+}) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const contentId = useId();
   const lessons = module.lessons || [];
@@ -129,6 +134,7 @@ export default function ModuleCard({ module, index = 0, isLast = false, defaultE
                 </div>
 
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  {isCurrent && <Badge variant="info">Current</Badge>}
                   {highPriority && <Badge variant="warning">High priority</Badge>}
                   <StatusPill status={module.status || 'available'} />
                   <ChevronDown
@@ -161,7 +167,8 @@ export default function ModuleCard({ module, index = 0, isLast = false, defaultE
                 {lessons.map((item, lessonIndex) => {
                   const lesson = item.lesson;
                   const lessonId = lesson?._id || (typeof lesson === 'string' ? lesson : null);
-                  const lessonTitle = lesson?.title || `Lesson ${lessonIndex + 1}`;
+                  const lessonNumber = lessonNumberStart + lessonIndex;
+                  const lessonTitle = lesson?.title || `Lesson ${lessonNumber}`;
                   const lessonLocked = item.status === 'locked' || !lessonId;
                   const activeLesson = item.status === 'available' || item.status === 'in_progress';
                   const LessonIcon = getLessonIcon(item.status, lessonLocked);
@@ -182,7 +189,7 @@ export default function ModuleCard({ module, index = 0, isLast = false, defaultE
                           <LessonIcon size={15} />
                         </span>
                         <div className="min-w-0">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Lesson {lessonIndex + 1}</p>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Lesson {lessonNumber}</p>
                           <p className={cn('mt-0.5 truncate text-sm font-semibold', lessonLocked ? 'text-muted-foreground' : 'text-foreground')}>{lessonTitle}</p>
                         </div>
                       </div>
