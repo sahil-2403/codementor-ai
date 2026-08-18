@@ -203,6 +203,7 @@ const applyVerifiedFocusToModules = ({ modules, verifiedFocusAreas, adviceByKey 
     return {
       ...module,
       highPriority: true,
+      focusTopics: focusArea.weakTopics,
       focusReason: adviceByKey.get(focusArea.focusKey) || buildFallbackFocusReason(focusArea)
     };
   });
