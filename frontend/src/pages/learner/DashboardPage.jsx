@@ -8,7 +8,6 @@ import {
   Code2,
   MessageSquareText,
   RefreshCw,
-  Sparkles,
   Target
 } from 'lucide-react';
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -258,17 +257,17 @@ export default function DashboardPage() {
         <section className="flex flex-col gap-4 rounded-surface border border-primary/20 bg-primary-soft/45 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="flex items-start gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary text-white" aria-hidden="true">
-              <Sparkles size={18} />
+              <Target size={18} />
             </span>
             <div>
-              <h2 className="text-base font-bold text-foreground">Personalize your roadmap with AI</h2>
+              <h2 className="text-base font-bold text-foreground">Personalize your roadmap with a skill check</h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Take a short skill check so your roadmap can put more attention on topics that need practice.
+                Take a short skill check so CodeMentor can highlight the topics that need more attention and connect them to your roadmap lessons.
               </p>
             </div>
           </div>
           <Link to="/onboarding/assessment?personalize=true" className="ui-button ui-button--primary min-h-9 shrink-0 px-4 text-sm">
-            <Sparkles size={15} aria-hidden="true" /> Take skill check
+            <Target size={15} aria-hidden="true" /> Take skill check
           </Link>
         </section>
       )}
