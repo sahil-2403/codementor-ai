@@ -4,19 +4,6 @@ import { Enrollment } from '../models/Enrollment.js';
 import { ApiError } from '../utils/ApiError.js';
 import { markAssessmentCompleted, markAssessmentStarted } from './onboarding.service.js';
 
-const getRecommendedLevel = ({ requestedLevel, score }) => {
-  if (score < 45) return requestedLevel === 'advanced' ? 'intermediate' : 'beginner';
-  if (score >= 80 && requestedLevel === 'intermediate') return 'advanced-ready';
-  return requestedLevel;
-};
-
-const getSuggestedRoadmapType = ({ weakTopics, score }) => {
-  if (score < 50) return 'foundation_repair';
-  if (weakTopics.length >= 3) return 'gap_focused';
-  if (score >= 80) return 'accelerated';
-  return 'balanced_personalized';
-};
-
 const normalizeIdSet = (ids = []) => ids.map((id) => id.toString()).sort();
 
 const selectBalancedQuestions = (questions, limit = 12) => {
@@ -145,22 +132,29 @@ export const submitAssessment = async ({ userId, enrollmentId, sessionId, answer
     const selectedAnswer = answerMap.get(question._id.toString()) || '';
     const isCorrect = selectedAnswer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase();
     const topicTitle = question.topic?.title || 'General';
-    const current = topicStats.get(topicTitle) || { correct: 0, total: 0 };
+    const topicRef = question.topic?._id || null;
+    const topicKey = topicRef?.toString() || topicTitle;
+    const current = topicStats.get(topicKey) || { topic: topicTitle, topicRef, correct: 0, total: 0 };
     current.total += 1;
     if (isCorrect) current.correct += 1;
-    topicStats.set(topicTitle, current);
+    topicStats.set(topicKey, current);
     return { question: question._id, selectedAnswer, isCorrect, topicTitle };
   });
 
   const totalCorrect = checkedAnswers.filter((answer) => answer.isCorrect).length;
   const score = Math.round((totalCorrect / Math.max(checkedAnswers.length, 1)) * 100);
-  const categoryScores = Array.from(topicStats.entries()).map(([topic, value]) => ({
-    topic,
+  const categoryScores = Array.from(topicStats.values()).map((value) => ({
+    topic: value.topic,
+    topicRef: value.topicRef,
     score: Math.round((value.correct / value.total) * 100),
     total: value.total
   }));
-  const weakTopics = categoryScores.filter((item) => item.score < 70).map((item) => ({ topic: item.topic, score: item.score }));
-  const strongTopics = categoryScores.filter((item) => item.score >= 80).map((item) => ({ topic: item.topic, score: item.score }));
+  const weakTopics = categoryScores
+    .filter((item) => item.score < 70)
+    .map(({ topic, topicRef, score: topicScore }) => ({ topic, topicRef, score: topicScore }));
+  const strongTopics = categoryScores
+    .filter((item) => item.score >= 80)
+    .map(({ topic, topicRef, score: topicScore }) => ({ topic, topicRef, score: topicScore }));
 
   session.status = 'completed';
   session.answers = checkedAnswers;
@@ -188,11 +182,9 @@ export const buildAssessmentReport = (assessment) => ({
   categoryScores: assessment.categoryScores,
   weakTopics: assessment.weakTopics,
   strongTopics: assessment.strongTopics,
-  recommendedLevel: getRecommendedLevel({ requestedLevel: assessment.level, score: assessment.score }),
-  suggestedRoadmapType: getSuggestedRoadmapType({ weakTopics: assessment.weakTopics, score: assessment.score }),
   summary: assessment.weakTopics?.length
-    ? `Your roadmap should focus on ${assessment.weakTopics.slice(0, 3).map((item) => item.topic).join(', ')}.`
-    : 'Your assessment looks strong. You can move into a faster roadmap with practice and interview preparation.'
+    ? `Focus first on ${assessment.weakTopics.slice(0, 3).map((item) => item.topic).join(', ')}.`
+    : 'Your skill check did not identify any urgent weak topics. Continue with your selected level and keep practicing.'
 });
 
 export const getAssessmentReport = async ({ userId, assessmentId }) => {
