@@ -12,32 +12,45 @@ import { onboardingApi } from '../../api/onboardingApi.js';
 import { roadmapApi } from '../../api/roadmapApi.js';
 import notify from '../../utils/notify.js';
 
-function findDefaultExpandedModule(modules = []) {
+const moduleLevel = (module, currentLevel) => module.level || currentLevel;
+
+function findDefaultExpandedModule(modules = [], currentLevel) {
   if (!modules.length) return -1;
 
+  const currentIndexes = modules
+    .map((module, index) => ({ module, index }))
+    .filter(({ module }) => moduleLevel(module, currentLevel) === currentLevel);
   const hasLessonStatus = (module, statuses) =>
     (module.lessons || []).some((item) => statuses.includes(item.status));
 
-  const inProgress = modules.findIndex(
-    (module) =>
-      module.status === 'in_progress' ||
-      hasLessonStatus(module, ['in_progress'])
-  );
-  if (inProgress >= 0) return inProgress;
+  const inProgress = currentIndexes.find(({ module }) =>
+    module.status === 'in_progress' || hasLessonStatus(module, ['in_progress']));
+  if (inProgress) return inProgress.index;
 
-  const available = modules.findIndex(
-    (module) =>
-      module.status === 'available' || hasLessonStatus(module, ['available'])
-  );
-  if (available >= 0) return available;
+  const available = currentIndexes.find(({ module }) =>
+    module.status === 'available' || hasLessonStatus(module, ['available']));
+  if (available) return available.index;
 
-  const incomplete = modules.findIndex(
-    (module) => module.status !== 'completed' && module.status !== 'locked'
-  );
-  if (incomplete >= 0) return incomplete;
+  const incomplete = currentIndexes.find(({ module }) =>
+    module.status !== 'completed' && module.status !== 'locked');
+  if (incomplete) return incomplete.index;
 
-  return modules.length - 1;
+  return currentIndexes.at(-1)?.index ?? modules.length - 1;
 }
+
+const groupModulesByLevel = (modules = [], currentLevel) => {
+  const groups = [];
+  modules.forEach((module, index) => {
+    const level = moduleLevel(module, currentLevel);
+    let group = groups.find((item) => item.level === level);
+    if (!group) {
+      group = { level, modules: [] };
+      groups.push(group);
+    }
+    group.modules.push({ module, index });
+  });
+  return groups;
+};
 
 const titleCase = (value = '') => value
   ? `${value.charAt(0).toUpperCase()}${value.slice(1)}`
@@ -101,7 +114,12 @@ export default function RoadmapPage() {
   const sourceLabel = course.aiGenerated
     ? 'Personalized roadmap'
     : 'Standard roadmap';
-  const defaultExpandedIndex = findDefaultExpandedModule(modules);
+  const defaultExpandedIndex = findDefaultExpandedModule(modules, course.level);
+  const currentModuleIndex = completion.isComplete
+    ? -1
+    : modules.findIndex((module) =>
+      moduleLevel(module, course.level) === course.level && module.status !== 'completed');
+  const moduleGroups = groupModulesByLevel(modules, course.level);
   const headerEyebrow = `${sourceLabel} · Version ${course.version || 1}`;
 
   const startNextLevel = async () => {
@@ -165,16 +183,35 @@ export default function RoadmapPage() {
 
       <section aria-label="Roadmap modules">
         {modules.length ? (
-          <div className="space-y-4">
-            {modules.map((module, index) => (
-              <ModuleCard
-                key={module._id || `${module.title}-${index}`}
-                module={module}
-                index={index}
-                isLast={index === modules.length - 1}
-                defaultExpanded={index === defaultExpandedIndex}
-              />
-            ))}
+          <div className="space-y-7">
+            {moduleGroups.map((group) => {
+              const isCurrentLevel = group.level === course.level;
+              return (
+                <section key={group.level} aria-label={`${titleCase(group.level)} level roadmap`}>
+                  <div className="mb-3 flex flex-wrap items-center gap-2 pl-12 sm:pl-14">
+                    <LevelBadge level={group.level} />
+                    <p className="text-xs font-semibold text-muted-foreground">
+                      {isCurrentLevel
+                        ? 'Current level · complete these modules to progress'
+                        : 'Revision access · revisit these lessons anytime'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {group.modules.map(({ module, index }, groupIndex) => (
+                      <ModuleCard
+                        key={module._id || `${module.title}-${index}`}
+                        module={module}
+                        index={index}
+                        isLast={groupIndex === group.modules.length - 1}
+                        defaultExpanded={index === defaultExpandedIndex}
+                        isCurrent={index === currentModuleIndex}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         ) : (
           <EmptyState
