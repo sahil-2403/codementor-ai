@@ -18,6 +18,7 @@ const courseModuleSchema = new mongoose.Schema(
     order: { type: Number, default: 0 },
     durationDays: { type: Number, default: 7 },
     highPriority: { type: Boolean, default: false },
+    focusReason: { type: String, default: '' },
     status: { type: String, enum: ['locked', 'available', 'in_progress', 'completed'], default: 'available' },
     lessons: [courseLessonSchema],
     quizQuestions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'QuizQuestion' }]
@@ -31,8 +32,10 @@ const coursePlanSchema = new mongoose.Schema(
     enrollment: { type: mongoose.Schema.Types.ObjectId, ref: 'Enrollment', required: true, index: true },
     course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true, index: true },
     learningPath: { type: mongoose.Schema.Types.ObjectId, ref: 'LearningPath', default: null, index: true },
+    assessment: { type: mongoose.Schema.Types.ObjectId, ref: 'Assessment', default: null },
     title: { type: String, required: true },
     description: { type: String, default: '' },
+    personalizationSummary: { type: String, default: '' },
     level: { type: String, enum: ['beginner', 'intermediate', 'advanced'], required: true },
     roadmapType: {
       type: String,
