@@ -55,7 +55,7 @@ export const buildLearningRecommendations = ({ course, progress, dueRevisions = 
     recommendations.push({
       type: 'weak_topic',
       priority: topWeakTopic.severity || 'medium',
-      title: `Fix ${topWeakTopic.topic}`,
+      title: `Review ${topWeakTopic.topic}`,
       description: relatedLessonId
         ? `Review the related lesson for ${topWeakTopic.topic}, then retry the activity that exposed this gap.`
         : `This topic appeared ${topWeakTopic.attempts || 1} time(s) from ${topWeakTopic.source}. Ask the mentor for a simpler explanation before retrying.`,
