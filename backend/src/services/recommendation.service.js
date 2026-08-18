@@ -1,4 +1,6 @@
 const severityRank = { critical: 4, high: 3, medium: 2, low: 1 };
+const referenceId = (value) => value?._id || value;
+const moduleLevel = (course, module) => module.level || course.level;
 
 export const getWeakTopicSeverity = ({ score = 0, attempts = 1 }) => {
   if (attempts >= 4 || score < 30) return 'critical';
@@ -11,7 +13,8 @@ export const getNextLessonFromCourse = (course) => {
   if (!course) return null;
 
   for (const module of course.modules || []) {
-    const courseLesson = module.lessons?.find((item) => item.status !== 'completed');
+    if (moduleLevel(course, module) !== course.level) continue;
+    const courseLesson = module.lessons?.find((item) => !['completed', 'locked'].includes(item.status));
     if (!courseLesson?.lesson) continue;
 
     const lesson = typeof courseLesson.lesson.toObject === 'function'
@@ -36,24 +39,28 @@ export const buildLearningRecommendations = ({ course, progress, dueRevisions = 
   const nextLesson = getNextLessonFromCourse(course);
 
   if (dueRevisions.length) {
+    const lessonId = referenceId(dueRevisions[0].relatedLesson);
     recommendations.push({
       type: 'revision',
       priority: dueRevisions[0].priority || 'high',
       title: 'Complete today’s revision',
       description: `Revise ${dueRevisions[0].topic} before moving ahead. This keeps weak topics from repeating.`,
-      actionLabel: 'Open progress',
-      actionPath: '/progress'
+      actionLabel: lessonId ? 'Review lesson' : 'Open progress',
+      actionPath: lessonId ? `/lessons/${lessonId}` : '/progress'
     });
   }
 
   if (topWeakTopic) {
+    const relatedLessonId = referenceId(topWeakTopic.relatedLessons?.[0]);
     recommendations.push({
       type: 'weak_topic',
       priority: topWeakTopic.severity || 'medium',
       title: `Fix ${topWeakTopic.topic}`,
-      description: `This topic appeared ${topWeakTopic.attempts || 1} time(s) from ${topWeakTopic.source}. Ask AI for a simple explanation or retake related quiz questions.`,
-      actionLabel: 'Ask AI mentor',
-      actionPath: '/mentor'
+      description: relatedLessonId
+        ? `Review the related lesson for ${topWeakTopic.topic}, then retry the activity that exposed this gap.`
+        : `This topic appeared ${topWeakTopic.attempts || 1} time(s) from ${topWeakTopic.source}. Ask the mentor for a simpler explanation before retrying.`,
+      actionLabel: relatedLessonId ? 'Review lesson' : 'Ask AI mentor',
+      actionPath: relatedLessonId ? `/lessons/${relatedLessonId}` : '/mentor'
     });
   }
 
@@ -96,7 +103,15 @@ export const buildLearningRecommendations = ({ course, progress, dueRevisions = 
 export const buildStudyPlan = ({ nextLesson, dueRevisions = [], progress }) => {
   const items = [];
   if (nextLesson) items.push({ label: 'Learn', title: nextLesson.title, minutes: 35, path: `/lessons/${nextLesson._id}` });
-  dueRevisions.slice(0, 2).forEach((item) => items.push({ label: 'Revise', title: item.topic, minutes: item.priority === 'critical' ? 25 : 15, path: '/progress' }));
+  dueRevisions.slice(0, 2).forEach((item) => {
+    const lessonId = referenceId(item.relatedLesson);
+    items.push({
+      label: 'Revise',
+      title: item.topic,
+      minutes: item.priority === 'critical' ? 25 : 15,
+      path: lessonId ? `/lessons/${lessonId}` : '/progress'
+    });
+  });
   if ((progress?.quizStats?.totalAttempts || 0) > 0) items.push({ label: 'Practice', title: 'Review your last quiz mistakes', minutes: 20, path: '/progress' });
   return items.slice(0, 4);
 };
