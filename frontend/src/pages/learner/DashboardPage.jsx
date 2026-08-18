@@ -41,7 +41,7 @@ function OverviewStats({ stats }) {
   const items = [
     { label: 'Lessons', value: `${stats.completedLessons || 0}/${stats.totalLessons || 0}`, icon: BookOpenCheck },
     { label: 'Quiz average', value: `${stats.quizAccuracy || 0}%`, icon: ClipboardCheck },
-    { label: 'Priority topics', value: stats.criticalWeakTopicsCount || 0, icon: Target },
+    { label: 'Topics to improve', value: stats.weakTopicsCount || 0, icon: Target },
     { label: 'Revisions due', value: stats.revisionsDue || 0, icon: RefreshCw }
   ];
 
