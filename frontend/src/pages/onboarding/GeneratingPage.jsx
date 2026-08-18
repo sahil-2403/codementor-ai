@@ -139,18 +139,22 @@ export default function GeneratingPage() {
     <OnboardingShell
       current="roadmap"
       eyebrow="Roadmap"
-      title="Creating your roadmap"
+      title="Preparing your learning plan"
       description={`We’re preparing ${offering?.title || currentCourse?.title || 'your selected course'} using your saved setup.`}
     >
-      <div className="grid min-h-[320px] place-items-center text-center">
+      <div className="grid min-h-[360px] place-items-center text-center">
         <div className="max-w-lg">
-          <span className={`mx-auto grid h-14 w-14 place-items-center rounded-full ${status.className}`} aria-hidden="true">
-            <Icon size={22} className={generating ? 'animate-spin' : ''} />
-          </span>
+          <div className="relative mx-auto grid h-24 w-24 place-items-center" aria-hidden="true">
+            {generating ? <span className="absolute inset-0 rounded-full bg-primary-soft/70 animate-pulse" /> : null}
+            {generating ? <span className="absolute inset-3 rounded-full border border-primary/15 bg-primary-soft/50" /> : null}
+            <span className={`relative grid h-16 w-16 place-items-center rounded-full shadow-sm ${status.className}`}>
+              <Icon size={28} className={generating ? 'animate-spin' : ''} />
+            </span>
+          </div>
           <h2 className="mt-5 text-2xl font-bold text-foreground">{status.title}</h2>
           <p className="mt-2 text-sm leading-6 text-muted-foreground">
             {generating
-              ? 'Keep this page open while the roadmap is prepared.'
+              ? 'Organizing your lessons, checkpoints, and next learning steps. Keep this page open while we finish.'
               : displayedError
                 ? 'Your onboarding choices are saved. You can try again.'
                 : 'Your roadmap is ready to open.'}
@@ -159,7 +163,7 @@ export default function GeneratingPage() {
           <div className="mt-5"><ErrorMessage message={displayedError} /></div>
 
           {showSlowHint && generating ? (
-            <p className="mt-4 text-sm text-muted-foreground">This is taking a little longer than usual.</p>
+            <p className="mt-4 text-sm text-muted-foreground">This is taking a little longer than usual, but your setup is still saved.</p>
           ) : null}
 
           <div className="mt-6 flex flex-wrap justify-center gap-3">
