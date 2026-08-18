@@ -133,33 +133,33 @@ export default function ProgressPage() {
         totalLessons={totalLessons}
       />
 
-      <section>
+      <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
         <h2 className="text-lg font-bold text-foreground">Quiz performance</h2>
-        <div className="mt-3 grid grid-cols-3 border-y border-border py-4 text-center sm:text-left">
-          <div>
+        <div className="mt-4 grid grid-cols-3 divide-x divide-border text-center sm:text-left">
+          <div className="pr-3">
             <p className="text-xl font-extrabold text-foreground">{progress.quizStats?.totalAttempts || 0}</p>
             <p className="mt-1 text-xs font-semibold text-muted-foreground">Attempts</p>
           </div>
-          <div>
+          <div className="px-3">
             <p className="text-xl font-extrabold text-primary-strong">{progress.quizStats?.averageScore || 0}%</p>
             <p className="mt-1 text-xs font-semibold text-muted-foreground">Average</p>
           </div>
-          <div>
+          <div className="pl-3">
             <p className="text-xl font-extrabold text-foreground">{progress.quizStats?.bestScore || 0}%</p>
             <p className="mt-1 text-xs font-semibold text-muted-foreground">Best score</p>
           </div>
         </div>
       </section>
 
-      <section>
+      <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-foreground">Topics to improve</h2>
           <Badge variant="neutral">{weakTopics.length}</Badge>
         </div>
         {weakTopics.length ? (
-          <div className="mt-2 divide-y divide-border border-y border-border">
+          <div className="mt-3 divide-y divide-border">
             {weakTopics.map((item) => (
-              <div key={item.topic} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div key={item.topic} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-semibold text-foreground">{item.topic}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -171,20 +171,20 @@ export default function ProgressPage() {
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">No topics currently need extra attention.</p>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">No topics currently need extra attention.</p>
         )}
       </section>
 
-      <section>
+      <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-foreground">Revisions ready</h2>
           <Badge variant={dueRevisions.length ? 'warning' : 'neutral'}>{dueRevisions.length} due</Badge>
         </div>
 
         {dueRevisions.length ? (
-          <div className="mt-2 divide-y divide-border border-y border-border">
+          <div className="mt-3 divide-y divide-border">
             {dueRevisions.map((item) => (
-              <div key={item._id} className="flex flex-col gap-3 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div key={item._id} className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold text-foreground">{item.topic}</p>
@@ -218,11 +218,11 @@ export default function ProgressPage() {
             ))}
           </div>
         ) : (
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">You are caught up. New revisions will appear as you continue learning.</p>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">You are caught up. New revisions will appear as you continue learning.</p>
         )}
       </section>
 
-      <section className="border-t border-border pt-5">
+      <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-foreground">Latest weekly report</h2>
           <Link to="/reports" className="inline-flex items-center gap-1 text-sm font-semibold text-primary-strong">
@@ -231,7 +231,7 @@ export default function ProgressPage() {
         </div>
 
         {reportsLoading ? (
-          <p className="mt-2 text-sm text-muted-foreground">Loading latest report...</p>
+          <p className="mt-3 text-sm text-muted-foreground">Loading latest report...</p>
         ) : latestReport ? (
           <div className="mt-3">
             <p className="text-xs font-semibold text-muted-foreground">Week of {formatDate(latestReport.weekStart || latestReport.createdAt)}</p>
@@ -241,7 +241,7 @@ export default function ProgressPage() {
             ) : null}
           </div>
         ) : (
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">No weekly report yet. Create one after you have some learning activity this week.</p>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">No weekly report yet. Create one after you have some learning activity this week.</p>
         )}
       </section>
     </PageShell>
