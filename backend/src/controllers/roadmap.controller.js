@@ -7,9 +7,10 @@ import {
   getRoadmapVersions,
   personalizeCurrentRoadmapLater
 } from '../services/roadmap.service.js';
-import { createProgressForCourse } from '../services/progress.service.js';
+import { createProgressForCourse, getNextAvailableCourseLevel } from '../services/progress.service.js';
 import { getActiveCourseForUser, setCurrentEnrollmentForUser } from '../services/dataIntegrity.service.js';
 import { getOnboardingStatus, setRoadmapOnboardingState } from '../services/onboarding.service.js';
+import { Progress } from '../models/Progress.js';
 import { ROADMAP_TYPES } from '../constants/roadmapTypes.js';
 import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
 
@@ -69,12 +70,23 @@ export const generateOrGetRoadmap = asyncHandler(async (req, res) => {
 
 export const currentRoadmap = asyncHandler(async (req, res) => {
   const course = await getActiveCourseForUser({ userId: req.user._id, populate: true });
+  let completion = { isComplete: false, nextLevel: null, enrollmentId: null };
+
   if (course) {
     course.modules.forEach((module) => {
       module.lessons = (module.lessons || []).filter((item) => Boolean(item.lesson));
     });
+
+    const progress = await Progress.findOne({ user: req.user._id, coursePlan: course._id }).select('overallCompletion').lean();
+    const isComplete = (progress?.overallCompletion || 0) >= 100;
+    completion = {
+      isComplete,
+      nextLevel: isComplete ? await getNextAvailableCourseLevel(course) : null,
+      enrollmentId: course.enrollment
+    };
   }
-  sendResponse(res, 200, 'Current roadmap', { course });
+
+  sendResponse(res, 200, 'Current roadmap', { course, completion });
 });
 
 export const generateFromAssessment = asyncHandler(async (req, res) => {

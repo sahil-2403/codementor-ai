@@ -49,6 +49,7 @@ export const resolveTemplateModules = async (template) => {
       description: module.description,
       order: module.order,
       durationDays: module.durationDays,
+      highPriority: Boolean(module.highPriority),
       status: module.order === 1 ? 'available' : 'locked',
       lessons: orderedLessons,
       quizQuestions: questions.map((question) => question._id)

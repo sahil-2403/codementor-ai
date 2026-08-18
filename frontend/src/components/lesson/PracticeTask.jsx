@@ -1,21 +1,21 @@
-import { Wrench } from "lucide-react";
+import { Code2 } from "lucide-react";
 
 export default function PracticeTask({ task }) {
   if (!task) return null;
 
   return (
     <section
-      className="rounded-panel border border-blue-100 bg-gradient-to-br from-blue-50 to-cyan-50/70 p-5 shadow-sm"
+      className="rounded-surface border border-border bg-surface-secondary/50 p-4 sm:p-5"
       aria-labelledby="practice-task-title"
     >
       <div className="flex items-center gap-3">
         <span
-          className="grid h-10 w-10 place-items-center rounded-surface bg-white/80 text-blue-600 ring-1 ring-blue-100"
+          className="grid h-9 w-9 place-items-center rounded-control bg-primary-soft text-primary-strong"
           aria-hidden="true"
         >
-          <Wrench size={18} />
+          <Code2 size={17} />
         </span>
-        <h2 id="practice-task-title" className="text-xl font-bold text-foreground">
+        <h2 id="practice-task-title" className="text-lg font-bold text-foreground">
           Practice task
         </h2>
       </div>

@@ -1,7 +1,7 @@
 const stringify = (value) => JSON.stringify(value);
 
 export const buildRoadmapPrompt = ({ template, enrollment, course, assessment }) => ({
-  system: 'You are CodeMentor AI. Personalize a software-development course roadmap from diagnostic assessment evidence. Return only valid JSON with title, description, and modules. Preserve every source module and all backend-owned learning-content references. Do not add or remove modules or invent lessons/questions. For every output module, sourceOrder must equal the original module.order. You may adjust module title, description, display order, and duration only.',
+  system: 'You are CodeMentor AI. Personalize a software-development course roadmap from diagnostic assessment evidence. Return only valid JSON with title, description, and modules. Preserve every source module and all backend-owned learning-content references. Do not add or remove modules or invent lessons/questions. For every output module, sourceOrder must equal the original module.order. You may adjust module title, description, display order, duration, and highPriority only. Move weak areas earlier when useful, give them slightly more study time, and mark only genuinely weak areas as highPriority. Strong areas may receive slightly less time. Keep titles natural and learner-friendly. Never put labels such as Priority review, High priority, weak area, or remediation inside a module title; priority is represented only by the highPriority boolean.',
   user: stringify({
     course: {
       title: course?.title,
@@ -14,7 +14,7 @@ export const buildRoadmapPrompt = ({ template, enrollment, course, assessment })
     outputShape: {
       title: 'string',
       description: 'string',
-      modules: [{ sourceOrder: 'original module.order', title: 'string', description: 'string', order: 'positive integer', durationDays: 'positive integer' }]
+      modules: [{ sourceOrder: 'original module.order', title: 'string', description: 'string', order: 'positive integer', durationDays: 'positive integer', highPriority: 'boolean' }]
     }
   }),
   expectJson: true,
@@ -78,15 +78,15 @@ export const buildPracticeReviewPrompt = ({ task, submission, userLevel = 'learn
 });
 
 export const buildInterviewFeedbackPrompt = ({ question, answer, userLevel = 'learner' }) => ({
-  system: 'You are CodeMentor AI reviewing a software-development learner interview answer. Return only JSON with score, summary, expectedAnswer, strengths[], improvements[], and weakTopicsDetected[{topic,score}]. Judge only the submitted answer against the supplied question, expectedAnswer, and answerChecklist when available. Give proportional partial credit: do not treat a missing example, use case, or secondary detail as if the core concept were completely wrong. Do not penalize brevity by itself when the answer is accurate. Keep the numeric score consistent with your written feedback. Use these calibration bands: 90-100 = complete, accurate, interview-ready answer; 75-89 = mostly correct with only minor omissions; 55-74 = core concept is correct but one or more important details, explanations, or requested examples are missing; 30-54 = partial understanding with major conceptual gaps; 0-29 = mostly incorrect, seriously confused, or off-topic. If the learner correctly states the central concept, normally do not score below 30 unless the rest of the answer introduces major inaccuracies. When the prompt asks for both an explanation and an example/use case, missing the example should reduce the score but should preserve credit for a correct explanation. Strengths, improvements, summary, and score must agree with each other.',
+  system: 'You are CodeMentor AI reviewing a software-development learner interview answer. Return only JSON with score, summary, expectedAnswer, strengths[], improvements[], and weakTopicsDetected[{topic,score}]. Speak directly to the learner using you and your. Never refer to them as the learner, the candidate, they, or their in feedback. For example, write You correctly identified... instead of The learner correctly identifies.... Judge only the submitted answer against the supplied question, expectedAnswer, and answerChecklist when available. Give proportional partial credit: do not treat a missing example, use case, or secondary detail as if the core concept were completely wrong. Do not penalize brevity by itself when the answer is accurate. Keep the numeric score consistent with your written feedback. Use these calibration bands: 90-100 = complete, accurate, interview-ready answer; 75-89 = mostly correct with only minor omissions; 55-74 = core concept is correct but one or more important details, explanations, or requested examples are missing; 30-54 = partial understanding with major conceptual gaps; 0-29 = mostly incorrect, seriously confused, or off-topic. If the central concept is correct, normally do not score below 30 unless the rest of the answer introduces major inaccuracies. When the prompt asks for both an explanation and an example or use case, missing the example should reduce the score but preserve credit for a correct explanation. Strengths, improvements, summary, and score must agree with each other.',
   user: stringify({ userLevel, question, answer }),
   expectJson: true,
   maxTokens: 1000
 });
 
-export const buildWeeklyReportPrompt = ({ progress }) => ({
-  system: 'You are CodeMentor AI. Create a concise software-development learning report. Return only JSON with summary and nextWeekFocus[]. Use only the supplied progress data.',
-  user: stringify({ progress }),
+export const buildWeeklyReportPrompt = ({ weeklySnapshot }) => ({
+  system: 'You are CodeMentor AI creating a learner-friendly weekly software-development report. Use only the supplied weekly snapshot. Return only JSON with summary, improvements[], and nextWeekFocus[]. Speak directly using you and your. The summary should mention what the learner actually did this week. Improvements should describe only evidence present in the snapshot. Next focus should prioritize current weak topics and the next useful learning step. Do not invent activity or progress.',
+  user: stringify({ weeklySnapshot }),
   expectJson: true,
-  maxTokens: 700
+  maxTokens: 900
 });
