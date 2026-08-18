@@ -1,7 +1,7 @@
 const stringify = (value) => JSON.stringify(value);
 
 export const buildRoadmapPrompt = ({ enrollment, course, assessment, focusAreas = [] }) => ({
-  system: 'You are CodeMentor AI. Explain a learner\'s verified skill-check gaps without redesigning the curriculum. The backend has already decided which topics are weak and which roadmap modules they belong to. Return only valid JSON with summary and focusAreas. Do not decide whether a topic is weak, do not add or remove focus areas, do not rename modules, do not change lesson order, and do not invent course content. For each supplied focusKey, write short practical advice that explains what the learner should review and why it matters. Keep advice to one or two concise sentences and use only the supplied topic/module/lesson context. Return each focusKey at most once.',
+  system: 'You are CodeMentor AI. Explain a learner\'s verified skill-check gaps without redesigning the curriculum. The backend has already decided which topics are weak and which roadmap modules they belong to. Return only valid JSON with summary and focusAreas. Do not decide whether a topic is weak, do not add or remove focus areas, do not rename modules, do not change lesson order, and do not invent course content. For each supplied focusKey, write short practical advice that names the weak topic or topics, explains what the learner should review and why it matters, and ends with one concrete next action using the supplied module or lesson context. Keep advice to one or two concise sentences and use only the supplied topic/module/lesson context. Return each focusKey at most once.',
   user: stringify({
     course: {
       title: course?.title,
@@ -13,7 +13,7 @@ export const buildRoadmapPrompt = ({ enrollment, course, assessment, focusAreas 
     verifiedFocusAreas: focusAreas,
     outputShape: {
       summary: 'short learner-friendly summary of the verified skill-check result',
-      focusAreas: [{ focusKey: 'one of the supplied focus keys', advice: 'one or two concise sentences' }]
+      focusAreas: [{ focusKey: 'one of the supplied focus keys', advice: 'one or two concise sentences with a concrete next action' }]
     }
   }),
   expectJson: true,
