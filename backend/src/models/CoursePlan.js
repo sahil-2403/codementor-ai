@@ -10,6 +10,14 @@ const courseLessonSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const moduleFocusTopicSchema = new mongoose.Schema(
+  {
+    topic: { type: String, required: true },
+    score: { type: Number, default: 0 }
+  },
+  { _id: false }
+);
+
 const courseModuleSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
@@ -18,6 +26,7 @@ const courseModuleSchema = new mongoose.Schema(
     order: { type: Number, default: 0 },
     durationDays: { type: Number, default: 7 },
     highPriority: { type: Boolean, default: false },
+    focusTopics: [moduleFocusTopicSchema],
     focusReason: { type: String, default: '' },
     status: { type: String, enum: ['locked', 'available', 'in_progress', 'completed'], default: 'available' },
     lessons: [courseLessonSchema],
