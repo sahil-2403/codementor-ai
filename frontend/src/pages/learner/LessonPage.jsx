@@ -185,20 +185,34 @@ export default function LessonPage() {
       </section>
 
       {isCompleted && (
-        <nav className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between" aria-label="Lesson navigation">
+        <nav
+          className="sticky bottom-4 z-20 mx-auto flex w-full max-w-3xl items-center justify-between gap-3 rounded-surface border border-border bg-surface/95 p-2 shadow-lg backdrop-blur"
+          aria-label="Lesson navigation"
+        >
           <div>
-            {navigation.previousLessonId && (
-              <Link to={`/lessons/${navigation.previousLessonId}`} className="ui-button ui-button--secondary min-h-9 gap-2 px-3.5 text-sm">
-                <ArrowLeft size={15} aria-hidden="true" /> Previous lesson
+            {navigation.previousLessonId ? (
+              <Link
+                to={`/lessons/${navigation.previousLessonId}`}
+                className="ui-button ui-button--secondary min-h-10 min-w-10 gap-2 px-3"
+                aria-label="Previous lesson"
+              >
+                <ArrowLeft size={16} aria-hidden="true" />
+                <span className="hidden sm:inline">Previous lesson</span>
               </Link>
+            ) : (
+              <span className="block h-10 w-10" aria-hidden="true" />
             )}
           </div>
+
           <Link
             to={navigation.nextLessonId ? `/lessons/${navigation.nextLessonId}` : '/roadmap'}
-            className="ui-button ui-button--primary min-h-9 gap-2 px-3.5 text-sm"
+            className="ui-button ui-button--primary min-h-10 min-w-10 gap-2 px-3"
+            aria-label={navigation.nextLessonId ? 'Next lesson' : 'Back to roadmap'}
           >
-            {navigation.nextLessonId ? 'Next lesson' : 'Back to roadmap'}
-            <ArrowRight size={15} aria-hidden="true" />
+            <span className="hidden sm:inline">
+              {navigation.nextLessonId ? 'Next lesson' : 'Back to roadmap'}
+            </span>
+            <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </nav>
       )}
