@@ -14,7 +14,9 @@ import { reportApi } from '../../api/reportApi.js';
 import { formatDate } from '../../utils/formatDate.js';
 import notify from '../../utils/notify.js';
 
-const formatSource = (value) => String(value || 'learning activity').replaceAll('_', ' ');
+const formatSource = (value) => value === 'assessment'
+  ? 'skill check'
+  : String(value || 'learning activity').replaceAll('_', ' ');
 
 export default function ProgressPage() {
   const navigate = useNavigate();
