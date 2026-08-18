@@ -4,7 +4,7 @@ import { Assessment } from '../models/Assessment.js';
 import { ROADMAP_TYPES, COURSE_STATUS } from '../constants/roadmapTypes.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { getPublishedTemplate, resolveTemplateModules } from './templateRoadmap.service.js';
-import { createProgressForCourse } from './progress.service.js';
+import { carryProgressToCourse, mergeWeakTopics } from './progress.service.js';
 import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
 import { aiProvider } from '../ai/aiProvider.service.js';
 import { logActivity } from './activityLog.service.js';
@@ -17,6 +17,8 @@ import {
   getCurrentEnrollmentForUser,
   setCurrentEnrollmentForUser
 } from './dataIntegrity.service.js';
+
+const levelOrder = ['beginner', 'intermediate', 'advanced'];
 
 const reasonByRoadmapType = {
   [ROADMAP_TYPES.TEMPLATE]: 'initial_template',
@@ -84,12 +86,51 @@ const resolveEnrollmentCourse = async ({ userId, enrollmentId }) => {
   return { enrollment, course, level };
 };
 
-export const getActiveRoadmapForEnrollment = ({ userId, enrollmentId }) => CoursePlan.findOne({
-  user: userId,
-  enrollment: enrollmentId,
-  status: COURSE_STATUS.ACTIVE,
-  isActive: true
-}).sort({ updatedAt: -1 });
+const getCumulativeLevels = ({ availableLevels = [], level }) => {
+  const currentIndex = levelOrder.indexOf(level);
+  if (currentIndex < 0) return [level];
+  return levelOrder
+    .slice(0, currentIndex + 1)
+    .filter((item) => availableLevels.includes(item));
+};
+
+const resolveCumulativeModules = async ({ catalogCourse, level, currentTemplate }) => {
+  const levels = getCumulativeLevels({ availableLevels: catalogCourse.availableLevels || [], level });
+  const resolvedModules = [];
+  let globalOrder = 1;
+
+  for (const roadmapLevel of levels) {
+    const template = roadmapLevel === level
+      ? currentTemplate
+      : await getPublishedTemplate({ courseId: catalogCourse._id, level: roadmapLevel });
+    const modules = await resolveTemplateModules(template);
+
+    modules
+      .sort((a, b) => Number(a.order || 0) - Number(b.order || 0))
+      .forEach((module) => {
+        resolvedModules.push({
+          ...module,
+          level: roadmapLevel,
+          order: globalOrder
+        });
+        globalOrder += 1;
+      });
+  }
+
+  return resolvedModules;
+};
+
+export const getActiveRoadmapForEnrollment = async ({ userId, enrollmentId }) => {
+  const { course, level } = await resolveEnrollmentCourse({ userId, enrollmentId });
+  return CoursePlan.findOne({
+    user: userId,
+    enrollment: enrollmentId,
+    course: course._id,
+    level,
+    status: COURSE_STATUS.ACTIVE,
+    isActive: true
+  }).sort({ updatedAt: -1 });
+};
 
 export const createCourseFromTemplate = async ({
   userId,
@@ -100,6 +141,15 @@ export const createCourseFromTemplate = async ({
 }) => {
   const { enrollment, course: catalogCourse, level } = await resolveEnrollmentCourse({ userId, enrollmentId });
   const template = await getPublishedTemplate({ courseId: catalogCourse._id, level });
+  const assessment = assessmentId
+    ? await Assessment.findOne({
+      _id: assessmentId,
+      user: userId,
+      enrollment: enrollmentId,
+      course: catalogCourse._id,
+      status: 'completed'
+    }).lean()
+    : null;
   let roadmapTitle = template.title;
   let roadmapDescription = template.description;
   let templateForResolution = template;
@@ -109,9 +159,6 @@ export const createCourseFromTemplate = async ({
   if (shouldUseAI) {
     try {
       await checkAIUsageLimit(userId, AI_FEATURES.ROADMAP_GENERATION);
-      const assessment = assessmentId
-        ? await Assessment.findOne({ _id: assessmentId, user: userId, enrollment: enrollmentId, course: catalogCourse._id, status: 'completed' }).lean()
-        : null;
       const aiRoadmap = await aiProvider.generateRoadmap({
         template,
         enrollment: enrollment.toObject(),
@@ -123,8 +170,7 @@ export const createCourseFromTemplate = async ({
       if (personalizedModules) {
         roadmapTitle = aiRoadmap.title || template.title;
         roadmapDescription = aiRoadmap.description || template.description;
-        const templateObject = typeof template.toObject === 'function' ? template.toObject() : template;
-        templateForResolution = { ...templateObject, modules: personalizedModules };
+        templateForResolution = { ...template, modules: personalizedModules };
         aiGenerated = true;
         await logAIUsage({
           user: userId,
@@ -143,7 +189,11 @@ export const createCourseFromTemplate = async ({
     }
   }
 
-  const modules = await resolveTemplateModules(templateForResolution);
+  const modules = await resolveCumulativeModules({
+    catalogCourse,
+    level,
+    currentTemplate: templateForResolution
+  });
   const planFilter = { enrollment: enrollmentId, course: catalogCourse._id };
   const previousActive = await CoursePlan.findOne({
     ...planFilter,
@@ -184,7 +234,14 @@ export const createCourseFromTemplate = async ({
   enrollment.status = 'active';
   enrollment.currentCourse = catalogCourse._id;
   await enrollment.save();
-  await createProgressForCourse({ userId, coursePlanId: coursePlan._id });
+  const progress = await carryProgressToCourse({
+    userId,
+    previousCoursePlanId: previousActive?._id || null,
+    coursePlanId: coursePlan._id
+  });
+  if (progress && assessment?.weakTopics?.length) {
+    await mergeWeakTopics({ progress, weakTopics: assessment.weakTopics, source: 'assessment' });
+  }
   await setRoadmapOnboardingState({ userId, enrollmentId, state: ONBOARDING_STATES.COMPLETED });
   await setCurrentEnrollmentForUser({ userId, enrollmentId });
   await logActivity({
@@ -228,18 +285,12 @@ export const personalizeCurrentRoadmapLater = async ({ userId }) => {
 };
 
 export const getCurrentCourse = async (userId) => {
-  const enrollment = await getCurrentEnrollmentForUser(userId);
-  if (!enrollment) return null;
-  return CoursePlan.findOne({
-    user: userId,
-    enrollment: enrollment._id,
-    status: COURSE_STATUS.ACTIVE,
-    isActive: true
-  })
+  const activeCourse = await getActiveCourseForUser({ userId });
+  if (!activeCourse) return null;
+  return CoursePlan.findById(activeCourse._id)
     .populate('course', 'title slug category technologies primaryTechnology')
     .populate('modules.lessons.lesson')
-    .populate('modules.quizQuestions')
-    .sort({ updatedAt: -1 });
+    .populate('modules.quizQuestions');
 };
 
 export const getRoadmapVersions = async (userId) => {
