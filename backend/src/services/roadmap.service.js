@@ -10,6 +10,8 @@ import { checkAIUsageLimit, logAIUsage } from './aiUsage.service.js';
 import { aiProvider } from '../ai/aiProvider.service.js';
 import { logActivity } from './activityLog.service.js';
 import { ApiError } from '../utils/ApiError.js';
+import { levelsThrough } from '../utils/levels.js';
+import { referenceId, referenceString } from '../utils/reference.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
 import { setRoadmapOnboardingState } from './onboarding.service.js';
@@ -18,15 +20,11 @@ import {
   setCurrentEnrollmentForUser
 } from './dataIntegrity.service.js';
 
-const levelOrder = ['beginner', 'intermediate', 'advanced'];
-
 const reasonByRoadmapType = {
   [ROADMAP_TYPES.TEMPLATE]: 'initial_template',
   [ROADMAP_TYPES.ASSESSMENT_AI_PERSONALIZED]: 'assessment_personalized'
 };
 
-const referenceId = (value) => value?._id || value;
-const referenceString = (value) => referenceId(value)?.toString?.() || '';
 const normalizeTopicName = (value = '') => String(value).trim().toLowerCase();
 
 const sanitizeTopicScoresForAI = (items = []) => items.map((item) => ({
@@ -83,13 +81,8 @@ const resolveEnrollmentCourse = async ({ userId, enrollmentId }) => {
   return { enrollment, course, level };
 };
 
-const getCumulativeLevels = ({ availableLevels = [], level }) => {
-  const currentIndex = levelOrder.indexOf(level);
-  if (currentIndex < 0) return [level];
-  return levelOrder
-    .slice(0, currentIndex + 1)
-    .filter((item) => availableLevels.includes(item));
-};
+const getCumulativeLevels = ({ availableLevels = [], level }) =>
+  levelsThrough(level).filter((item) => availableLevels.includes(item));
 
 const resolveCumulativeModules = async ({ catalogCourse, level, currentTemplate }) => {
   const levels = getCumulativeLevels({ availableLevels: catalogCourse.availableLevels || [], level });
