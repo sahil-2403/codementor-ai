@@ -9,11 +9,12 @@ import {
   Plus,
   Trash2
 } from 'lucide-react';
+import FormSectionHeader from './FormSectionHeader.jsx';
 import Button from '../common/Button.jsx';
 import Card from '../common/Card.jsx';
 import Input from '../common/Input.jsx';
 import Select from '../common/Select.jsx';
-import FormTextarea from '../form/FormTextarea.jsx';
+import Textarea from '../common/Textarea.jsx';
 import { lessonFormSchema } from '../../validations/admin.schema.js';
 
 const emptyForm = {
@@ -48,26 +49,6 @@ const toForm = (lesson, topics) => lesson ? {
   tags: (lesson.tags || []).join(', '),
   estimatedMinutes: lesson.estimatedMinutes || 45
 } : { ...emptyForm, topic: topics[0]?._id || '' };
-
-function FormSectionHeader({ icon: Icon, eyebrow, title, description }) {
-  return (
-    <div className="flex items-start gap-3 border-b border-border pb-4">
-      <span
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong"
-        aria-hidden="true"
-      >
-        <Icon size={18} />
-      </span>
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">
-          {eyebrow}
-        </p>
-        <h2 className="mt-1 text-lg font-bold text-foreground">{title}</h2>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function LessonForm({
   topics = [],
@@ -164,29 +145,29 @@ export default function LessonForm({
         />
 
         <div className="mt-5 space-y-5">
-          <FormTextarea
+          <Textarea
             label="Theory"
             rows={7}
             placeholder="Explain the concept in clear learner-friendly language..."
-            registration={register('theory')}
             error={errors.theory?.message}
+            {...register('theory')}
           />
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <FormTextarea
+            <Textarea
               label="Code example"
               rows={10}
               placeholder="const example = () => { ... }"
               className="font-mono text-[13px] leading-6"
-              registration={register('codeExample')}
               error={errors.codeExample?.message}
+              {...register('codeExample')}
             />
-            <FormTextarea
+            <Textarea
               label="Code explanation"
               rows={10}
               placeholder="Explain what the code is doing and why each important part matters..."
-              registration={register('codeExplanation')}
               error={errors.codeExplanation?.message}
+              {...register('codeExplanation')}
             />
           </div>
 
@@ -254,12 +235,12 @@ export default function LessonForm({
         />
 
         <div className="mt-5 space-y-5">
-          <FormTextarea
+          <Textarea
             label="Interview-ready definition"
             rows={3}
             placeholder="A concise definition a learner could use in an interview..."
-            registration={register('interviewDefinition')}
             error={errors.interviewDefinition?.message}
+            {...register('interviewDefinition')}
           />
 
           <div>
@@ -308,12 +289,12 @@ export default function LessonForm({
                         error={errors.interviewQuestions?.[index]?.question?.message}
                         {...register(`interviewQuestions.${index}.question`)}
                       />
-                      <FormTextarea
+                      <Textarea
                         label="Expected answer"
                         rows={3}
                         placeholder="Write the answer a learner should be able to explain..."
-                        registration={register(`interviewQuestions.${index}.answer`)}
                         error={errors.interviewQuestions?.[index]?.answer?.message}
+                        {...register(`interviewQuestions.${index}.answer`)}
                       />
                     </div>
                   </div>
@@ -337,12 +318,12 @@ export default function LessonForm({
         />
 
         <div className="mt-5 space-y-4">
-          <FormTextarea
+          <Textarea
             label="Practice task"
             rows={5}
             placeholder="Describe a small task learners can complete after reading the lesson..."
-            registration={register('practiceTask')}
             error={errors.practiceTask?.message}
+            {...register('practiceTask')}
           />
 
           <div>
