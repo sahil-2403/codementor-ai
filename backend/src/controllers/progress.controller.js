@@ -11,7 +11,7 @@ export const dashboard = asyncHandler(async (req, res) => {
   const data = await getCurrentProgress(req.user._id);
   if (!data) return sendResponse(res, 200, 'No active progress found', { course: null, progress: null, stats: null });
 
-  const { course, progress, nextLesson, dueRevisions, revisionStats, recommendations, studyPlan, roadmapVersions } = data;
+  const { course, progress, nextLesson, dueRevisions, revisionStats, recommendations, studyPlan } = data;
   const enrollment = await Enrollment.findById(course.enrollment).select('assessmentPreference').lean();
   const currentModules = getCurrentLevelModules(course);
   const currentLessonIds = new Set(
@@ -40,7 +40,6 @@ export const dashboard = asyncHandler(async (req, res) => {
     revisionStats,
     recommendations,
     studyPlan,
-    roadmapVersions,
     criticalWeakTopics,
     stats: {
       totalLessons: currentLessonIds.size,
