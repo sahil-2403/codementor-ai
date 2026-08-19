@@ -140,14 +140,10 @@ const buildCurrentProgressPayload = async (userId) => {
   const course = await getActiveCourseForUser({ userId, populate: true, lean: true });
   if (!course) return null;
 
-  const [progress, dueRevisions, revisionStats, roadmapVersions] = await Promise.all([
+  const [progress, dueRevisions, revisionStats] = await Promise.all([
     Progress.findOne({ user: userId, coursePlan: course._id }).lean(),
     getDueRevisions({ userId, coursePlanId: course._id }),
-    getRevisionStats({ userId, coursePlanId: course._id }),
-    CoursePlan.find({ user: userId, enrollment: course.enrollment, course: course.course })
-      .select('_id title version roadmapType generatedReason status isActive createdAt')
-      .sort({ version: -1 })
-      .lean()
+    getRevisionStats({ userId, coursePlanId: course._id })
   ]);
 
   const nextLesson = getNextLessonFromCourse(course);
@@ -164,7 +160,6 @@ const buildCurrentProgressPayload = async (userId) => {
     revisionStats,
     recommendations,
     studyPlan,
-    roadmapVersions,
     completion: {
       isComplete,
       nextLevel,
