@@ -71,8 +71,7 @@ const envSchema = z.object({
   EMAIL_FROM_ADDRESS: optionalEmail,
   EMAIL_REPLY_TO: optionalEmail,
   EMAIL_VERIFY_CONNECTION: envBoolean(true),
-  ALLOW_DEV_EMAIL_LOG: envBoolean(true),
-  ENABLE_DEMO_MODE: envBoolean(false)
+  ALLOW_DEV_EMAIL_LOG: envBoolean(true)
 }).superRefine((values, context) => {
   const origins = (values.ALLOWED_ORIGINS || values.CLIENT_URL)
     .split(',')
@@ -149,8 +148,7 @@ export const env = Object.freeze({
   emailFromAddress: values.EMAIL_FROM_ADDRESS,
   emailReplyTo: values.EMAIL_REPLY_TO,
   emailVerifyConnection: values.EMAIL_VERIFY_CONNECTION,
-  allowDevEmailLog: values.ALLOW_DEV_EMAIL_LOG,
-  enableDemoMode: values.ENABLE_DEMO_MODE
+  allowDevEmailLog: values.ALLOW_DEV_EMAIL_LOG
 });
 
 export const isGeminiAvailable = () => env.enableAi && Boolean(env.geminiApiKey);
