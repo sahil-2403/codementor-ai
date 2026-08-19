@@ -8,11 +8,12 @@ import {
   Settings2,
   Trash2
 } from 'lucide-react';
+import FormSectionHeader from './FormSectionHeader.jsx';
 import Button from '../common/Button.jsx';
 import Card from '../common/Card.jsx';
 import Input from '../common/Input.jsx';
 import Select from '../common/Select.jsx';
-import FormTextarea from '../form/FormTextarea.jsx';
+import Textarea from '../common/Textarea.jsx';
 import { interviewQuestionFormSchema } from '../../validations/admin.schema.js';
 
 const emptyForm = {
@@ -42,21 +43,6 @@ const toForm = (question, topics) => {
     tags: (question.tags || []).join(', ')
   };
 };
-
-function FormSectionHeader({ icon: Icon, eyebrow, title, description }) {
-  return (
-    <div className="flex items-start gap-3 border-b border-border pb-4">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
-        <Icon size={18} />
-      </span>
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">{eyebrow}</p>
-        <h2 className="mt-1 text-lg font-bold text-foreground">{title}</h2>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function InterviewQuestionForm({
   topics = [],
@@ -102,12 +88,12 @@ export default function InterviewQuestionForm({
           description="Create a focused prompt and connect it to the Topic that owns its lifecycle."
         />
         <div className="mt-5 space-y-4">
-          <FormTextarea
+          <Textarea
             label="Interview question"
             rows={4}
-            registration={register('question')}
             error={errors.question?.message}
             placeholder="Ask one clear concept, scenario, debugging, or system-design question."
+            {...register('question')}
           />
           <div className="grid gap-4 md:grid-cols-3">
             <Select label="Topic" error={errors.topicRef?.message} {...register('topicRef')}>
@@ -138,12 +124,12 @@ export default function InterviewQuestionForm({
           description="These fields guide AI feedback after the learner submits an answer."
         />
         <div className="mt-5 space-y-5">
-          <FormTextarea
+          <Textarea
             label="Expected answer"
             rows={7}
-            registration={register('expectedAnswer')}
             error={errors.expectedAnswer?.message}
             placeholder="Describe the key ideas a strong answer should cover."
+            {...register('expectedAnswer')}
           />
 
           <div>
