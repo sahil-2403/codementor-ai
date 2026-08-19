@@ -4,9 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { LogIn } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
+import Input from '../../components/common/Input.jsx';
 import AuthNotice from '../../components/auth/AuthNotice.jsx';
 import AuthShell from '../../components/auth/AuthShell.jsx';
-import FormInput from '../../components/form/FormInput.jsx';
 import PasswordInput from '../../components/form/PasswordInput.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 import { loginFormSchema } from '../../validations/auth.schema.js';
@@ -66,7 +66,7 @@ export default function LoginPage() {
 
     <form onSubmit={handleSubmit(submit)} className="mt-5 space-y-4">
       <ErrorMessage message={errors.root?.message} />
-      <FormInput label="Email" type="email" autoComplete="email" registration={register('email')} error={errors.email?.message} placeholder="you@example.com" />
+      <Input label="Email" type="email" autoComplete="email" {...register('email')} error={errors.email?.message} placeholder="you@example.com" />
       <PasswordInput label="Password" registration={register('password')} error={errors.password?.message} placeholder="Your password" />
       <div className="flex justify-end text-sm"><Link className="auth-link" to="/forgot-password">Forgot password?</Link></div>
       <Button type="submit" className="w-full" isLoading={isSubmitting} loadingLabel="Logging in...">Login</Button>
