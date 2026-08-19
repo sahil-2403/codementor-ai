@@ -3,9 +3,7 @@ import { sendResponse } from '../utils/ApiResponse.js';
 import {
   createCourseFromAssessment,
   createCourseFromTemplate,
-  getActiveRoadmapForEnrollment,
-  getRoadmapVersions,
-  personalizeCurrentRoadmapLater
+  getActiveRoadmapForEnrollment
 } from '../services/roadmap.service.js';
 import { createProgressForCourse, getNextAvailableCourseLevel } from '../services/progress.service.js';
 import { getActiveCourseForUser, setCurrentEnrollmentForUser } from '../services/dataIntegrity.service.js';
@@ -107,14 +105,4 @@ export const generateFromAssessment = asyncHandler(async (req, res) => {
     await markRoadmapFailed({ userId: req.user._id, enrollmentId, error });
     throw error;
   }
-});
-
-export const versions = asyncHandler(async (req, res) => {
-  const roadmapVersions = await getRoadmapVersions(req.user._id);
-  sendResponse(res, 200, 'Roadmap versions', { roadmapVersions });
-});
-
-export const personalizeLater = asyncHandler(async (req, res) => {
-  const result = await personalizeCurrentRoadmapLater({ userId: req.user._id });
-  sendResponse(res, 200, 'Personalization flow ready', result);
 });
