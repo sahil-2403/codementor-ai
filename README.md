@@ -8,6 +8,7 @@ CodeMentor AI is a MERN learning platform for structured coding practice. Learne
 - **Courses own curriculum.** Topics, Lessons, Questions, Practice Tasks, Interview practice, and Roadmap Templates are scoped to a Course.
 - **Technologies classify content.** A learner can start a Course directly without selecting a programming language first.
 - **Deterministic learning features do not require AI.** Authentication, onboarding, template roadmaps, Lessons, Quizzes, Practice, Interview attempts, Progress, and admin content management remain available when Gemini is disabled.
+- **Skill-check personalization is backend-owned.** Assessment results identify weak topics and the backend maps those topics to verified roadmap modules. Gemini may explain the focus areas, but it does not decide which modules are weak or rename/reorder the roadmap.
 - **AI output is labelled honestly.** Provider failures use stored/deterministic fallback guidance without presenting fallback content as generated analysis.
 - **Hireflow is the complexity ceiling.** CodeMentor may be simpler than Hireflow, but it must not introduce architecture beyond the current Hireflow project unless the project scope is explicitly raised.
 
@@ -18,8 +19,9 @@ CodeMentor AI is a MERN learning platform for structured coding practice. Learne
 - Registration, email verification, login, password recovery, and session invalidation
 - Course and Learning Path catalog
 - Beginner, Intermediate, and Advanced entry levels
-- Preferences and optional Course-specific diagnostics
-- Versioned template or assessment-personalized roadmaps
+- Optional Course-specific skill checks for Intermediate and Advanced learners
+- Cumulative roadmaps that keep lower-level content available for revision
+- Assessment-personalized priority modules linked to verified weak topics
 - Ordered modules, Lesson completion, and module Quizzes
 - Weak-topic and Revision tracking
 - Contextual Gemini Mentor with saved Course explanations as fallback
@@ -52,7 +54,6 @@ Admin content uses a consistent lifecycle: active/draft/published content is arc
 - React Hook Form and Zod
 - Tailwind CSS 3
 - Lucide React
-- Recharts
 - Sonner
 - Vite 5
 
@@ -140,7 +141,7 @@ npm run dev
 
 The API listens on `http://localhost:5000` by default.
 
-> `npm run seed` recreates the development/demo data. Do not use it against data you need to keep.
+> `npm run seed` is intended for a fresh development/demo database. Do not use it as a migration or update script against data you need to keep.
 
 Health endpoint: `GET /health`.
 
@@ -163,7 +164,7 @@ GEMINI_API_KEY=your_key
 GEMINI_MODEL=gemini-1.5-flash
 ```
 
-Gemini-assisted features include roadmap adjustment, Mentor answers, Quiz explanations, Practice reviews, Interview feedback, and weekly summaries. Each feature keeps an honest stored/deterministic fallback where appropriate.
+Gemini-assisted features include Mentor answers, Quiz explanations, Practice reviews, Interview feedback, weekly summaries, and explanatory text for verified skill-check roadmap focus areas. Assessment scoring and roadmap priority mapping remain deterministic backend behavior.
 
 ## Email
 
