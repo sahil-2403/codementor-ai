@@ -48,17 +48,16 @@ const coursePlanSchema = new mongoose.Schema(
     level: { type: String, enum: ['beginner', 'intermediate', 'advanced'], required: true },
     roadmapType: {
       type: String,
-      enum: [...Object.values(ROADMAP_TYPES), 'template_ai_adjusted'],
+      enum: Object.values(ROADMAP_TYPES),
       default: ROADMAP_TYPES.TEMPLATE
     },
     modules: [courseModuleSchema],
     status: { type: String, enum: Object.values(COURSE_STATUS), default: COURSE_STATUS.ACTIVE },
     aiGenerated: { type: Boolean, default: false },
     version: { type: Number, default: 1 },
-    parentCoursePlan: { type: mongoose.Schema.Types.ObjectId, ref: 'CoursePlan', default: null },
     generatedReason: {
       type: String,
-      enum: ['initial_template', 'assessment_personalized', 'weak_topic_update', 'manual_regeneration', 'preference_adjusted'],
+      enum: ['initial_template', 'assessment_personalized'],
       default: 'initial_template'
     },
     isActive: { type: Boolean, default: true, index: true }
