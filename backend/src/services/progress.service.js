@@ -8,10 +8,9 @@ import { scheduleRevisionForWeakTopic, getDueRevisions, getRevisionStats } from 
 import { assertLessonBelongsToCourse, getActiveCourseForUser } from './dataIntegrity.service.js';
 import { findRelevantLessons } from './learningContext.service.js';
 import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
+import { nextAvailableLevel } from '../utils/levels.js';
+import { referenceId, referenceString } from '../utils/reference.js';
 
-const levelOrder = ['beginner', 'intermediate', 'advanced'];
-const referenceId = (value) => value?._id || value;
-const referenceString = (value) => referenceId(value)?.toString?.() || '';
 const moduleLevel = (course, module) => module.level || course.level;
 
 export const getCurrentLevelModules = (course) => (course?.modules || [])
@@ -92,12 +91,9 @@ export const getNextAvailableCourseLevel = async (coursePlan) => {
   if (!enrollment || enrollment.type !== 'course') return null;
 
   const course = await Course.findById(coursePlan.course).select('availableLevels').lean();
-  const currentIndex = levelOrder.indexOf(coursePlan.level);
-  if (!course || currentIndex < 0) return null;
+  if (!course) return null;
 
-  return levelOrder
-    .slice(currentIndex + 1)
-    .find((level) => (course.availableLevels || []).includes(level)) || null;
+  return nextAvailableLevel(coursePlan.level, course.availableLevels || []);
 };
 
 export const createProgressForCourse = async ({ userId, coursePlanId }) => Progress.findOneAndUpdate(
