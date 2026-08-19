@@ -16,7 +16,9 @@ import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import StatusPill from '../../components/common/StatusPill.jsx';
+import CourseSwitcher from '../../components/dashboard/CourseSwitcher.jsx';
 import CourseProgress from '../../components/progress/CourseProgress.jsx';
+import { onboardingApi } from '../../api/onboardingApi.js';
 import { progressApi } from '../../api/progressApi.js';
 import { useAuth } from '../../hooks/useAuth.js';
 
@@ -175,6 +177,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [data, setData] = useState(null);
+  const [enrollments, setEnrollments] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -184,9 +187,14 @@ export default function DashboardPage() {
     setIsLoading(true);
     setError(null);
 
-    progressApi.dashboard()
-      .then((result) => {
-        if (active) setData(result);
+    Promise.all([
+      progressApi.dashboard(),
+      onboardingApi.enrollments()
+    ])
+      .then(([dashboardData, enrollmentData]) => {
+        if (!active) return;
+        setData(dashboardData);
+        setEnrollments(enrollmentData?.enrollments || []);
       })
       .catch((requestError) => {
         if (active) setError(requestError);
@@ -199,6 +207,11 @@ export default function DashboardPage() {
       active = false;
     };
   }, [loadAttempt]);
+
+  const switchEnrollment = async (enrollment) => {
+    await onboardingApi.switchEnrollment(enrollment._id);
+    setLoadAttempt((value) => value + 1);
+  };
 
   if (isLoading) return <Loader label="Loading dashboard..." />;
   if (error) {
@@ -237,6 +250,12 @@ export default function DashboardPage() {
 
   return (
     <PageShell className="space-y-5 pb-6">
+      <CourseSwitcher
+        enrollments={enrollments}
+        onSwitch={switchEnrollment}
+        onEnroll={() => navigate('/onboarding/catalog?new=true')}
+      />
+
       <PageHeader
         variant="compact"
         eyebrow={`Roadmap version ${stats.roadmapVersion || course.version || 1}`}
