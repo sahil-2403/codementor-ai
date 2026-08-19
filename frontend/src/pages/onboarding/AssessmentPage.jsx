@@ -7,8 +7,10 @@ import Button from '../../components/common/Button.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import QuestionProgress from '../../components/quiz/QuestionProgress.jsx';
 import QuizQuestionCard from '../../components/quiz/QuizQuestionCard.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
+import { buildAnswerPayload, countAnsweredQuestions } from '../../utils/questionnaire.js';
 
 export default function AssessmentPage() {
   const navigate = useNavigate();
@@ -71,10 +73,9 @@ export default function AssessmentPage() {
 
   const questions = assessmentData?.questions || [];
   const answeredCount = useMemo(
-    () => questions.filter((question) => answers[question._id]).length,
+    () => countAnsweredQuestions(questions, answers),
     [answers, questions]
   );
-  const completion = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
   const currentQuestion = questions[currentIndex];
   const currentAnswered = Boolean(currentQuestion && answers[currentQuestion._id]);
   const lastQuestion = currentIndex === questions.length - 1;
@@ -84,12 +85,7 @@ export default function AssessmentPage() {
     try {
       setSubmitting(true);
       setError('');
-      const payload = questions
-        .map((question) => ({
-          questionId: question._id,
-          selectedAnswer: answers[question._id] || ''
-        }))
-        .filter((answer) => answer.selectedAnswer);
+      const payload = buildAnswerPayload(questions, answers);
 
       if (payload.length !== questions.length) {
         throw new Error('Please answer all questions before submitting.');
@@ -198,21 +194,13 @@ export default function AssessmentPage() {
     >
       <ErrorMessage message={error} />
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between gap-4 text-sm font-semibold">
-          <span className="text-foreground">Question {currentIndex + 1} of {questions.length}</span>
-          <span className="text-muted-foreground">{completion}% complete</span>
-        </div>
-        <div
-          className="h-2 overflow-hidden rounded-full bg-surface-secondary"
-          role="progressbar"
-          aria-label="Skill check completion"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-valuenow={completion}
-        >
-          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${completion}%` }} />
-        </div>
+      <div className="space-y-2">
+        <p className="text-sm font-semibold text-foreground">Question {currentIndex + 1} of {questions.length}</p>
+        <QuestionProgress
+          current={answeredCount}
+          total={questions.length}
+          label="Skill check completion"
+        />
       </div>
 
       <div className="mx-auto max-w-4xl">
