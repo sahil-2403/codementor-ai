@@ -181,8 +181,26 @@ export const switchLearnerEnrollment = async ({ userId, enrollmentId }) => {
 
 export const selectEnrollmentTarget = async ({ userId, type, courseId = null, learningPathId = null }) => {
   const selection = await resolveSelection({ type, courseId, learningPathId });
-  let enrollment = await findPendingEnrollment(userId);
+  const duplicateFilter = {
+    user: userId,
+    type,
+    status: { $in: ['active', 'completed'] }
+  };
 
+  if (type === 'course') duplicateFilter.course = selection.course._id;
+  else duplicateFilter.learningPath = selection.learningPath._id;
+
+  const existingEnrollment = await Enrollment.findOne(duplicateFilter).select('_id').lean();
+  if (existingEnrollment) {
+    throw new ApiError(
+      409,
+      `You are already enrolled in this ${type === 'course' ? 'course' : 'learning path'}. Switch to it from your Dashboard.`,
+      [],
+      'ALREADY_ENROLLED'
+    );
+  }
+
+  let enrollment = await findPendingEnrollment(userId);
   if (!enrollment) enrollment = new Enrollment({ user: userId, type });
 
   const previousTarget = enrollment.type === 'course'
