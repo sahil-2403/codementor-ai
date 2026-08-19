@@ -6,16 +6,12 @@ import { generateFromAssessmentSchema } from '../validations/roadmap.validation.
 import {
   currentRoadmap,
   generateFromAssessment,
-  generateOrGetRoadmap,
-  personalizeLater,
-  versions
+  generateOrGetRoadmap
 } from '../controllers/roadmap.controller.js';
 
 const router = Router();
 router.use(requireAuth);
 router.get('/current', currentRoadmap);
-router.get('/versions', versions);
 router.post('/generate-or-get', aiRouteLimiter, generateOrGetRoadmap);
 router.post('/from-assessment', aiRouteLimiter, validate(generateFromAssessmentSchema), generateFromAssessment);
-router.post('/personalize-later', personalizeLater);
 export default router;
