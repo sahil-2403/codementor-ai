@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import Loader from '../components/common/Loader.jsx';
 import PublicLayout from '../layouts/PublicLayout.jsx';
 import AppLayout from '../layouts/AppLayout.jsx';
@@ -71,10 +71,8 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route element={<OnboardingGuard mode="needs-onboarding" />}>
-            <Route path="/onboarding/goal" element={<Navigate to="/onboarding/catalog" replace />} />
             <Route path="/onboarding/catalog" element={<CatalogPage />} />
             <Route path="/onboarding/level" element={<LevelPage />} />
-            <Route path="/onboarding/preferences" element={<Navigate to="/onboarding/level" replace />} />
             <Route path="/onboarding/assessment-intro" element={<AssessmentIntroPage />} />
             <Route path="/onboarding/assessment" element={<AssessmentPage />} />
             <Route path="/onboarding/assessment-report/:assessmentId" element={<AssessmentReportPage />} />
