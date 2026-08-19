@@ -27,7 +27,7 @@ Copy both environment examples before starting the applications.
 
 ## Database and seed data
 
-`npm run seed` is intended for the disposable local/demo database. It recreates the catalog, Course-owned curriculum, templates, and demo accounts/content.
+`npm run seed` is intended for a fresh disposable local/demo database. It recreates the catalog, Course-owned curriculum, templates, and demo accounts/content; it is not a migration or existing-data update script.
 
 Before running it:
 
@@ -81,14 +81,18 @@ Gemini uses simple daily feature limits and maximum input lengths. Provider fail
 
 Roadmap generation is a normal API request:
 
-1. Validate the current Enrollment.
-2. Load the published Course + level template.
-3. Optionally apply Gemini personalization.
-4. Archive the previous active CoursePlan if needed.
-5. Create the new CoursePlan and Progress.
-6. Return the result.
+1. Validate the current Enrollment and selected Course/level.
+2. Load the published Roadmap Templates from Beginner through the selected level.
+3. Build one cumulative roadmap so completed lower-level content remains available for revision.
+4. If a completed skill check exists, the backend maps verified weak topics to real roadmap Lessons/modules and marks those modules as high priority.
+5. Optionally ask Gemini for short explanatory text for the already-verified focus areas.
+6. Archive the previous active CoursePlan if a replacement version is being created.
+7. Create the new CoursePlan, carry matching completed Lesson IDs forward, and ensure Progress exists.
+8. Return the result.
 
-The learner generation page should stay open while the request is running. If it fails, the learner can retry.
+Gemini does not choose weak modules, rename modules, or reorder the roadmap. If Gemini is unavailable, the deterministic skill-check personalization remains intact and uses backend fallback explanations.
+
+The learner generation page should stay open while the request is running. If it fails, the learner can retry; a retry can reuse an already-created active roadmap and ensure its Progress record exists.
 
 ## Frontend data loading
 
@@ -146,17 +150,18 @@ Also exercise the affected browser flow when changing routing, cookies, CSRF, on
 
 1. Register and verify an account.
 2. Log in and resume the correct onboarding step after refresh.
-3. Choose a Course or Learning Path, level, and preferences.
-4. Generate a roadmap.
-5. Complete Lessons and confirm progression updates.
-6. Submit a Quiz and confirm Dashboard/Progress updates.
-7. Open Mentor from a Lesson and confirm the preloaded prompt sends once.
-8. Create Practice and Interview attempts and verify the two-attempt limit.
-9. Disable Gemini and verify honest fallback behavior.
-10. Generate a weekly report.
-11. Exercise admin archive/restore/delete and dependency messages.
-12. Switch between independent learner Enrollments.
-13. Log out and test logout-all-devices.
+3. Choose a Course or Learning Path and level.
+4. For Intermediate/Advanced, either skip or complete the optional skill check.
+5. Generate a roadmap and verify lower-level revision content remains available at higher levels.
+6. Complete Lessons and confirm progression updates.
+7. Submit a Quiz and confirm Dashboard/Progress updates.
+8. Open Mentor from a Lesson and confirm the preloaded prompt sends once.
+9. Create Practice and Interview attempts and verify the two-attempt limit.
+10. Disable Gemini and verify honest fallback behavior, including deterministic skill-check roadmap priorities.
+11. Generate a weekly report.
+12. Exercise admin archive/restore/delete and dependency messages.
+13. Switch between independent learner Enrollments.
+14. Log out and test logout-all-devices.
 
 ## Production notes
 
@@ -165,7 +170,6 @@ Also exercise the affected browser flow when changing routing, cookies, CSRF, on
 - Configure exact frontend origins and proxy trust.
 - Keep MongoDB, SMTP, and Gemini credentials in deployment secrets.
 - Disable development email logging.
-- Disable demo mode unless intentionally demonstrating demo behavior.
 
 ## Troubleshooting
 
@@ -179,7 +183,7 @@ Confirm authentication and CSRF cookies share the expected browser/domain policy
 
 ### Roadmap generation fails
 
-Read the returned error, confirm the selected Course is published, and confirm the chosen level has a published Roadmap Template with published referenced content.
+Read the returned error, confirm the selected Course is published, and confirm each required cumulative level has a published Roadmap Template with published referenced content.
 
 ### Gemini features show unavailable guidance
 
