@@ -5,9 +5,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { KeyRound } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
+import Input from '../../components/common/Input.jsx';
 import AuthNotice from '../../components/auth/AuthNotice.jsx';
 import AuthShell from '../../components/auth/AuthShell.jsx';
-import FormInput from '../../components/form/FormInput.jsx';
 import { authApi } from '../../api/authApi.js';
 import { forgotPasswordSchema } from '../../validations/auth.schema.js';
 
@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
   >
     <form onSubmit={handleSubmit(submit)} className="space-y-4">
       <ErrorMessage message={errors.root?.message} />
-      <FormInput label="Email" type="email" autoComplete="email" registration={register('email')} error={errors.email?.message} placeholder="you@example.com" />
+      <Input label="Email" type="email" autoComplete="email" {...register('email')} error={errors.email?.message} placeholder="you@example.com" />
       {message && <AuthNotice tone="success">{message}</AuthNotice>}
       <Button type="submit" className="w-full" isLoading={isSubmitting} loadingLabel="Sending link...">Send reset link</Button>
     </form>
