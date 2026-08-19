@@ -1,19 +1,70 @@
-import { useEffect, useRef } from 'react';
-import { MessagesSquare } from 'lucide-react';
+import { BookMarked, Bot } from 'lucide-react';
 import MessageBubble from './MessageBubble.jsx';
 
-export default function ChatWindow({ messages = [], isResponding = false, emptyMessage = 'Ask a coding question or open a saved course explanation.' }) {
-  const endRef = useRef(null);
+function SavedAnswers({ items, onSelect }) {
+  if (!items.length) return null;
 
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [messages.length, isResponding]);
+  return (
+    <section className="mt-8" aria-labelledby="saved-answers-title">
+      <div className="flex items-center gap-2">
+        <BookMarked size={17} className="text-primary" aria-hidden="true" />
+        <h2 id="saved-answers-title" className="text-sm font-bold text-foreground">
+          Saved answers for this learning context
+        </h2>
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        {items.map((item, index) => (
+          <button
+            key={`${item.text || item.label}-${index}`}
+            type="button"
+            onClick={() => onSelect(item)}
+            className="rounded-panel border border-border bg-surface p-4 text-left transition hover:border-primary/35 hover:shadow-sm"
+          >
+            <p className="break-words text-sm font-semibold text-foreground">{item.label || item.text}</p>
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">Open the saved course explanation.</p>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
 
-  return <section className="min-h-[420px] rounded-panel border border-border bg-surface-secondary p-4 sm:p-5" aria-label="Mentor conversation" aria-live="polite">
-    {messages.length ? <div className="space-y-4">{messages.map((message, index) => <MessageBubble key={message._id || message.clientId || `${message.role}-${index}`} message={message} />)}</div> : <div className="grid min-h-[360px] place-items-center text-center">
-      <div><span className="mx-auto grid h-12 w-12 place-items-center rounded-surface bg-primary-soft text-primary" aria-hidden="true"><MessagesSquare size={22} /></span><p className="mt-4 font-semibold text-foreground">No conversation yet</p><p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">{emptyMessage}</p></div>
-    </div>}
-    {isResponding && <div className="mt-4 flex justify-start"><div className="rounded-panel border border-border bg-surface px-5 py-3 text-sm text-muted-foreground shadow-sm" role="status"><span className="ui-spinner ui-spinner--sm mr-2 align-middle" aria-hidden="true" />Preparing a response…</div></div>}
-    <div ref={endRef} />
-  </section>;
+export default function ChatWindow({
+  messages = [],
+  isResponding = false,
+  savedAnswers = [],
+  onSelectSaved,
+  endRef
+}) {
+  return (
+    <section className="flex-1 px-4 py-6 sm:px-6 lg:px-8" aria-live="polite">
+      {messages.length ? (
+        <div className="space-y-7">
+          {messages.map((message, index) => (
+            <MessageBubble
+              key={message._id || message.clientId || `${message.role}-${index}`}
+              message={message}
+            />
+          ))}
+          {isResponding ? (
+            <div className="flex items-center gap-3 text-sm text-muted-foreground" role="status">
+              <Bot size={16} className="text-primary" aria-hidden="true" />
+              <span>Mentor is preparing a response…</span>
+            </div>
+          ) : null}
+        </div>
+      ) : (
+        <div className="grid min-h-[300px] place-items-center rounded-panel border border-dashed border-border bg-surface-secondary/55 px-6 text-center">
+          <div>
+            <Bot size={24} className="mx-auto text-primary" aria-hidden="true" />
+            <p className="mt-4 text-sm font-semibold text-foreground">Ask anything about your learning</p>
+            <p className="mt-2 text-sm text-muted-foreground">Use a suggested prompt or type your own question.</p>
+          </div>
+        </div>
+      )}
+
+      <SavedAnswers items={savedAnswers} onSelect={onSelectSaved} />
+      <div ref={endRef} />
+    </section>
+  );
 }
