@@ -59,7 +59,7 @@ export default function ProfilePage() {
     <Card>
       <p className="font-bold text-indigo-600">Learning</p>
       <h2 className="text-2xl font-black">My courses</h2>
-      <p className="mt-2 text-slate-600">Choose which enrollment should be used by Dashboard, Roadmap, Mentor, Projects, Interview, Progress, and Reports.</p>
+      <p className="mt-2 text-slate-600">Choose which enrollment should be used by Dashboard, Roadmap, Mentor, Practice, Interview, Progress, and Reports.</p>
       {coursesLoading ? <div className="mt-4"><Loader label="Loading courses..." /></div> : null}
       <ErrorMessage message={coursesError?.message} />
       {!coursesLoading && <div className="mt-4 space-y-3">
