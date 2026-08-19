@@ -45,8 +45,6 @@ const getLessonIcon = (status, locked) => {
   return Circle;
 };
 
-const cleanPriorityTitle = (title = '') => title.replace(/^priority review\s*[:–—-]?\s*/i, '').trim();
-
 export default function ModuleCard({
   module,
   index = 0,
@@ -66,9 +64,8 @@ export default function ModuleCard({
   const completedModule = module.status === 'completed';
   const inProgress = module.status === 'in_progress' || lessons.some((item) => item.status === 'in_progress');
   const hasQuiz = Boolean(module._id && module.quizQuestions?.length);
-  const hadPriorityTitle = /^priority review\b/i.test(module.title || '');
-  const displayTitle = cleanPriorityTitle(module.title) || module.title || `Module ${index + 1}`;
-  const highPriority = Boolean(module.highPriority || hadPriorityTitle);
+  const displayTitle = module.title || `Module ${index + 1}`;
+  const highPriority = Boolean(module.highPriority);
   const focusTopics = module.focusTopics || [];
   const visual = getModuleVisual(displayTitle);
   const ModuleIcon = visual.icon;
