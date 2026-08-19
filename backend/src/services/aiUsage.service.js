@@ -2,7 +2,7 @@ import { AIUsageLog } from '../models/AIUsageLog.js';
 import { AI_FEATURES } from '../constants/aiFeatures.js';
 import { startOfToday } from '../utils/date.js';
 import { ApiError } from '../utils/ApiError.js';
-import { env, isGeminiAvailable } from '../config/env.js';
+import { env } from '../config/env.js';
 
 const limitMap = {
   [AI_FEATURES.MENTOR_CHAT]: () => env.aiLimits.mentor,
@@ -11,21 +11,6 @@ const limitMap = {
   [AI_FEATURES.WEEKLY_REPORT]: () => env.aiLimits.weeklyReport,
   [AI_FEATURES.PRACTICE_REVIEW]: () => env.aiLimits.practiceReview,
   [AI_FEATURES.INTERVIEW_FEEDBACK]: () => env.aiLimits.interviewFeedback
-};
-
-const learnerFeatures = Object.freeze([
-  AI_FEATURES.MENTOR_CHAT,
-  AI_FEATURES.ROADMAP_GENERATION,
-  AI_FEATURES.QUIZ_EXPLANATION,
-  AI_FEATURES.WEEKLY_REPORT,
-  AI_FEATURES.PRACTICE_REVIEW,
-  AI_FEATURES.INTERVIEW_FEEDBACK
-]);
-
-const nextDailyReset = () => {
-  const resetAt = startOfToday();
-  resetAt.setDate(resetAt.getDate() + 1);
-  return resetAt;
 };
 
 export const checkAIUsageLimit = async (userId, feature) => {
@@ -40,44 +25,6 @@ export const checkAIUsageLimit = async (userId, feature) => {
   if (count >= limit) {
     throw new ApiError(429, `Daily AI limit reached for ${feature}`, [], 'AI_DAILY_LIMIT_REACHED');
   }
-};
-
-export const getLearnerAIStatus = async (userId) => {
-  const enabled = env.enableAi;
-  const configured = Boolean(env.geminiApiKey);
-  const available = isGeminiAvailable();
-  const resetAt = nextDailyReset();
-
-  const usage = await AIUsageLog.aggregate([
-    {
-      $match: {
-        user: userId,
-        feature: { $in: learnerFeatures },
-        status: 'success',
-        createdAt: { $gte: startOfToday() }
-      }
-    },
-    { $group: { _id: '$feature', used: { $sum: 1 } } }
-  ]);
-
-  const usedByFeature = new Map(usage.map((item) => [item._id, item.used]));
-  const limits = Object.fromEntries(
-    learnerFeatures.map((feature) => {
-      const limit = limitMap[feature]?.() ?? 0;
-      const used = usedByFeature.get(feature) || 0;
-      return [feature, { limit, used, remaining: Math.max(0, limit - used) }];
-    })
-  );
-
-  return {
-    provider: 'gemini',
-    enabled,
-    configured,
-    available,
-    reason: available ? null : (!enabled ? 'GEMINI_DISABLED' : 'GEMINI_NOT_CONFIGURED'),
-    resetAt,
-    limits
-  };
 };
 
 export const logAIUsage = async ({
