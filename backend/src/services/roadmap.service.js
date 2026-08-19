@@ -15,7 +15,6 @@ import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
 import { setRoadmapOnboardingState } from './onboarding.service.js';
 import {
   getActiveCourseForUser,
-  getCurrentEnrollmentForUser,
   setCurrentEnrollmentForUser
 } from './dataIntegrity.service.js';
 
@@ -310,7 +309,7 @@ export const createCourseFromTemplate = async ({
     { status: COURSE_STATUS.ARCHIVED, isActive: false }
   );
 
-  const requestedReason = generatedReason || reasonByRoadmapType[roadmapType] || 'manual_regeneration';
+  const requestedReason = generatedReason || reasonByRoadmapType[roadmapType] || 'initial_template';
 
   const coursePlan = await CoursePlan.create({
     user: userId,
@@ -327,7 +326,6 @@ export const createCourseFromTemplate = async ({
     status: COURSE_STATUS.ACTIVE,
     aiGenerated,
     version: nextVersion,
-    parentCoursePlan: previousActive?._id || null,
     generatedReason: requestedReason,
     isActive: true
   });
@@ -375,16 +373,6 @@ export const createCourseFromAssessment = async ({ userId, enrollmentId, assessm
   });
 };
 
-export const personalizeCurrentRoadmapLater = async ({ userId }) => {
-  const activeCourse = await getActiveCourseForUser({ userId });
-  if (!activeCourse) throw new ApiError(404, 'No active roadmap found');
-  return {
-    message: 'Take the diagnostic assessment to create a personalized roadmap version.',
-    enrollmentId: activeCourse.enrollment,
-    nextPath: '/onboarding/assessment?personalize=true'
-  };
-};
-
 export const getCurrentCourse = async (userId) => {
   const activeCourse = await getActiveCourseForUser({ userId });
   if (!activeCourse) return null;
@@ -392,15 +380,4 @@ export const getCurrentCourse = async (userId) => {
     .populate('course', 'title slug category technologies primaryTechnology')
     .populate('modules.lessons.lesson')
     .populate('modules.quizQuestions');
-};
-
-export const getRoadmapVersions = async (userId) => {
-  const enrollment = await getCurrentEnrollmentForUser(userId);
-  if (!enrollment) return [];
-  const courseId = enrollment.currentCourse || enrollment.course;
-  if (!courseId) return [];
-  return CoursePlan.find({ user: userId, enrollment: enrollment._id, course: courseId })
-    .select('_id enrollment course title level version roadmapType generatedReason status isActive aiGenerated createdAt')
-    .populate('course', 'title slug')
-    .sort({ createdAt: -1 });
 };
