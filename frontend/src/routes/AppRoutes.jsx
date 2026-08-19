@@ -2,8 +2,7 @@ import { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import Loader from '../components/common/Loader.jsx';
 import PublicLayout from '../layouts/PublicLayout.jsx';
-import AppLayout from '../layouts/AppLayout.jsx';
-import AdminLayout from '../layouts/AdminLayout.jsx';
+import SiteLayout from '../layouts/SiteLayout.jsx';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import RoleRoute from './RoleRoute.jsx';
 import OnboardingGuard from './OnboardingGuard.jsx';
@@ -69,7 +68,7 @@ export default function AppRoutes() {
       </Route>
 
       <Route element={<ProtectedRoute />}>
-        <Route element={<AppLayout />}>
+        <Route element={<SiteLayout />}>
           <Route element={<OnboardingGuard mode="needs-onboarding" />}>
             <Route path="/onboarding/catalog" element={<CatalogPage />} />
             <Route path="/onboarding/level" element={<LevelPage />} />
@@ -95,7 +94,7 @@ export default function AppRoutes() {
         </Route>
 
         <Route element={<RoleRoute role="admin" />}>
-          <Route element={<AdminLayout />}>
+          <Route element={<SiteLayout />}>
             <Route path="/admin" element={<AdminDashboardPage />} />
             <Route path="/admin/catalog" element={<AdminCatalogPage />} />
 
