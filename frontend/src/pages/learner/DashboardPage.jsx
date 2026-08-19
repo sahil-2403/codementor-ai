@@ -217,7 +217,7 @@ export default function DashboardPage() {
         title="No active roadmap yet"
         description="Complete your setup to create a learning roadmap."
         actionLabel="Continue setup"
-        onAction={() => navigate('/onboarding/goal')}
+        onAction={() => navigate('/onboarding/catalog')}
       />
     );
   }
