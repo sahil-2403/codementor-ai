@@ -7,8 +7,9 @@ import Button from '../../components/common/Button.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import QuizQuestionCard from '../../components/quiz/QuizQuestionCard.jsx';
-import QuizProgress from '../../components/quiz/QuizProgress.jsx';
+import QuestionProgress from '../../components/quiz/QuestionProgress.jsx';
 import { quizApi } from '../../api/quizApi.js';
+import { buildAnswerPayload, countAnsweredQuestions } from '../../utils/questionnaire.js';
 
 export default function QuizPage() {
   const { moduleId } = useParams();
@@ -54,9 +55,7 @@ export default function QuizPage() {
   const quiz = data?.quiz;
   const questions = quiz?.questions || [];
   const questionSignature = questions.map((question) => question._id).join(':');
-  const answeredCount = questions.filter(
-    (question) => answers[question._id]
-  ).length;
+  const answeredCount = countAnsweredQuestions(questions, answers);
 
   useEffect(() => {
     setDraftReady(false);
@@ -121,12 +120,7 @@ export default function QuizPage() {
     setIsSubmitting(true);
     try {
       setError('');
-      const payload = questions
-        .map((question) => ({
-          questionId: question._id,
-          selectedAnswer: answers[question._id] || ''
-        }))
-        .filter((answer) => answer.selectedAnswer);
+      const payload = buildAnswerPayload(questions, answers);
 
       if (payload.length !== questions.length) {
         throw new Error('Please answer every question before submitting.');
@@ -188,7 +182,7 @@ export default function QuizPage() {
         </div>
 
         <div className="mt-5 border-t border-border pt-5">
-          <QuizProgress current={answeredCount} total={questions.length} />
+          <QuestionProgress current={answeredCount} total={questions.length} label="Quiz completion" />
         </div>
 
         {draftKey && (
