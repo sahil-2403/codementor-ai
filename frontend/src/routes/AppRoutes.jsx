@@ -27,7 +27,6 @@ const QuizResultPage = lazy(() => import('../pages/learner/QuizResultPage.jsx'))
 const MentorPage = lazy(() => import('../pages/learner/MentorPage.jsx'));
 const ProgressPage = lazy(() => import('../pages/learner/ProgressPage.jsx'));
 const ReportsPage = lazy(() => import('../pages/learner/ReportsPage.jsx'));
-const ProfilePage = lazy(() => import('../pages/learner/ProfilePage.jsx'));
 const PracticePage = lazy(() => import('../pages/learner/PracticePage.jsx'));
 const PracticeTaskPage = lazy(() => import('../pages/learner/PracticeTaskPage.jsx'));
 const InterviewPage = lazy(() => import('../pages/learner/InterviewPage.jsx'));
@@ -86,7 +85,6 @@ export default function AppRoutes() {
             <Route path="/mentor" element={<MentorPage />} />
             <Route path="/progress" element={<ProgressPage />} />
             <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/practice" element={<PracticePage />} />
             <Route path="/practice/:taskId" element={<PracticeTaskPage />} />
             <Route path="/interview" element={<InterviewPage />} />
