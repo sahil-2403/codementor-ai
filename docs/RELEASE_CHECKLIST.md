@@ -68,7 +68,6 @@ npm run seed
 - [ ] `CLIENT_URL` and `ALLOWED_ORIGINS` contain only approved origins
 - [ ] `TRUST_PROXY` matches the reverse proxy setup
 - [ ] Rate limits are appropriate
-- [ ] Development/demo flags are disabled unless intentionally required
 
 ### MongoDB
 
@@ -104,17 +103,20 @@ npm run seed
 
 - [ ] Catalog shows published Courses and Learning Paths
 - [ ] Learner can select a Course or Learning Path
-- [ ] Level and preferences persist across refresh
-- [ ] Beginner setup creates a roadmap
-- [ ] Intermediate/advanced diagnostic skip path works
-- [ ] Diagnostic submission/report path works
+- [ ] Level selection persists across refresh
+- [ ] Beginner setup creates a roadmap without a skill check
+- [ ] Intermediate/Advanced skill-check skip path works
+- [ ] Skill-check submission/report path works
+- [ ] Higher-level roadmaps include lower-level content for revision
+- [ ] Skill-check weak topics mark only verified related modules as priority
 - [ ] Roadmap creation shows normal loading, success, failure, and retry states
-- [ ] Template fallback remains usable when Gemini is disabled
+- [ ] Backend priority mapping remains usable when Gemini is disabled
 
 ### Learning and progress
 
 - [ ] Locked modules/Lessons are not interactive
 - [ ] Completing Lessons updates Progress correctly
+- [ ] Previous/Next Lesson navigation appears after completion where applicable
 - [ ] Module Quiz accepts the server-provided question set
 - [ ] Wrong answers update weak topics and revisions
 - [ ] Lesson → Mentor predefined prompt sends exactly once
@@ -133,6 +135,7 @@ Test once with Gemini enabled and once unavailable:
 - [ ] Interview answer is saved before review
 - [ ] Successful reviews may show a score
 - [ ] Fallback reviews remain scoreless
+- [ ] Skill-check roadmap priorities remain deterministic when Gemini is unavailable
 
 ### Admin CMS
 
