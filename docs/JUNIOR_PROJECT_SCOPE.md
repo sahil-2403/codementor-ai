@@ -47,11 +47,12 @@ The project demonstrates:
 - Express routes, controllers, services, middleware, and centralized errors
 - MongoDB and Mongoose schemas, references, indexes, and straightforward CRUD rules
 - Cookie-based access/refresh JWT authentication with one token version, CSRF protection, CORS, rate limiting, email verification, and password recovery
-- Course/Learning Path onboarding, Roadmap Templates, CoursePlans, quiz scoring, revisions, projects, interviews, and reports
+- Course/Learning Path onboarding, Roadmap Templates, CoursePlans, quiz scoring, revisions, Practice, interviews, and reports
 - Multiple learner Enrollments with one explicit current Enrollment
 - Simple sequential Learning Path course advancement
+- Cumulative roadmaps with lower-level revision access and backend-owned skill-check focus mapping
 - Course-owned curriculum with backend ownership/dependency validation
-- Simple two-attempt limits for Projects and Interview practice
+- Simple two-attempt limits for Practice and Interview flows
 - Optional Gemini features with daily/input limits, response schemas, and honest scoreless fallbacks
 - Focused unit/source-contract tests and a repeatable release-check command
 
@@ -98,9 +99,10 @@ Do not add application caching, queues/workers, transaction-heavy flows, reposit
 ## Reliability rules
 
 - Mentor Lesson context must belong to the authenticated learner's current CoursePlan.
-- Learner requests must resolve one explicit current Enrollment so Dashboard, Roadmap, Lessons, Quizzes, Revisions, Projects, Interview, Reports, and Mentor stay on the same Course.
-- Projects and Interview questions must belong to the learner's current Course.
+- Learner requests must resolve one explicit current Enrollment so Dashboard, Roadmap, Lessons, Quizzes, Revisions, Practice, Interview, Reports, and Mentor stay on the same Course.
+- Practice Tasks and Interview questions must belong to the learner's current Course and allowed level.
 - Learning Path completion must move the learner to the next configured Course with simple sequential state updates.
+- Skill-check weak-topic mapping is backend-owned; Gemini may explain verified focus areas but must not invent weak modules or restructure the roadmap.
 - Authentication and CSRF cookies share the configured security policy.
 - Cookie lifetimes follow configured JWT durations.
 - Successful AI review data is not replaced when later logging/progress work fails.
@@ -142,6 +144,6 @@ Install dependencies, then run:
 node scripts/release-check.mjs
 ```
 
-Manually verify registration, verification, login, onboarding resume, Course/Learning Path selection, roadmap creation, Lesson completion, Learning Path advancement, Quiz scoring, Mentor handoff, Project/Interview attempts, AI-disabled fallbacks, reports, enrollment switching, admin lifecycle operations, refresh recovery, logout, and logout-all-devices.
+Manually verify registration, verification, login, onboarding resume, Course/Learning Path selection, roadmap creation, Lesson completion, Learning Path advancement, Quiz scoring, Mentor handoff, Practice/Interview attempts, AI-disabled fallbacks, reports, enrollment switching, admin lifecycle operations, refresh recovery, logout, and logout-all-devices.
 
 The project should be evaluated by whether these flows are correct, understandable, and deployable—not by how much infrastructure it contains.
