@@ -11,11 +11,8 @@ import {
   setCurrentEnrollmentForUser
 } from './dataIntegrity.service.js';
 
-const LEGACY_PREFERENCES_PENDING = 'preferences_pending';
-
 const incompleteStates = [
   ONBOARDING_STATES.LEVEL_PENDING,
-  LEGACY_PREFERENCES_PENDING,
   ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING,
   ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS,
   ONBOARDING_STATES.ASSESSMENT_COMPLETED,
@@ -64,12 +61,6 @@ const deriveState = ({ enrollment, activeCourse, assessment }) => {
   }
   if (assessment?.status === 'started') return ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS;
   if (assessment?.status === 'completed' && enrollment.assessmentPreference === 'take') return ONBOARDING_STATES.ASSESSMENT_COMPLETED;
-
-  if (enrollment.onboardingState === LEGACY_PREFERENCES_PENDING) {
-    return enrollment.level === 'beginner'
-      ? ONBOARDING_STATES.ROADMAP_PENDING
-      : ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
-  }
 
   if (enrollment.onboardingState && isOnboardingState(enrollment.onboardingState)) return enrollment.onboardingState;
   if (!enrollment.level) return ONBOARDING_STATES.LEVEL_PENDING;
