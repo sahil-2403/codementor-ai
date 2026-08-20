@@ -1,8 +1,13 @@
 import { User } from '../models/User.js';
+import { Course } from '../models/Course.js';
+import { Enrollment } from '../models/Enrollment.js';
+import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
 import { ApiError } from '../utils/ApiError.js';
 import { createAccessToken, createRefreshToken, verifyRefreshToken } from './token.service.js';
 import { randomToken, sha256 } from '../utils/hash.js';
 import { sendVerificationEmail, sendPasswordResetEmail } from './email.service.js';
+import { getPublishedTemplate } from './templateRoadmap.service.js';
+import { createCourseFromTemplate } from './roadmap.service.js';
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
@@ -55,6 +60,47 @@ export const registerUser = async ({ name, email, password }) => {
     deliveryMode: delivery.mode,
     message: registrationMessage(delivery)
   };
+};
+
+export const createDemoAccount = async () => {
+  const starterCourse = await Course.findOne({ slug: 'complete-javascript', status: 'published' })
+    .select('_id availableLevels');
+
+  if (!starterCourse || !(starterCourse.availableLevels || []).includes('beginner')) {
+    throw new ApiError(503, 'Demo course is not available right now', [], 'DEMO_COURSE_UNAVAILABLE');
+  }
+
+  await getPublishedTemplate({ courseId: starterCourse._id, level: 'beginner' });
+
+  const uniquePart = `${Date.now().toString(36)}-${randomToken(3)}`;
+  const email = `demo-${uniquePart}@demo.codementor.ai`;
+  const password = `Demo@${randomToken(6)}`;
+
+  const user = await User.create({
+    name: 'Demo Learner',
+    email,
+    password,
+    isEmailVerified: true,
+    isDemo: true
+  });
+
+  const enrollment = await Enrollment.create({
+    user: user._id,
+    type: 'course',
+    course: starterCourse._id,
+    currentCourse: starterCourse._id,
+    level: 'beginner',
+    assessmentPreference: 'not_applicable',
+    onboardingState: ONBOARDING_STATES.ROADMAP_PENDING,
+    status: 'draft'
+  });
+
+  await createCourseFromTemplate({
+    userId: user._id,
+    enrollmentId: enrollment._id
+  });
+
+  return { email, password };
 };
 
 export const verifyEmailWithToken = async ({ token }) => {
