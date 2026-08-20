@@ -17,7 +17,7 @@ CodeMentor AI is a MERN learning platform for structured coding practice. Learne
 ### Learners
 
 - Registration, email verification, login, password recovery, and session invalidation
-- Fresh isolated recruiter demo accounts created on demand from Login
+- Fresh isolated demo accounts created on demand from Login
 - Course and Learning Path catalog
 - Beginner, Intermediate, and Advanced entry levels
 - Optional Course-specific skill checks for Intermediate and Advanced learners
@@ -140,9 +140,11 @@ npm run seed
 npm run dev
 ```
 
+Before running `npm run seed`, set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` in `backend/.env`. These credentials are intentionally not committed to the repository.
+
 The API listens on `http://localhost:5000` by default.
 
-> `npm run seed` is intended for a fresh development/demo database. Do not use it as a migration or update script against data you need to keep.
+> `npm run seed` is intended for a fresh development/demo database and refuses to run when `NODE_ENV=production`. Do not use it as a migration or update script against data you need to keep.
 
 Health endpoint: `GET /health`.
 
@@ -183,7 +185,7 @@ Verification and password-reset messages keep CodeMentor's existing templates; o
 
 ## Demo accounts
 
-The Login page can create a fresh recruiter demo learner on demand. Each request creates a separate verified learner with its own Beginner Complete JavaScript enrollment, roadmap, progress, attempts, Mentor history, and other learner data. The generated credentials are filled into the Login form and are not shared with other demo users.
+The Login page can create a fresh demo learner on demand. Each request creates a separate verified learner with its own Beginner Complete JavaScript enrollment, roadmap, progress, attempts, Mentor history, and other learner data. The generated credentials are filled into the Login form and are not shared with other demo users. If provisioning fails, partial demo records are removed before the error is returned.
 
 ## Tests and builds
 
@@ -208,6 +210,7 @@ npm run check:gemini
 - Origins/proxy: `CLIENT_URL`, `ALLOWED_ORIGINS`, `TRUST_PROXY`
 - Authentication: JWT and cookie settings
 - Persistence: `MONGO_URI`
+- Development seed: `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`
 - AI: Gemini configuration, daily limits, input limits, and timeout
 - Email: `EMAIL_ENABLED`, `BREVO_API_KEY`, and sender/reply-to addresses
 - Frontend API: optional `VITE_API_BASE_URL`
