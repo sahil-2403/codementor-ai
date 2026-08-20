@@ -11,6 +11,7 @@ import {
   Target
 } from 'lucide-react';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import InlineAlert from '../../components/common/InlineAlert.jsx';
 import LevelBadge from '../../components/common/LevelBadge.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
@@ -177,7 +178,8 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [data, setData] = useState(null);
-  const [enrollments, setEnrollments] = useState([]);
+  const [enrollments, setEnrollments] = useState(null);
+  const [enrollmentError, setEnrollmentError] = useState('');
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -186,21 +188,28 @@ export default function DashboardPage() {
     let active = true;
     setIsLoading(true);
     setError(null);
+    setEnrollments(null);
+    setEnrollmentError('');
 
-    Promise.all([
-      progressApi.dashboard(),
-      onboardingApi.enrollments()
-    ])
-      .then(([dashboardData, enrollmentData]) => {
-        if (!active) return;
-        setData(dashboardData);
-        setEnrollments(enrollmentData?.enrollments || []);
+    progressApi.dashboard()
+      .then((dashboardData) => {
+        if (active) setData(dashboardData);
       })
       .catch((requestError) => {
         if (active) setError(requestError);
       })
       .finally(() => {
         if (active) setIsLoading(false);
+      });
+
+    onboardingApi.enrollments()
+      .then((enrollmentData) => {
+        if (active) setEnrollments(enrollmentData?.enrollments || []);
+      })
+      .catch((requestError) => {
+        if (!active) return;
+        setEnrollments([]);
+        setEnrollmentError(requestError?.message || 'Could not load your enrolled courses.');
       });
 
     return () => {
@@ -250,11 +259,17 @@ export default function DashboardPage() {
 
   return (
     <PageShell className="space-y-5 pb-6">
-      <CourseSwitcher
-        enrollments={enrollments}
-        onSwitch={switchEnrollment}
-        onEnroll={() => navigate('/onboarding/catalog?new=true')}
-      />
+      {enrollmentError ? (
+        <InlineAlert tone="warning" title="Course switching is temporarily unavailable">
+          {enrollmentError} Your dashboard and current learning progress are still available.
+        </InlineAlert>
+      ) : enrollments ? (
+        <CourseSwitcher
+          enrollments={enrollments}
+          onSwitch={switchEnrollment}
+          onEnroll={() => navigate('/onboarding/catalog?new=true')}
+        />
+      ) : null}
 
       <PageHeader
         variant="compact"
