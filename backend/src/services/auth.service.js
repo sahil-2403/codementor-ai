@@ -1,6 +1,8 @@
 import { User } from '../models/User.js';
 import { Course } from '../models/Course.js';
 import { Enrollment } from '../models/Enrollment.js';
+import { CoursePlan } from '../models/CoursePlan.js';
+import { Progress } from '../models/Progress.js';
 import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
 import { ApiError } from '../utils/ApiError.js';
 import { createAccessToken, createRefreshToken, verifyRefreshToken } from './token.service.js';
@@ -31,6 +33,19 @@ const registrationMessage = (delivery) => {
     return 'Account created. Email delivery is disabled, so a development verification link was written to the server log.';
   }
   return 'Account created, but the verification email could not be delivered. Use Resend verification to try again.';
+};
+
+const cleanupDemoAccount = async (userId) => {
+  const results = await Promise.allSettled([
+    Progress.deleteMany({ user: userId }),
+    CoursePlan.deleteMany({ user: userId }),
+    Enrollment.deleteMany({ user: userId }),
+    User.deleteOne({ _id: userId, isDemo: true })
+  ]);
+
+  if (results.some((result) => result.status === 'rejected')) {
+    console.error('Demo account cleanup was incomplete.');
+  }
 };
 
 export const registerUser = async ({ name, email, password }) => {
@@ -75,32 +90,38 @@ export const createDemoAccount = async () => {
   const uniquePart = `${Date.now().toString(36)}-${randomToken(3)}`;
   const email = `demo-${uniquePart}@demo.codementor.ai`;
   const password = `Demo@${randomToken(6)}`;
+  let user = null;
 
-  const user = await User.create({
-    name: 'Demo Learner',
-    email,
-    password,
-    isEmailVerified: true,
-    isDemo: true
-  });
+  try {
+    user = await User.create({
+      name: 'Demo Learner',
+      email,
+      password,
+      isEmailVerified: true,
+      isDemo: true
+    });
 
-  const enrollment = await Enrollment.create({
-    user: user._id,
-    type: 'course',
-    course: starterCourse._id,
-    currentCourse: starterCourse._id,
-    level: 'beginner',
-    assessmentPreference: 'not_applicable',
-    onboardingState: ONBOARDING_STATES.ROADMAP_PENDING,
-    status: 'draft'
-  });
+    const enrollment = await Enrollment.create({
+      user: user._id,
+      type: 'course',
+      course: starterCourse._id,
+      currentCourse: starterCourse._id,
+      level: 'beginner',
+      assessmentPreference: 'not_applicable',
+      onboardingState: ONBOARDING_STATES.ROADMAP_PENDING,
+      status: 'draft'
+    });
 
-  await createCourseFromTemplate({
-    userId: user._id,
-    enrollmentId: enrollment._id
-  });
+    await createCourseFromTemplate({
+      userId: user._id,
+      enrollmentId: enrollment._id
+    });
 
-  return { email, password };
+    return { email, password };
+  } catch (error) {
+    if (user?._id) await cleanupDemoAccount(user._id);
+    throw error;
+  }
 };
 
 export const verifyEmailWithToken = async ({ token }) => {
