@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema(
     avatar: { type: String, default: '' },
     currentEnrollment: { type: mongoose.Schema.Types.ObjectId, ref: 'Enrollment', default: null },
     isEmailVerified: { type: Boolean, default: false },
+    isDemo: { type: Boolean, default: false, index: true },
     tokenVersion: { type: Number, default: 0, min: 0, select: false },
     passwordResetToken: { type: String, default: '', select: false },
     passwordResetExpires: { type: Date, default: null, select: false },
