@@ -33,4 +33,11 @@ export const logAIUsage = async ({
   status = 'success',
   model = env.geminiModel,
   errorMessage = ''
-}) => AIUsageLog.create({ user, feature, status, model, errorMessage });
+}) => {
+  try {
+    return await AIUsageLog.create({ user, feature, status, model, errorMessage });
+  } catch (error) {
+    console.error('AI usage logging failed:', error.message);
+    return null;
+  }
+};
