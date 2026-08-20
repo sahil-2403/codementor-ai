@@ -310,10 +310,13 @@ const seed = async () => {
   await connectDB();
   await ensureFreshDatabase();
 
-  const [admin, learner] = await User.create([
-    { name: 'Admin Mentor', email: 'admin@codementor.ai', password: 'Admin@123', role: 'admin', isEmailVerified: true },
-    { name: 'Demo Learner', email: 'learner@codementor.ai', password: 'Learner@123', role: 'learner', isEmailVerified: true }
-  ]);
+  const admin = await User.create({
+    name: 'Admin Mentor',
+    email: 'admin@codementor.ai',
+    password: 'Admin@123',
+    role: 'admin',
+    isEmailVerified: true
+  });
 
   const technologyByName = new Map();
   for (let index = 0; index < technologyDefinitions.length; index += 1) {
@@ -402,7 +405,6 @@ const seed = async () => {
   console.log('Learning paths: 2');
   console.log('Complete JavaScript:', javascriptCounts);
   console.log('Admin test account:', admin.email);
-  console.log('Learner test account:', learner.email);
   process.exit(0);
 };
 
