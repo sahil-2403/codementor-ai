@@ -32,10 +32,13 @@ Copy both environment examples before starting the applications.
 Before running it:
 
 1. Confirm `MONGO_URI` points to the intended development database.
-2. Back up anything you need to keep.
-3. Do not run it against production data.
+2. Set `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD` in `backend/.env`.
+3. Back up anything you need to keep.
+4. Do not run it against production data. The script refuses to run when `NODE_ENV=production`.
 
-Recruiter demo users are different from seed accounts. They are created on demand from Login and each receive their own User, Enrollment, CoursePlan, and Progress.
+The admin seed credentials are intentionally supplied through local environment variables rather than committed in source.
+
+Fresh demo users are different from seed accounts. They are created on demand from Login and each receive their own User, Enrollment, CoursePlan, and Progress.
 
 ## Backend commands
 
@@ -114,7 +117,7 @@ Page / Component
   -> Axios
 ```
 
-## Recruiter demo accounts
+## Fresh demo accounts
 
 The Login page starts empty. Clicking the demo action calls `POST /api/auth/demo-account`.
 
@@ -123,12 +126,13 @@ That endpoint:
 1. Creates a unique verified learner marked `isDemo`.
 2. Creates a Beginner Complete JavaScript Enrollment.
 3. Uses the normal roadmap service to generate the starter CoursePlan and Progress.
-4. Returns generated credentials to the Login page.
-5. The Login page fills the normal email/password form; it does not bypass the normal login endpoint.
+4. If provisioning fails after creating the demo User, removes partial Progress, CoursePlan, Enrollment, and User records before returning the error.
+5. Returns generated credentials to the Login page.
+6. The Login page fills the normal email/password form; it does not bypass the normal login endpoint.
 
-Each request creates a separate learner, so one recruiter's course switching, progress, Mentor history, attempts, and other learner data do not affect another recruiter's demo.
+Each request creates a separate learner, so one visitor's course switching, progress, Mentor history, attempts, and other learner data do not affect another visitor's demo.
 
-The endpoint uses the existing registration rate limiter to avoid unbounded account creation from one client.
+The endpoint uses the existing registration rate limiter to avoid unbounded account creation from one client. After one demo account is prepared, the Login page disables the demo action for that page session so repeated clicks do not create unnecessary accounts.
 
 ## Practice and interview attempts
 
@@ -196,6 +200,7 @@ Also exercise the affected browser flow when changing routing, cookies, CSRF, on
 - Configure exact frontend origins and proxy trust.
 - Keep MongoDB, Brevo, and Gemini credentials in deployment secrets.
 - Disable development email logging.
+- Do not run the development seed in production.
 
 ## Troubleshooting
 
