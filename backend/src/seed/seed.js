@@ -45,6 +45,20 @@ const courseDefinitions = [
 
 const lessonTitleFor = (courseTitle, level) => `${courseTitle}: ${level[0].toUpperCase()}${level.slice(1)} Core`;
 
+const getSeedAdminCredentials = () => {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to seed data while NODE_ENV=production.');
+  }
+
+  const email = String(process.env.SEED_ADMIN_EMAIL || '').trim().toLowerCase();
+  const password = String(process.env.SEED_ADMIN_PASSWORD || '');
+  if (!email || !password) {
+    throw new Error('SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD are required before running npm run seed.');
+  }
+
+  return { email, password };
+};
+
 const ensureFreshDatabase = async () => {
   const existingUsers = await User.countDocuments();
   const existingCourses = await Course.countDocuments();
@@ -307,13 +321,14 @@ const seedGenericCourse = async ({ definition, course, technologyIds }) => {
 };
 
 const seed = async () => {
+  const adminCredentials = getSeedAdminCredentials();
   await connectDB();
   await ensureFreshDatabase();
 
   const admin = await User.create({
     name: 'Admin Mentor',
-    email: 'admin@codementor.ai',
-    password: 'Admin@123',
+    email: adminCredentials.email,
+    password: adminCredentials.password,
     role: 'admin',
     isEmailVerified: true
   });
@@ -404,7 +419,7 @@ const seed = async () => {
   console.log(`Courses: ${courseByTitle.size}`);
   console.log('Learning paths: 2');
   console.log('Complete JavaScript:', javascriptCounts);
-  console.log('Admin test account:', admin.email);
+  console.log('Admin seed account:', admin.email);
   process.exit(0);
 };
 
