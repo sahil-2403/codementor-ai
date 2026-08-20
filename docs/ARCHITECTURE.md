@@ -14,7 +14,7 @@ Browser
                       └─ Controller
                           └─ Service
                               ├─ MongoDB / Mongoose
-                              ├─ SMTP delivery (optional)
+                              ├─ Brevo email API (optional)
                               └─ Gemini (optional)
 ```
 
@@ -56,7 +56,7 @@ Technology classifies Courses. Course is the central learning unit. Learning Pat
 - Learner/admin pages share `SiteLayout`; public pages use `PublicLayout` for public-page spacing.
 - React Hook Form and Zod handle forms and validation.
 - Loading, empty, error, unavailable, locked, and archived states are shown explicitly.
-- The Profile page provides the learner Course/Enrollment switcher.
+- The Dashboard provides the learner Course/Enrollment switcher and new-enrollment entry point.
 
 There is no custom query layer, global data-refresh bus, frontend server-response cache, or third-party server-state library.
 
@@ -69,6 +69,7 @@ Express routes apply authentication, role checks, rate limits, request validatio
 Services handle:
 
 - Authentication and password/email flows
+- Fresh isolated recruiter demo-account provisioning
 - Course and Learning Path onboarding
 - Current Enrollment selection
 - Assessment grading
@@ -90,8 +91,18 @@ There is no application cache, queue/worker layer, repository layer, event bus, 
 1. A learner may have multiple active/completed Enrollments.
 2. `User.currentEnrollment` identifies the Enrollment currently used by learner pages.
 3. Dashboard, Roadmap, Lessons, Quizzes, Revisions, Mentor, Practice, Interview, and Reports resolve data through that Enrollment.
-4. The learner can switch Enrollment from Profile.
-5. If the current pointer is missing or invalid, the backend resolves an appropriate active/completed Enrollment.
+4. The learner can switch Enrollment from the Dashboard after confirmation.
+5. The Dashboard can send the learner through the existing onboarding flow to add another Course or Learning Path.
+6. If the current pointer is missing or invalid, the backend resolves an appropriate active/completed Enrollment.
+
+### Recruiter demo account
+
+1. The Login page requests a fresh demo account only after the user clicks the demo action.
+2. The backend creates a unique verified `isDemo` learner with generated credentials.
+3. The backend creates a Beginner Complete JavaScript Enrollment and uses the normal template roadmap service to prepare the starter roadmap and Progress.
+4. The generated credentials are returned to the Login page and filled into the normal form.
+5. The recruiter logs in through the same normal authentication flow as every other learner.
+6. Because each demo request creates a separate User and Enrollment, changes made by one recruiter do not affect another recruiter.
 
 ### Onboarding
 
@@ -193,6 +204,10 @@ Gemini integration keeps only the application-level behavior needed by learners:
 - deterministic/stored fallback content when Gemini is unavailable
 
 Assessment scoring and roadmap focus selection remain valid even when Gemini is disabled or fails. Gemini is an explanation/review layer, not the source of learning-state truth.
+
+## Email
+
+Verification and password-reset templates remain application-owned. When email delivery is enabled, the backend sends them through Brevo's transactional email REST API using `BREVO_API_KEY`, sender details, and the existing `sendEmail` wrapper. When delivery is disabled in development, the existing development-link logging fallback can be used.
 
 ## Health
 
