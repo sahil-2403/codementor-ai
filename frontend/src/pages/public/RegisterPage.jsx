@@ -41,16 +41,16 @@ export default function RegisterPage() {
     icon={UserPlus}
     eyebrow="Create account"
     title="Create your learning account"
-    description="Verify your email before you log in and start your roadmap."
+    description="Create an account, verify your email, and start your learning roadmap."
     footer={<span>Already have an account? <Link className="auth-link" to="/login">Log in</Link></span>}
   >
-    <form onSubmit={handleSubmit(submit)} className="space-y-4">
+    <form onSubmit={handleSubmit(submit)} className="space-y-3">
       <ErrorMessage message={errors.root?.message} />
-      <Input label="Name" autoComplete="name" {...register('name')} error={errors.name?.message} placeholder="Sahil Pawar" />
-      <Input label="Email" type="email" autoComplete="email" {...register('email')} error={errors.email?.message} placeholder="you@example.com" />
-      <PasswordInput label="Password" registration={register('password')} error={errors.password?.message} placeholder="Strong password" autoComplete="new-password" />
-      <PasswordInput label="Confirm password" registration={register('confirmPassword')} error={errors.confirmPassword?.message} placeholder="Repeat password" autoComplete="new-password" />
-      <PasswordStrengthMeter value={password} />
+      <Input label="Name" className="py-2.5" autoComplete="name" {...register('name')} error={errors.name?.message} placeholder="Your name" />
+      <Input label="Email" className="py-2.5" type="email" autoComplete="email" {...register('email')} error={errors.email?.message} placeholder="you@example.com" />
+      <PasswordInput compact label="Password" registration={register('password')} error={errors.password?.message} placeholder="Strong password" autoComplete="new-password" />
+      <PasswordInput compact label="Confirm password" registration={register('confirmPassword')} error={errors.confirmPassword?.message} placeholder="Repeat password" autoComplete="new-password" />
+      <PasswordStrengthMeter value={password} compact />
       <Button type="submit" className="w-full" isLoading={isSubmitting} loadingLabel="Creating account...">Create account</Button>
     </form>
   </AuthShell>;
