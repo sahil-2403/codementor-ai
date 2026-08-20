@@ -2,6 +2,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { sendResponse } from '../utils/ApiResponse.js';
 import {
   registerUser,
+  createDemoAccount,
   loginUser,
   refreshAuthTokens,
   logoutAllDevices,
@@ -35,6 +36,11 @@ export const register = asyncHandler(async (req, res) => {
     emailSent: result.emailSent,
     deliveryMode: result.deliveryMode
   });
+});
+
+export const demoAccount = asyncHandler(async (req, res) => {
+  const credentials = await createDemoAccount();
+  sendResponse(res, 201, 'Fresh demo account ready', { credentials });
 });
 
 export const verifyEmail = asyncHandler(async (req, res) => {
