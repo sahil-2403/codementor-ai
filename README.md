@@ -17,6 +17,7 @@ CodeMentor AI is a MERN learning platform for structured coding practice. Learne
 ### Learners
 
 - Registration, email verification, login, password recovery, and session invalidation
+- Fresh isolated recruiter demo accounts created on demand from Login
 - Course and Learning Path catalog
 - Beginner, Intermediate, and Advanced entry levels
 - Optional Course-specific skill checks for Intermediate and Advanced learners
@@ -76,7 +77,7 @@ Authentication is the only shared application state and uses `AuthContext` plus 
 - MongoDB and Mongoose
 - Zod
 - JWT authentication with HttpOnly cookies
-- Nodemailer-compatible SMTP delivery
+- Brevo transactional email REST API
 - Google Gemini API
 
 Backend request flow stays straightforward:
@@ -126,7 +127,7 @@ docs/
 - Node.js 18 or newer
 - npm
 - MongoDB locally or through MongoDB Atlas
-- Optional SMTP account for real verification/reset emails
+- Optional Brevo API key for real verification/reset emails
 - Optional Gemini API key for AI-assisted features
 
 ### Backend
@@ -168,12 +169,21 @@ Gemini-assisted features include Mentor answers, Quiz explanations, Practice rev
 
 ## Email
 
-For local development, `ALLOW_DEV_EMAIL_LOG=true` can log verification/reset links when delivery is disabled. For real delivery, configure the SMTP variables and set:
+For local development, `ALLOW_DEV_EMAIL_LOG=true` can log verification/reset links when delivery is disabled. For real delivery, configure Brevo and set:
 
 ```env
 EMAIL_ENABLED=true
+BREVO_API_KEY=your_brevo_api_key
+EMAIL_FROM_NAME=CodeMentor AI
+EMAIL_FROM_ADDRESS=verified-sender@example.com
 ALLOW_DEV_EMAIL_LOG=false
 ```
+
+Verification and password-reset messages keep CodeMentor's existing templates; only the delivery transport uses Brevo's transactional email REST API.
+
+## Demo accounts
+
+The Login page can create a fresh recruiter demo learner on demand. Each request creates a separate verified learner with its own Beginner Complete JavaScript enrollment, roadmap, progress, attempts, Mentor history, and other learner data. The generated credentials are filled into the Login form and are not shared with other demo users.
 
 ## Tests and builds
 
@@ -199,7 +209,7 @@ npm run check:gemini
 - Authentication: JWT and cookie settings
 - Persistence: `MONGO_URI`
 - AI: Gemini configuration, daily limits, input limits, and timeout
-- Email: SMTP settings and sender addresses
+- Email: `EMAIL_ENABLED`, `BREVO_API_KEY`, and sender/reply-to addresses
 - Frontend API: optional `VITE_API_BASE_URL`
 
 Never commit real credentials or production `.env` files.
