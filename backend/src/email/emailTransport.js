@@ -1,84 +1,11 @@
-import nodemailer from 'nodemailer';
 import { env } from '../config/env.js';
 
-let transporter = null;
-let lastVerification = {
-  checked: false,
-  available: false,
-  checkedAt: null,
-  errorCode: null
-};
+const BREVO_EMAIL_API_URL = 'https://api.brevo.com/v3/smtp/email';
+const EMAIL_REQUEST_TIMEOUT_MS = 15_000;
 
 const recipientDomain = (email = '') => {
   const [, domain = 'unknown'] = String(email).trim().toLowerCase().split('@');
   return domain || 'unknown';
-};
-
-const createTransporter = () => nodemailer.createTransport({
-  host: env.smtpHost,
-  port: env.smtpPort,
-  secure: env.smtpSecure,
-  auth: {
-    user: env.smtpUser,
-    pass: env.smtpPassword
-  },
-  connectionTimeout: 10_000,
-  greetingTimeout: 10_000,
-  socketTimeout: 20_000
-});
-
-export const getEmailTransporter = () => {
-  if (!env.emailEnabled) return null;
-  if (!transporter) transporter = createTransporter();
-  return transporter;
-};
-
-export const getEmailTransportStatus = () => ({
-  enabled: env.emailEnabled,
-  ...lastVerification
-});
-
-export const verifyEmailTransport = async () => {
-  if (!env.emailEnabled) {
-    lastVerification = {
-      checked: true,
-      available: false,
-      checkedAt: new Date(),
-      errorCode: 'EMAIL_DISABLED'
-    };
-    return getEmailTransportStatus();
-  }
-
-  if (!env.emailVerifyConnection) {
-    lastVerification = {
-      checked: false,
-      available: true,
-      checkedAt: null,
-      errorCode: null
-    };
-    return getEmailTransportStatus();
-  }
-
-  try {
-    await getEmailTransporter().verify();
-    lastVerification = {
-      checked: true,
-      available: true,
-      checkedAt: new Date(),
-      errorCode: null
-    };
-    console.log('SMTP connection verified.');
-  } catch (error) {
-    lastVerification = {
-      checked: true,
-      available: false,
-      checkedAt: new Date(),
-      errorCode: error?.code || 'SMTP_VERIFY_FAILED'
-    };
-    console.error('SMTP connection verification failed:', lastVerification.errorCode);
-  }
-
-  return getEmailTransportStatus();
 };
 
 export const sendEmail = async ({ to, subject, text, html, type }) => {
@@ -90,41 +17,60 @@ export const sendEmail = async ({ to, subject, text, html, type }) => {
     };
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), EMAIL_REQUEST_TIMEOUT_MS);
+
   try {
-    const info = await getEmailTransporter().sendMail({
-      from: {
-        name: env.emailFromName,
-        address: env.emailFromAddress
+    const response = await fetch(BREVO_EMAIL_API_URL, {
+      method: 'POST',
+      headers: {
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'api-key': env.brevoApiKey
       },
-      replyTo: env.emailReplyTo || undefined,
-      to,
-      subject,
-      text,
-      html
+      body: JSON.stringify({
+        sender: {
+          name: env.emailFromName,
+          email: env.emailFromAddress
+        },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+        textContent: text,
+        ...(env.emailReplyTo ? { replyTo: { email: env.emailReplyTo } } : {})
+      }),
+      signal: controller.signal
     });
+
+    const responseBody = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(responseBody?.message || `Brevo request failed with status ${response.status}`);
+    }
 
     console.log('Transactional email sent.', {
       type,
       recipientDomain: recipientDomain(to),
-      messageId: info.messageId
+      messageId: responseBody?.messageId || null
     });
 
     return {
       sent: true,
-      mode: 'smtp',
-      messageId: info.messageId
+      mode: 'brevo',
+      messageId: responseBody?.messageId || null
     };
   } catch (error) {
     console.error('Transactional email delivery failed.', {
       type,
       recipientDomain: recipientDomain(to),
-      code: error?.code || 'SMTP_SEND_FAILED'
+      code: error?.name === 'AbortError' ? 'BREVO_TIMEOUT' : 'BREVO_SEND_FAILED'
     });
 
     return {
       sent: false,
-      mode: 'smtp',
+      mode: 'brevo',
       code: 'EMAIL_DELIVERY_UNAVAILABLE'
     };
+  } finally {
+    clearTimeout(timeoutId);
   }
 };
