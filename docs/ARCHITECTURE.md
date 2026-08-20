@@ -64,12 +64,12 @@ The Mentor page renders messages as normal pre-wrapped text and uses one effect 
 
 ## Backend
 
-Express routes apply authentication, role checks, rate limits, request validation, and controllers. Controllers call service functions for domain work.
+Express routes apply authentication, role checks, rate limits, request validation, and controllers. Learner-only routers require the learner role, while `/api/admin` requires the admin role. Controllers call service functions for domain work.
 
 Services handle:
 
 - Authentication and password/email flows
-- Fresh isolated recruiter demo-account provisioning
+- Fresh isolated demo-account provisioning
 - Course and Learning Path onboarding
 - Current Enrollment selection
 - Assessment grading
@@ -95,14 +95,15 @@ There is no application cache, queue/worker layer, repository layer, event bus, 
 5. The Dashboard can send the learner through the existing onboarding flow to add another Course or Learning Path.
 6. If the current pointer is missing or invalid, the backend resolves an appropriate active/completed Enrollment.
 
-### Recruiter demo account
+### Fresh demo account
 
 1. The Login page requests a fresh demo account only after the user clicks the demo action.
 2. The backend creates a unique verified `isDemo` learner with generated credentials.
 3. The backend creates a Beginner Complete JavaScript Enrollment and uses the normal template roadmap service to prepare the starter roadmap and Progress.
-4. The generated credentials are returned to the Login page and filled into the normal form.
-5. The recruiter logs in through the same normal authentication flow as every other learner.
-6. Because each demo request creates a separate User and Enrollment, changes made by one recruiter do not affect another recruiter.
+4. If provisioning fails after the demo User is created, the backend removes the partial demo Progress, CoursePlan, Enrollment, and User records before returning the error.
+5. The generated credentials are returned to the Login page and filled into the normal form.
+6. The visitor logs in through the same normal authentication flow as every other learner.
+7. Because each demo request creates a separate User and Enrollment, changes made by one visitor do not affect another visitor.
 
 ### Onboarding
 
@@ -200,7 +201,7 @@ Gemini integration keeps only the application-level behavior needed by learners:
 - daily per-feature limits
 - maximum input lengths from the single validated environment configuration
 - response validation where structured JSON is required
-- simple success/failure usage records
+- simple best-effort success/failure usage records
 - deterministic/stored fallback content when Gemini is unavailable
 
 Assessment scoring and roadmap focus selection remain valid even when Gemini is disabled or fails. Gemini is an explanation/review layer, not the source of learning-state truth.
