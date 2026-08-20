@@ -74,8 +74,8 @@ export default function LoginPage() {
 
     <form onSubmit={handleSubmit(submit)} className="mt-4 space-y-3">
       <ErrorMessage message={errors.root?.message} />
-      <Input label="Email" type="email" autoComplete="email" {...register('email')} error={errors.email?.message} placeholder="you@example.com" />
-      <PasswordInput label="Password" registration={register('password')} error={errors.password?.message} placeholder="Your password" />
+      <Input label="Email" className="py-2.5" type="email" autoComplete="email" {...register('email')} error={errors.email?.message} placeholder="you@example.com" />
+      <PasswordInput compact label="Password" registration={register('password')} error={errors.password?.message} placeholder="Your password" />
       <div className="flex justify-end text-sm"><Link className="auth-link" to="/forgot-password">Forgot password?</Link></div>
       <Button type="submit" className="w-full" isLoading={isSubmitting} loadingLabel="Logging in...">Login</Button>
     </form>
