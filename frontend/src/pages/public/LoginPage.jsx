@@ -23,6 +23,7 @@ export default function LoginPage() {
   const reset = params.get('reset') === 'true';
   const logoutMessage = location.state?.message || '';
   const [demoLoading, setDemoLoading] = useState(false);
+  const [demoReady, setDemoReady] = useState(false);
   const { register, handleSubmit, setValue, clearErrors, formState: { errors, isSubmitting }, setError } = useForm({
     resolver: zodResolver(loginFormSchema),
     defaultValues: { email: '', password: '' }
@@ -40,6 +41,8 @@ export default function LoginPage() {
   };
 
   const fillFreshDemoAccount = async () => {
+    if (demoReady) return;
+
     try {
       setDemoLoading(true);
       clearErrors('root');
@@ -49,6 +52,7 @@ export default function LoginPage() {
 
       setValue('email', credentials.email, { shouldDirty: true, shouldValidate: true });
       setValue('password', credentials.password, { shouldDirty: true, shouldValidate: true });
+      setDemoReady(true);
     } catch (err) {
       setError('root', { message: err.message || 'Could not prepare a demo account.' });
     } finally {
@@ -70,6 +74,7 @@ export default function LoginPage() {
       {logoutMessage && <AuthNotice tone="success">{logoutMessage}</AuthNotice>}
       {verified && <AuthNotice tone="success">Email verified. You can now log in.</AuthNotice>}
       {reset && <AuthNotice tone="success">Password reset successfully. Log in with your new password.</AuthNotice>}
+      {demoReady && <AuthNotice tone="success">Fresh demo credentials are filled in. Click Login to continue.</AuthNotice>}
     </div>
 
     <form onSubmit={handleSubmit(submit)} className="mt-4 space-y-3">
@@ -92,9 +97,9 @@ export default function LoginPage() {
       onClick={fillFreshDemoAccount}
       isLoading={demoLoading}
       loadingLabel="Preparing demo..."
-      disabled={isSubmitting}
+      disabled={isSubmitting || demoReady}
     >
-      Use fresh demo account
+      {demoReady ? 'Demo account ready' : 'Use fresh demo account'}
     </Button>
   </AuthShell>;
 }
