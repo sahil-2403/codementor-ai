@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middlewares/auth.middleware.js';
+import { requireRole } from '../middlewares/role.middleware.js';
+import { ROLES } from '../constants/roles.js';
 import { validate } from '../middlewares/validate.middleware.js';
 import {
   levelSchema,
@@ -17,7 +19,7 @@ import {
 } from '../controllers/onboarding.controller.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requireRole(ROLES.LEARNER));
 router.get('/status', status);
 router.get('/enrollments', enrollments);
 router.post('/enrollments/:enrollmentId/current', validate(enrollmentIdParamSchema), switchEnrollment);
