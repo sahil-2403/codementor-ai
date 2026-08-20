@@ -27,13 +27,15 @@ Copy both environment examples before starting the applications.
 
 ## Database and seed data
 
-`npm run seed` is intended for a fresh disposable local/demo database. It recreates the catalog, Course-owned curriculum, templates, and demo accounts/content; it is not a migration or existing-data update script.
+`npm run seed` is intended for a fresh disposable local/demo database. It recreates the catalog, Course-owned curriculum, templates, and local seed accounts/content; it is not a migration or existing-data update script.
 
 Before running it:
 
 1. Confirm `MONGO_URI` points to the intended development database.
 2. Back up anything you need to keep.
 3. Do not run it against production data.
+
+Recruiter demo users are different from seed accounts. They are created on demand from Login and each receive their own User, Enrollment, CoursePlan, and Progress.
 
 ## Backend commands
 
@@ -112,6 +114,22 @@ Page / Component
   -> Axios
 ```
 
+## Recruiter demo accounts
+
+The Login page starts empty. Clicking the demo action calls `POST /api/auth/demo-account`.
+
+That endpoint:
+
+1. Creates a unique verified learner marked `isDemo`.
+2. Creates a Beginner Complete JavaScript Enrollment.
+3. Uses the normal roadmap service to generate the starter CoursePlan and Progress.
+4. Returns generated credentials to the Login page.
+5. The Login page fills the normal email/password form; it does not bypass the normal login endpoint.
+
+Each request creates a separate learner, so one recruiter's course switching, progress, Mentor history, attempts, and other learner data do not affect another recruiter's demo.
+
+The endpoint uses the existing registration rate limiter to avoid unbounded account creation from one client.
+
 ## Practice and interview attempts
 
 Each Practice task or Interview question allows two attempts. The backend simply counts existing attempts and creates attempt 1 or 2. A third attempt is rejected.
@@ -124,12 +142,18 @@ Weekly reports use a UTC Monday boundary. One report is stored for each learner,
 
 ## Email testing
 
-With delivery disabled and `ALLOW_DEV_EMAIL_LOG=true`, inspect backend logs for verification/reset URLs. For SMTP testing:
+With delivery disabled and `ALLOW_DEV_EMAIL_LOG=true`, inspect backend logs for verification/reset URLs.
 
-1. Configure host, port, secure mode, user, and password.
-2. Set a valid from address.
-3. Keep connection verification enabled initially.
-4. Test registration, resend verification, forgot password, and reset password.
+For real delivery with Brevo:
+
+1. Create or use a verified Brevo sender.
+2. Set `BREVO_API_KEY`.
+3. Set `EMAIL_FROM_NAME` and `EMAIL_FROM_ADDRESS`.
+4. Optionally set `EMAIL_REPLY_TO`.
+5. Set `EMAIL_ENABLED=true`.
+6. Test registration, resend verification, forgot password, and reset password.
+
+CodeMentor sends through Brevo's transactional email REST API; it does not require SMTP host/port/user/password configuration or Nodemailer.
 
 Recovery screens intentionally use generic success messages to reduce account enumeration risk.
 
@@ -148,27 +172,29 @@ Also exercise the affected browser flow when changing routing, cookies, CSRF, on
 
 ## Manual critical path
 
-1. Register and verify an account.
+1. Register and verify an account through Brevo or the development-link fallback.
 2. Log in and resume the correct onboarding step after refresh.
-3. Choose a Course or Learning Path and level.
-4. For Intermediate/Advanced, either skip or complete the optional skill check.
-5. Generate a roadmap and verify lower-level revision content remains available at higher levels.
-6. Complete Lessons and confirm progression updates.
-7. Submit a Quiz and confirm Dashboard/Progress updates.
-8. Open Mentor from a Lesson and confirm the preloaded prompt sends once.
-9. Create Practice and Interview attempts and verify the two-attempt limit.
-10. Disable Gemini and verify honest fallback behavior, including deterministic skill-check roadmap priorities.
-11. Generate a weekly report.
-12. Exercise admin archive/restore/delete and dependency messages.
-13. Switch between independent learner Enrollments.
-14. Log out and test logout-all-devices.
+3. From a clean Login page, create a fresh demo account, confirm credentials are filled only after clicking the demo action, and log in normally.
+4. Choose a Course or Learning Path and level.
+5. For Intermediate/Advanced, either skip or complete the optional skill check.
+6. Generate a roadmap and verify lower-level revision content remains available at higher levels.
+7. Complete Lessons and confirm progression updates.
+8. Submit a Quiz and confirm Dashboard/Progress updates.
+9. Open Mentor from a Lesson and confirm the preloaded prompt sends once.
+10. Create Practice and Interview attempts and verify the two-attempt limit.
+11. Disable Gemini and verify honest fallback behavior, including deterministic skill-check roadmap priorities.
+12. Generate a weekly report.
+13. Exercise admin archive/restore/delete and dependency messages.
+14. Switch between independent learner Enrollments from Dashboard.
+15. Create a second demo account and confirm it does not inherit the first demo user's changes.
+16. Log out and test logout-all-devices.
 
 ## Production notes
 
 - Use HTTPS and secure cookies.
 - Route `/api` to the Express API or set `VITE_API_BASE_URL` explicitly.
 - Configure exact frontend origins and proxy trust.
-- Keep MongoDB, SMTP, and Gemini credentials in deployment secrets.
+- Keep MongoDB, Brevo, and Gemini credentials in deployment secrets.
 - Disable development email logging.
 
 ## Troubleshooting
@@ -180,6 +206,14 @@ Check credentialed CORS, cookie domain/same-site settings, HTTPS, the `/api` rev
 ### Protected writes return invalid CSRF token
 
 Confirm authentication and CSRF cookies share the expected browser/domain policy and the proxy preserves cookies and headers.
+
+### Demo account preparation fails
+
+Confirm the Complete JavaScript Course is published and has a published Beginner Roadmap Template with valid published Lessons and Quiz content.
+
+### Brevo email delivery fails
+
+Confirm `EMAIL_ENABLED=true`, the Brevo API key is valid, and `EMAIL_FROM_ADDRESS` is a verified sender in Brevo. Check backend logs for the Brevo failure code without logging secrets.
 
 ### Roadmap generation fails
 
