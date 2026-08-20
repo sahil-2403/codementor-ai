@@ -94,7 +94,6 @@ export default function CourseSwitcher({ enrollments = [], onSwitch, onEnroll })
               onClick={() => setIsOpen((value) => !value)}
               className="flex min-h-12 w-full items-center gap-3 rounded-control border border-border bg-surface-secondary/45 px-3.5 text-left transition hover:border-primary/30 hover:bg-surface-secondary"
               aria-expanded={isOpen}
-              aria-haspopup="listbox"
             >
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
                 {currentEnrollment?.learningPath ? <Route size={17} /> : <BookOpen size={17} />}
@@ -119,15 +118,13 @@ export default function CourseSwitcher({ enrollments = [], onSwitch, onEnroll })
             {isOpen ? (
               <div
                 className="absolute left-0 right-0 z-30 mt-2 max-h-72 overflow-y-auto rounded-surface border border-border bg-surface p-1.5 shadow-panel"
-                role="listbox"
+                role="group"
                 aria-label="Enrolled courses"
               >
                 {enrollments.map((enrollment) => (
                   <button
                     key={enrollment._id}
                     type="button"
-                    role="option"
-                    aria-selected={Boolean(enrollment.isCurrent)}
                     onClick={() => chooseEnrollment(enrollment)}
                     className="flex w-full items-center gap-3 rounded-control px-3 py-2.5 text-left transition hover:bg-surface-secondary"
                   >
