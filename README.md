@@ -79,6 +79,7 @@ Authentication is the only shared application state and uses `AuthContext` plus 
 - JWT authentication with HttpOnly cookies
 - Brevo transactional email REST API
 - Google Gemini API
+- Vitest, Supertest, and MongoDB Memory Server for backend tests
 
 Backend request flow stays straightforward:
 
@@ -101,7 +102,10 @@ backend/
     models/           Mongoose schemas and indexes
     routes/           Authenticated and role-scoped routes
     validations/      Zod request validation
-  test/unit/          Backend contract and policy tests
+  tests/
+    unit/             Isolated business-rule tests
+    integration/      Important API workflow tests
+    helpers/          Small shared API-test helpers
 
 frontend/
   src/
@@ -111,7 +115,6 @@ frontend/
     components/       Shared UI and domain components
     constants/        Product enums and display configuration
     validations/      Client-side Zod schemas
-  test/               Frontend source-contract tests
 
 docs/
   ARCHITECTURE.md
@@ -187,14 +190,15 @@ Verification and password-reset messages keep CodeMentor's existing templates; o
 
 The Login page can create a fresh demo learner on demand. Each request creates a separate verified learner with its own Beginner Complete JavaScript enrollment, roadmap, progress, attempts, Mentor history, and other learner data. The generated credentials are filled into the Login form and are not shared with other demo users. If provisioning fails, partial demo records are removed before the error is returned.
 
-## Tests and builds
+## Backend tests and frontend build
+
+Backend tests focus on real business rules and important API workflows rather than source-file string contracts.
 
 ```bash
 cd backend
 npm test
 
 cd ../frontend
-npm test
 npm run build
 ```
 
