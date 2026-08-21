@@ -20,8 +20,7 @@ node scripts/release-check.mjs
 
 Confirm:
 
-- [ ] Backend unit tests pass
-- [ ] Frontend contract tests pass
+- [ ] Backend tests pass
 - [ ] Frontend production build passes
 
 When Gemini is enabled, also run:
@@ -36,7 +35,7 @@ npm run check:gemini
 - [ ] Only intended files are included
 - [ ] `package.json` changes are intentional
 - [ ] Fresh dependency installation succeeds for backend and frontend
-- [ ] No `.env`, credentials, API keys, SMTP passwords, database dumps, or private user data are committed
+- [ ] No `.env`, credentials, API keys, database dumps, or private user data are committed
 - [ ] Environment examples and documentation match current variables/commands
 - [ ] Frontend/backend API enums and response fields remain aligned
 - [ ] Admin scope remains learning-content management only
@@ -77,7 +76,7 @@ npm run seed
 
 ### Email
 
-- [ ] SMTP connection verified when real delivery is required
+- [ ] Brevo API key and verified sender are configured when real delivery is required
 - [ ] Production sender/reply-to addresses configured
 - [ ] `ALLOW_DEV_EMAIL_LOG=false` in production
 
