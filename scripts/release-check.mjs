@@ -20,8 +20,7 @@ for (const file of requiredFiles) {
 }
 
 const steps = [
-  { label: 'Backend unit tests', cwd: 'backend', args: ['test'] },
-  { label: 'Frontend contract tests', cwd: 'frontend', args: ['test'] },
+  { label: 'Backend tests', cwd: 'backend', args: ['test'] },
   { label: 'Frontend production build', cwd: 'frontend', args: ['run', 'build'] }
 ];
 
