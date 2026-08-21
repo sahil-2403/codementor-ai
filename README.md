@@ -168,7 +168,7 @@ EMAIL_FROM_ADDRESS=verified-sender@example.com
 ALLOW_DEV_EMAIL_LOG=false
 ```
 
-Verification and password-reset messages keep CodeMentor's existing templates; only the delivery transport uses Brevo's transactional email REST API.
+Verification and password-reset messages use the shared CodeMentor branded email layout, and Brevo handles transactional delivery.
 
 ## Demo accounts
 
