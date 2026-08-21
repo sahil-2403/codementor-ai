@@ -4,24 +4,33 @@ import {
   assertQuestionsBelongToModule
 } from '../../src/domain/quizPolicy.js';
 
+const captureError = (callback) => {
+  try {
+    callback();
+    return null;
+  } catch (error) {
+    return error;
+  }
+};
+
 describe('quiz policy', () => {
   test('blocks locked quiz modules', () => {
     const course = { modules: [{ _id: 'module-1', status: 'locked', quizQuestions: [] }] };
     const module = assertModuleBelongsToCourse({ course, moduleId: 'module-1' });
+    const error = captureError(() => assertModuleUnlocked(module));
 
-    expect(() => assertModuleUnlocked(module)).toThrow(expect.objectContaining({
-      statusCode: 403,
-      code: 'QUIZ_LOCKED'
-    }));
+    expect(error).toMatchObject({ statusCode: 403, code: 'QUIZ_LOCKED' });
   });
 
   test('rejects questions from another module', () => {
     const module = { quizQuestions: [{ _id: 'q1' }, { _id: 'q2' }] };
-    expect(() => assertQuestionsBelongToModule({
+    const error = captureError(() => assertQuestionsBelongToModule({
       module,
       questionIds: ['q1', 'foreign'],
       requireExactSet: true
-    })).toThrow(expect.objectContaining({ statusCode: 403 }));
+    }));
+
+    expect(error).toMatchObject({ statusCode: 403 });
   });
 
   test('requires every module question exactly once', () => {
