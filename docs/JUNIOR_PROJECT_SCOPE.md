@@ -54,7 +54,7 @@ The project demonstrates:
 - Course-owned curriculum with backend ownership/dependency validation
 - Simple two-attempt limits for Practice and Interview flows
 - Optional Gemini features with daily/input limits, response schemas, and honest scoreless fallbacks
-- Focused unit/source-contract tests and a repeatable release-check command
+- Focused backend unit and integration tests plus a repeatable release-check command
 
 ## Authentication boundary
 
