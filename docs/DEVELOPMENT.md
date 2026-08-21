@@ -47,6 +47,7 @@ npm run dev
 npm start
 npm run seed
 npm test
+npm run test:watch
 npm run check:gemini
 ```
 
@@ -54,12 +55,23 @@ npm run check:gemini
 
 ```bash
 npm run dev
-npm test
 npm run build
 npm run preview
 ```
 
-Frontend tests use Node's built-in test runner. They protect important source and cross-layer contracts but do not replace manual browser testing.
+## Backend tests
+
+Backend tests use Vitest. Unit tests exercise small exported business rules directly, while integration tests use Supertest against the Express app and MongoDB Memory Server for an isolated temporary database.
+
+```text
+backend/tests/
+├── setup.js
+├── helpers/
+├── unit/
+└── integration/
+```
+
+The suite intentionally focuses on behavior such as authentication, role authorization, onboarding/enrollment switching, admin lifecycle rules, attempt limits, quiz policy, AI response handling, and seed-data integrity. It does not test source-file strings or enforce architecture by regex.
 
 ## Runtime modes
 
@@ -161,14 +173,13 @@ CodeMentor sends through Brevo's transactional email REST API; it does not requi
 
 Recovery screens intentionally use generic success messages to reduce account enumeration risk.
 
-## Test sequence before a commit
+## Check sequence before a commit
 
 ```bash
 cd backend
 npm test
 
 cd ../frontend
-npm test
 npm run build
 ```
 
