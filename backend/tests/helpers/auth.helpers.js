@@ -18,6 +18,15 @@ export const postWithCsrf = async (agent, path, body = {}, expectedStatus = 200)
     .expect(expectedStatus);
 };
 
+export const putWithCsrf = async (agent, path, body = {}, expectedStatus = 200) => {
+  const csrfToken = await getCsrfToken(agent);
+  return agent
+    .put(path)
+    .set('X-CSRF-Token', csrfToken)
+    .send(body)
+    .expect(expectedStatus);
+};
+
 export const patchWithCsrf = async (agent, path, body = {}, expectedStatus = 200) => {
   const csrfToken = await getCsrfToken(agent);
   return agent
