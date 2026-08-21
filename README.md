@@ -1,6 +1,6 @@
 # CodeMentor AI
 
-CodeMentor AI is a MERN learning platform for structured coding practice. Learners can start an individual Course or follow an ordered Learning Path, receive a Course-level roadmap, study Lessons, complete Quizzes and Practice tasks, practise Interview questions, review progress, and use optional Gemini-assisted guidance.
+CodeMentor AI is a structured code learning platform built with MERN. Learners can start an individual Course or follow an ordered Learning Path, receive a Course-level roadmap, study Lessons, complete Quizzes and Practice tasks, practise Interview questions, review progress, and use optional Gemini-assisted guidance.
 
 ## Product principles
 
@@ -32,40 +32,24 @@ CodeMentor AI is a MERN learning platform for structured coding practice. Learne
 
 ### Administrators
 
-- Technologies
-- Courses
-- Learning Paths
-- Topics
-- Lessons
-- Quiz Questions and Skill Checks
-- Interview Questions
-- Practice Tasks
-- Roadmap Templates
-
-Admin content uses a consistent lifecycle: active/draft/published content is archived before permanent deletion. Archiving a Course archives its owned curriculum; restoring it returns the Course and publishable child content to Draft while Topics become Active. External references can block archive or deletion and return clear resolution instructions.
+- Technologies, Courses, and Learning Paths
+- Course-owned Topics, Lessons, Questions, Practice Tasks, Interview Questions, and Roadmap Templates
+- Publish/archive/restore lifecycle controls
+- Dependency-aware permanent deletion
+- Content overview and publishing-readiness information
 
 ## Technology
 
 ### Frontend
 
 - JavaScript and JSX
-- React 18
+- React 18 with Vite 5
 - React Router 6
 - Axios
 - React Hook Form and Zod
 - Tailwind CSS 3
 - Lucide React
 - Sonner
-- Vite 5
-
-Frontend feature data follows a simple Hireflow-style flow:
-
-```text
-Page / Component
-  -> useState + useEffect
-  -> domain API wrapper
-  -> Axios
-```
 
 Authentication is the only shared application state and uses `AuthContext` plus a small Axios refresh interceptor.
 
