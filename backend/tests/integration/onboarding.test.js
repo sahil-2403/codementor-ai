@@ -6,7 +6,8 @@ import {
   createTestAgent,
   createVerifiedUser,
   loginAs,
-  postWithCsrf
+  postWithCsrf,
+  putWithCsrf
 } from '../helpers/auth.helpers.js';
 
 const createCourse = (title, slug) => Course.create({
@@ -53,7 +54,7 @@ describe('onboarding and enrollment API', () => {
     }, 200);
     const enrollmentId = selection.body.data.enrollment._id;
 
-    const levelResponse = await postWithCsrf(agent, '/api/onboarding/level', {
+    const levelResponse = await putWithCsrf(agent, '/api/onboarding/level', {
       enrollmentId,
       level: 'beginner'
     }, 200);
