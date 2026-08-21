@@ -1,9 +1,9 @@
 import { Check, Route } from 'lucide-react';
 
 const courses = [
-  ['JavaScript', 'Intermediate', '42%', true],
-  ['React', 'Beginner', '18%', false],
-  ['Node.js', 'Beginner', '12%', false]
+  ['JavaScript', 'Intermediate', 42, true],
+  ['React', 'Beginner', 18, false],
+  ['Node.js', 'Beginner', 12, false]
 ];
 
 export default function MultiCoursePreview() {
@@ -45,10 +45,17 @@ export default function MultiCoursePreview() {
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{level}</p>
             </div>
-            <p className="shrink-0 text-sm font-bold text-foreground">{progress}</p>
+            <p className="shrink-0 text-sm font-bold text-foreground">{progress}%</p>
           </div>
-          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-secondary">
-            <div className="h-full rounded-full bg-primary" style={{ width: progress }} />
+          <div
+            className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface-secondary"
+            role="progressbar"
+            aria-label={`${title} course progress`}
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={progress}
+          >
+            <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
           </div>
         </div>)}
       </div>
