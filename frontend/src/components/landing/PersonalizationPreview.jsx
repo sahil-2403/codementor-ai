@@ -31,7 +31,14 @@ export default function PersonalizationPreview() {
                 <span className="font-semibold text-foreground">{topic}</span>
                 <span className="font-semibold text-muted-foreground">{score}%</span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-surface-secondary">
+              <div
+                className="mt-2 h-2 overflow-hidden rounded-full bg-surface-secondary"
+                role="progressbar"
+                aria-label={`${topic} skill check score`}
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={score}
+              >
                 <div className="h-full rounded-full bg-primary" style={{ width: `${score}%` }} />
               </div>
             </div>)}
