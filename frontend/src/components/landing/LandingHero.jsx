@@ -53,7 +53,14 @@ export default function LandingHero() {
           </span>
         </div>
 
-        <div className="mt-5 h-2 overflow-hidden rounded-full bg-surface-secondary" aria-label="Roadmap progress: 32 percent">
+        <div
+          className="mt-5 h-2 overflow-hidden rounded-full bg-surface-secondary"
+          role="progressbar"
+          aria-label="Roadmap progress"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="32"
+        >
           <div className="h-full w-[32%] rounded-full bg-primary" />
         </div>
 
