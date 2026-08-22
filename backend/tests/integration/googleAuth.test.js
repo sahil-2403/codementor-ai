@@ -31,8 +31,9 @@ describe('Google authentication API', () => {
     expect(response.body.data.user.email).toBe('google@example.com');
     expect(response.body.data.user.role).toBe('learner');
     expect(response.body.data.user.authProvider).toBe('google');
+    expect(response.body.data.user.googleId).toBeUndefined();
 
-    const user = await User.findOne({ email: 'google@example.com' });
+    const user = await User.findOne({ email: 'google@example.com' }).select('+googleId');
     expect(user.isEmailVerified).toBe(true);
     expect(user.googleId).toBe('google-user-123');
     expect(user.avatar).toBe('https://example.com/avatar.png');
@@ -59,7 +60,7 @@ describe('Google authentication API', () => {
     verifyGoogleCredential.mockResolvedValue(googleIdentity({ email: 'same@example.com' }));
 
     await postWithCsrf(createTestAgent(), '/api/auth/google/register', { credential: 'google-id-token' }, 409);
-    const user = await User.findOne({ email: 'same@example.com' });
+    const user = await User.findOne({ email: 'same@example.com' }).select('+googleId');
     expect(user.authProvider).toBe('local');
     expect(user.googleId).toBeUndefined();
   });
