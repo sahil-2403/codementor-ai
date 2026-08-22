@@ -1,175 +1,149 @@
 # CodeMentor AI
 
-CodeMentor AI is a full-stack code learning platform that helps learners move from **choosing what to learn** to **following a structured roadmap, practising skills, preparing for interviews, and tracking progress**.
+CodeMentor AI is a full-stack code learning platform that helps learners choose what to learn, follow a structured roadmap, practise skills, prepare for interviews, and track progress in one place.
 
-Learners can enroll in individual Courses or ordered Learning Paths, choose a starting level, optionally take a skill check, and receive a Course-specific roadmap. The platform combines lessons, quizzes, coding practice, interview preparation, progress tracking, and optional AI-assisted guidance in one learning flow.
+Learners can enroll in individual Courses or ordered Learning Paths, choose a starting level, optionally take a skill check, and receive a Course-specific roadmap. The platform combines lessons, quizzes, coding practice, interview preparation, progress tracking, authentication, and optional AI-assisted guidance.
 
 The current development catalog includes a **Complete JavaScript** course, while the platform architecture supports multiple Courses and Learning Paths.
 
-## What CodeMentor AI offers
+## Core learner experience
 
-### Structured learning roadmaps
-
-Each learner follows a persisted roadmap connected to a specific Course and level.
-
-- Beginner, Intermediate, and Advanced entry levels
-- Ordered modules and lessons
-- Module quizzes
-- Lower-level content remains available for revision at higher levels
-- Roadmap progress is saved to the learner account
-- Multiple Course enrollments can be maintained independently
-
-### Course and Learning Path enrollment
+### Courses, Learning Paths, and roadmaps
 
 Learners can:
 
-- start a single Course directly;
+- start a Course directly;
 - follow a Learning Path made from ordered Courses;
+- choose Beginner, Intermediate, or Advanced;
+- keep lower-level roadmap content available for revision;
 - enroll in more than one Course;
-- switch the current Course from the Dashboard without losing progress in other enrollments.
+- switch the current Course without losing progress in other enrollments.
+
+Each active Course has its own persisted roadmap, Progress, attempts, weak-topic data, and learning history.
 
 ### Skill-check personalization
 
 Intermediate and Advanced learners can optionally take a Course-specific skill check.
 
-Assessment results are scored by the backend and mapped to real Topics and roadmap modules. Verified weak areas can then be highlighted as learning priorities.
-
-Gemini may explain those focus areas, but it does not decide assessment scores or invent weak modules.
+Assessment scoring is deterministic backend behavior. Verified weak Topics are mapped to real roadmap modules and can be highlighted as learning priorities. Gemini may explain those focus areas, but it does not decide scores or invent weak modules.
 
 ### Lessons and quizzes
 
-Lessons can include:
+Lessons can contain theory, examples, walkthroughs, common mistakes, interview definitions, and related practice material.
 
-- theory and explanations;
-- code examples;
-- code walkthroughs;
-- common mistakes;
-- interview definitions and questions;
-- related practice material.
-
-Completing lessons updates learner Progress and unlocks the next available learning content according to the roadmap.
-
-Module quizzes check understanding and can contribute to weak-topic and revision tracking.
+Completing lessons updates Progress and unlocks the next available learning content according to the roadmap. Module quizzes check understanding and can contribute to weak-topic and revision tracking.
 
 ### Coding practice
 
 Practice Tasks let learners apply Course concepts through code and written explanations.
 
-Each task supports up to two attempts. Submitted work is saved before optional AI review, so the core workflow remains usable even when Gemini is unavailable.
+Each task supports up to two attempts. Submitted work is stored before optional AI review, so the workflow remains usable when Gemini is disabled or unavailable.
 
 ### Interview preparation
 
-Interview practice helps learners explain technical concepts clearly rather than only recognising the correct answer.
-
-Learners can:
-
-- answer Course-specific interview questions;
-- compare their response with expected material;
-- receive optional AI feedback;
-- make a second attempt after reviewing feedback.
+Learners can answer Course-specific interview questions, compare their response with expected material, receive optional AI feedback, and make a second attempt after reviewing feedback.
 
 ### AI Mentor
 
-The Mentor provides contextual help while learners study.
+The Mentor uses the learner's current Course and roadmap context to help with requests such as:
 
-It can assist with requests such as:
+- explain this more simply;
+- give another example;
+- clarify code;
+- give an interview-oriented explanation;
+- suggest additional practice.
 
-- explaining a concept more simply;
-- giving another example;
-- clarifying code;
-- providing an interview-oriented explanation;
-- suggesting additional practice.
+When Gemini is unavailable, the application uses stored or deterministic fallback guidance where appropriate instead of presenting fallback content as live AI analysis.
 
-Mentor requests use the learner's current Course and roadmap context. When Gemini is unavailable, the platform uses stored or deterministic fallback guidance where appropriate instead of presenting fallback content as live AI analysis.
+### Progress and reports
 
-### Progress and weekly reports
+Learners can review completed lessons, roadmap progress, weak topics, revision areas, Practice and Interview activity, and weekly learning summaries.
 
-Learners can review:
+## Authentication
 
-- completed lessons;
-- roadmap progress;
-- weak topics;
-- revision areas;
-- practice and interview activity;
-- weekly learning summaries.
+CodeMentor supports two learner authentication methods.
 
-Each Course enrollment keeps its own learning state.
+### Email and password
 
-## Learner flow
-
-A normal learning journey looks like this:
+Email/password accounts use:
 
 ```text
-Create account
-    ↓
+Register
+   ↓
 Verify email
-    ↓
+   ↓
+Log in
+   ↓
+Choose what to learn / resume current learning
+```
+
+Verification and password-reset emails are delivered through the Brevo transactional email REST API when email delivery is enabled.
+
+### Google
+
+Google registration and login use Google Identity Services in the browser and backend ID-token verification with `google-auth-library`.
+
+```text
+Google Register
+      ↓
+Backend verifies Google ID token
+      ↓
+Verified learner account created
+      ↓
+CodeMentor JWT cookies issued
+      ↓
+Onboarding
+```
+
+Google Login only signs in an already-registered Google account. CodeMentor does not silently link an existing email/password account to Google.
+
+Google-only accounts do not receive CodeMentor password-reset emails because they do not have a local password.
+
+### Demo accounts
+
+The Login page can also create a fresh isolated demo learner on demand. Each demo visitor receives separate learner data, enrollment, roadmap, progress, attempts, and Mentor history.
+
+The generated demo credentials are filled into the normal Login form, so the demo still uses the real authentication flow.
+
+## Typical learner flow
+
+```text
+Create an account with email/password or Google
+        ↓
 Choose a Course or Learning Path
-    ↓
+        ↓
 Choose Beginner / Intermediate / Advanced
-    ↓
+        ↓
 Optional skill check for higher levels
-    ↓
+        ↓
 Generate roadmap
-    ↓
+        ↓
 Lessons → Quizzes → Practice → Interview preparation
-    ↓
+        ↓
 Review progress and continue learning
 ```
 
-## Demo experience
-
-The Login page can create a **fresh demo learner** on demand.
-
-Each demo request creates a separate verified learner with its own Beginner Complete JavaScript enrollment, CoursePlan, Progress, attempts, Mentor history, and other learner data. Demo visitors therefore do not share learning progress with one another.
-
-The generated credentials are filled into the normal Login form, so the demo still uses the real authentication and learner workflow.
-
 ## Content management
 
-CodeMentor AI also includes an authenticated content-management area for maintaining the learning catalog.
+CodeMentor AI includes an authenticated content-management area for maintaining the learning catalog.
 
-Supported content includes:
-
-- Technologies
-- Courses
-- Learning Paths
-- Topics
-- Lessons
-- Quiz Questions
-- Skill-check Questions
-- Practice Tasks
-- Interview Questions
-- Roadmap Templates
+Managed content includes Technologies, Courses, Learning Paths, Topics, Lessons, Quiz Questions, Skill-check Questions, Practice Tasks, Interview Questions, and Roadmap Templates.
 
 Content follows archive/restore/delete rules so referenced learning material is not permanently removed without validation.
 
 ## AI design
 
-Gemini is an **optional enhancement**, not a dependency for the core platform.
+Gemini is an optional enhancement rather than a dependency for the core platform.
 
-The backend remains responsible for deterministic application state such as:
+The backend remains responsible for deterministic state such as authentication, enrollment, assessment scoring, roadmap ownership, lesson completion, unlocking, quiz results, attempts, progress, and weak-topic mapping.
 
-- authentication;
-- enrollment state;
-- assessment scoring;
-- roadmap ownership;
-- lesson completion;
-- unlocking;
-- quiz results;
-- attempts;
-- progress;
-- weak-topic mapping.
-
-Gemini is used for learner-facing assistance such as Mentor responses, selected explanations, Practice reviews, Interview feedback, and weekly-summary text.
-
-This separation allows the main learning workflow to continue when AI is disabled or temporarily unavailable.
+Gemini is used for learner-facing assistance such as Mentor responses, selected explanations, Practice reviews, Interview feedback, weekly-summary text, and explanations for verified skill-check focus areas.
 
 ## Architecture
 
-CodeMentor AI uses a straightforward MERN architecture.
+CodeMentor uses a straightforward MERN architecture.
 
-### Frontend request flow
+### Frontend
 
 ```text
 React Page / Component
@@ -185,7 +159,7 @@ Express API
 
 Authentication is shared through `AuthContext`. Normal feature data stays local to the page or feature using it.
 
-### Backend request flow
+### Backend
 
 ```text
 Express Route
@@ -201,18 +175,16 @@ Mongoose Model
 MongoDB
 ```
 
-Optional external services are called from the backend:
+External services are isolated behind backend/frontend boundaries:
 
 ```text
-Backend
- ├─ MongoDB
- ├─ Google Gemini API
- └─ Brevo transactional email API
+Google Identity Services → Google ID credential → Express verification
+Express → MongoDB
+Express → Brevo
+Express → Google Gemini API
 ```
 
-Learner-facing APIs are role-protected, and the admin API has a separate admin authorization boundary.
-
-For a more detailed technical explanation, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For deeper technical details, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Tech stack
 
@@ -230,6 +202,7 @@ For a more detailed technical explanation, see [docs/ARCHITECTURE.md](docs/ARCHI
 | Zod | Client-side validation |
 | Lucide React | Icons |
 | Sonner | Toast notifications |
+| Google Identity Services | Google sign-in button and browser credential flow |
 
 ### Backend
 
@@ -240,8 +213,9 @@ For a more detailed technical explanation, see [docs/ARCHITECTURE.md](docs/ARCHI
 | MongoDB | Database |
 | Mongoose | MongoDB modelling and persistence |
 | Zod | Request validation |
-| JSON Web Tokens | Authentication |
-| bcryptjs | Password hashing |
+| JSON Web Tokens | Authentication sessions |
+| bcryptjs | Local password hashing |
+| google-auth-library | Google ID-token verification |
 | cookie-parser | Cookie handling |
 | Helmet | Security headers |
 | CORS | Browser origin control |
@@ -264,17 +238,18 @@ For a more detailed technical explanation, see [docs/ARCHITECTURE.md](docs/ARCHI
 codementor-ai/
 ├── backend/
 │   ├── src/
-│   │   ├── ai/              # Gemini client, prompts, schemas and AI errors
-│   │   ├── config/          # Environment and application configuration
-│   │   ├── controllers/     # HTTP request/response handling
-│   │   ├── email/           # Brevo transport and branded email templates
-│   │   ├── middlewares/     # Auth, roles, CSRF, validation, errors, rate limits
-│   │   ├── models/          # Mongoose models
-│   │   ├── routes/          # Express API routes
-│   │   ├── seed/            # Development catalog and curriculum seed data
-│   │   ├── services/        # Business and learning workflows
-│   │   ├── utils/           # Shared utilities
-│   │   └── validations/     # Zod request schemas
+│   │   ├── ai/
+│   │   ├── config/
+│   │   ├── constants/
+│   │   ├── controllers/
+│   │   ├── email/
+│   │   ├── middlewares/
+│   │   ├── models/
+│   │   ├── routes/
+│   │   ├── seed/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   └── validations/
 │   └── tests/
 │       ├── helpers/
 │       ├── integration/
@@ -283,14 +258,14 @@ codementor-ai/
 ├── frontend/
 │   ├── public/
 │   └── src/
-│       ├── api/             # Axios API wrappers
-│       ├── components/      # Shared and feature components
-│       ├── context/         # Authentication context
-│       ├── hooks/           # Shared hooks
-│       ├── layouts/         # Public and authenticated layouts
-│       ├── pages/           # Public, onboarding, learner and admin pages
-│       ├── utils/           # Frontend utilities
-│       └── validations/     # Client-side validation schemas
+│       ├── api/
+│       ├── components/
+│       ├── context/
+│       ├── hooks/
+│       ├── layouts/
+│       ├── pages/
+│       ├── utils/
+│       └── validations/
 │
 ├── docs/
 └── scripts/
@@ -300,13 +275,11 @@ codementor-ai/
 
 ### Prerequisites
 
-Install:
-
 - Node.js 18 or newer
 - npm
-- MongoDB locally or a MongoDB Atlas database
+- MongoDB locally or through MongoDB Atlas
 
-Brevo and Gemini are optional for local development.
+Brevo, Gemini, and Google sign-in are optional for local development.
 
 ### 1. Clone the repository
 
@@ -331,7 +304,7 @@ JWT_ACCESS_SECRET=replace_with_a_strong_secret
 JWT_REFRESH_SECRET=replace_with_another_strong_secret
 ```
 
-The development defaults expect the frontend at:
+Development defaults expect:
 
 ```env
 CLIENT_URL=http://localhost:5173
@@ -340,7 +313,7 @@ ALLOWED_ORIGINS=http://localhost:5173
 
 ### 3. Seed development data
 
-Before running the seed, add development admin credentials to `backend/.env`:
+Set local admin credentials in `backend/.env`:
 
 ```env
 SEED_ADMIN_EMAIL=admin@example.com
@@ -353,7 +326,7 @@ Then run:
 npm run seed
 ```
 
-The seed is intended for a disposable development/demo database. It recreates catalog and curriculum data and refuses to run when `NODE_ENV=production`.
+The seed is for a disposable development/demo database and refuses to run when `NODE_ENV=production`.
 
 ### 4. Start the backend
 
@@ -361,21 +334,13 @@ The seed is intended for a disposable development/demo database. It recreates ca
 npm run dev
 ```
 
-Default API URL:
+Default API URL: `http://localhost:5000`
 
-```text
-http://localhost:5000
-```
-
-Health endpoint:
-
-```text
-GET /health
-```
+Health endpoint: `GET /health`
 
 ### 5. Configure and start the frontend
 
-In a second terminal:
+In another terminal:
 
 ```bash
 cd frontend
@@ -384,17 +349,35 @@ npm install
 npm run dev
 ```
 
-Default frontend URL:
+Default frontend URL: `http://localhost:5173`
+
+During local development, relative `/api` requests are proxied to the backend. Set `VITE_API_BASE_URL` only when the API is hosted separately.
+
+## Optional Google sign-in configuration
+
+Create a Google OAuth **Web application** client and add your frontend URL as an authorized JavaScript origin.
+
+For local development, use:
 
 ```text
 http://localhost:5173
 ```
 
-During local development, the frontend uses relative `/api` requests and Vite proxies them to the backend. `VITE_API_BASE_URL` can be set when the API is hosted separately.
+Set the same Web client ID in both applications:
+
+```env
+# backend/.env
+GOOGLE_CLIENT_ID=your_web_client_id.apps.googleusercontent.com
+```
+
+```env
+# frontend/.env
+VITE_GOOGLE_CLIENT_ID=your_web_client_id.apps.googleusercontent.com
+```
+
+A Google client secret is not required for this ID-token sign-in flow.
 
 ## Optional Gemini configuration
-
-To enable AI-assisted features, add the following to `backend/.env`:
 
 ```env
 ENABLE_AI=true
@@ -402,13 +385,13 @@ GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-1.5-flash
 ```
 
-The backend also provides environment settings for AI timeouts, daily feature limits, and maximum input sizes. See [backend/.env.example](backend/.env.example) for the complete list.
+See [backend/.env.example](backend/.env.example) for AI timeouts, daily limits, and input limits.
 
 ## Optional Brevo email configuration
 
-Without real email delivery, local development can use development verification/reset links when `ALLOW_DEV_EMAIL_LOG=true`.
+Without real email delivery, development verification/reset links can be logged when `ALLOW_DEV_EMAIL_LOG=true`.
 
-For transactional email delivery through Brevo:
+For real delivery:
 
 ```env
 EMAIL_ENABLED=true
@@ -419,80 +402,72 @@ EMAIL_REPLY_TO=
 ALLOW_DEV_EMAIL_LOG=false
 ```
 
-Verification and password-reset emails use the CodeMentor AI branded email templates.
-
 ## Authentication and security
 
 The application includes:
 
-- email verification;
-- password reset;
+- local email/password authentication;
+- Google learner registration and login;
+- backend Google ID-token verification;
+- email verification for local accounts;
+- password reset for local accounts;
 - short-lived access JWTs;
 - longer-lived refresh JWTs;
 - HttpOnly authentication cookies;
 - logout and logout-all-devices support;
 - token-version based session invalidation;
 - CSRF protection for state-changing requests;
-- role-based learner/admin authorization;
+- learner/admin authorization;
 - CORS configuration;
 - rate limiting;
 - Helmet security headers;
-- backend request validation with Zod.
+- Zod request validation.
 
-Production deployments should use HTTPS, secure cookies, strong independent JWT secrets, exact allowed origins, and deployment-managed secrets.
+Production deployments should use HTTPS, secure cookies, strong independent JWT secrets, exact allowed origins, deployment-managed secrets, and the correct production Google JavaScript origin.
 
 ## Available commands
 
 ### Backend
 
 ```bash
-npm run dev          # start with Nodemon
-npm start            # start with Node
-npm run seed         # recreate development seed data
-npm test             # run backend tests
-npm run test:watch   # run Vitest in watch mode
-npm run check:gemini # optional Gemini contract check
+npm run dev
+npm start
+npm run seed
+npm test
+npm run test:watch
+npm run check:gemini
 ```
 
 ### Frontend
 
 ```bash
-npm run dev          # start Vite development server
-npm run build        # create production build
-npm run preview      # preview production build
+npm run dev
+npm run build
+npm run preview
 ```
 
 ## Backend tests
 
 Backend tests focus on application behavior rather than source-code string checks.
 
-The suite includes unit and integration coverage for areas such as:
+Coverage includes authentication, Google authentication, role authorization, onboarding and enrollment switching, admin content lifecycle rules, attempt limits, quiz policy, AI response handling, and seed-data integrity.
 
-- authentication;
-- role authorization;
-- onboarding and enrollment switching;
-- admin content lifecycle rules;
-- attempt limits;
-- quiz policy;
-- AI response parsing and fallbacks;
-- seed-data integrity.
-
-Run the suite with:
+Run:
 
 ```bash
 cd backend
 npm test
 ```
 
+Google integration tests mock the external Google credential-verification boundary, so the backend suite does not call Google over the network.
+
 ## Documentation
 
-Additional project documentation is available in `docs/`:
-
-- [Architecture](docs/ARCHITECTURE.md) — system structure and data flow
-- [Development](docs/DEVELOPMENT.md) — local workflows and operational notes
-- [Junior Project Scope](docs/JUNIOR_PROJECT_SCOPE.md) — intentional architecture and complexity boundaries
-- [Release Checklist](docs/RELEASE_CHECKLIST.md) — pre-deployment review checklist
+- [Architecture](docs/ARCHITECTURE.md)
+- [Development](docs/DEVELOPMENT.md)
+- [Junior Project Scope](docs/JUNIOR_PROJECT_SCOPE.md)
+- [Release Checklist](docs/RELEASE_CHECKLIST.md)
 
 ## Project focus
 
-CodeMentor AI is designed as a practical full-stack learning platform with a clear MERN architecture. Its focus is on understandable application flows, persistent learning state, secure authentication, useful learner feedback, and optional AI assistance without making AI responsible for core learning decisions.
+CodeMentor AI is designed as a practical full-stack learning platform with a clear MERN architecture. Its focus is understandable application flows, persistent learning state, secure authentication, useful learner feedback, and optional AI assistance without making AI responsible for core learning decisions.
