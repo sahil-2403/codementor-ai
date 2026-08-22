@@ -3,14 +3,18 @@ import { sendResponse } from '../utils/ApiResponse.js';
 import {
   registerUser,
   createDemoAccount,
-  loginUser,
   refreshAuthTokens,
   logoutAllDevices,
-  requestPasswordReset,
   resetPasswordWithToken,
   verifyEmailWithToken,
   resendEmailVerification
 } from '../services/auth.service.js';
+import {
+  registerWithGoogle,
+  loginWithGoogle,
+  loginWithConfiguredProvider,
+  requestProviderAwarePasswordReset
+} from '../services/googleAuthFlow.service.js';
 import { logActivity } from '../services/activityLog.service.js';
 import { setAuthCookies, setAccessTokenCookie, clearAuthCookies } from '../services/token.service.js';
 import { issueCsrfToken } from '../middlewares/csrf.middleware.js';
@@ -38,6 +42,20 @@ export const register = asyncHandler(async (req, res) => {
   });
 });
 
+export const googleRegister = asyncHandler(async (req, res) => {
+  const result = await registerWithGoogle(req.body);
+  setAuthCookies(res, result.accessToken, result.refreshToken);
+  await logActivity({
+    user: result.user._id,
+    action: 'auth_google_registered',
+    entityType: 'User',
+    entityId: result.user._id,
+    message: 'Learner registered with Google',
+    req
+  });
+  sendResponse(res, 201, 'Google registration successful', { user: result.user });
+});
+
 export const demoAccount = asyncHandler(async (req, res) => {
   const credentials = await createDemoAccount();
   sendResponse(res, 201, 'Fresh demo account ready', { credentials });
@@ -62,7 +80,7 @@ export const resendVerification = asyncHandler(async (req, res) => {
 });
 
 export const login = asyncHandler(async (req, res) => {
-  const result = await loginUser(req.body);
+  const result = await loginWithConfiguredProvider(req.body);
   setAuthCookies(res, result.accessToken, result.refreshToken);
   await logActivity({
     user: result.user._id,
@@ -73,6 +91,20 @@ export const login = asyncHandler(async (req, res) => {
     req
   });
   sendResponse(res, 200, 'Logged in successfully', { user: result.user });
+});
+
+export const googleLogin = asyncHandler(async (req, res) => {
+  const result = await loginWithGoogle(req.body);
+  setAuthCookies(res, result.accessToken, result.refreshToken);
+  await logActivity({
+    user: result.user._id,
+    action: 'auth_google_login',
+    entityType: 'User',
+    entityId: result.user._id,
+    message: 'Learner logged in with Google',
+    req
+  });
+  sendResponse(res, 200, 'Google login successful', { user: result.user });
 });
 
 export const logout = asyncHandler(async (req, res) => {
@@ -101,7 +133,7 @@ export const logoutAll = asyncHandler(async (req, res) => {
 });
 
 export const forgotPassword = asyncHandler(async (req, res) => {
-  const result = await requestPasswordReset(req.body.email);
+  const result = await requestProviderAwarePasswordReset(req.body.email);
   sendResponse(res, 200, result.message);
 });
 
