@@ -26,6 +26,7 @@ const userSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
       trim: true,
+      select: false,
       required() {
         return this.authProvider === AUTH_PROVIDERS.GOOGLE;
       }
