@@ -71,7 +71,7 @@ backend/tests/
 └── integration/
 ```
 
-The suite intentionally focuses on behavior such as authentication, role authorization, onboarding/enrollment switching, admin lifecycle rules, attempt limits, quiz policy, AI response handling, and seed-data integrity. It does not test source-file strings or enforce architecture by regex.
+The suite intentionally focuses on behavior such as authentication, Google authentication, role authorization, onboarding/enrollment switching, admin lifecycle rules, attempt limits, quiz policy, AI response handling, and seed-data integrity. It does not test source-file strings or enforce architecture by regex.
 
 ## Runtime modes
 
@@ -129,6 +129,33 @@ Page / Component
   -> Axios
 ```
 
+## Google authentication
+
+CodeMentor uses Google Identity Services in the browser and verifies the returned Google ID token on the backend with `google-auth-library`.
+
+Configure the same Google Web application client ID in both applications:
+
+```env
+# backend/.env
+GOOGLE_CLIENT_ID=your_web_client_id.apps.googleusercontent.com
+
+# frontend/.env
+VITE_GOOGLE_CLIENT_ID=your_web_client_id.apps.googleusercontent.com
+```
+
+For local development, add `http://localhost:5173` as an authorized JavaScript origin for the Google Web client. Add the deployed frontend origin separately for production.
+
+The flow intentionally stays simple:
+
+- Google Register creates a verified learner and signs the learner in immediately.
+- Google Login only signs in an already-registered Google account.
+- An existing email/password account is not silently linked to Google.
+- A Google-only account is directed to use Google instead of password login.
+- Forgot Password returns the normal generic response for Google-only accounts but does not create reset data or send a reset email.
+- CodeMentor stores Google's stable account ID only for backend account matching; it is not included in normal auth responses.
+
+No Google client secret, Passport.js, Firebase Auth, or frontend Google npm package is required for this sign-in flow.
+
 ## Fresh demo accounts
 
 The Login page starts empty. Clicking the demo action calls `POST /api/auth/demo-account`.
@@ -183,33 +210,37 @@ cd ../frontend
 npm run build
 ```
 
-Also exercise the affected browser flow when changing routing, cookies, CSRF, onboarding transitions, content publishing, roadmap creation, or Gemini fallbacks.
+Also exercise the affected browser flow when changing routing, cookies, CSRF, onboarding transitions, content publishing, roadmap creation, Google authentication, or Gemini fallbacks.
 
 ## Manual critical path
 
-1. Register and verify an account through Brevo or the development-link fallback.
-2. Log in and resume the correct onboarding step after refresh.
-3. From a clean Login page, create a fresh demo account, confirm credentials are filled only after clicking the demo action, and log in normally.
-4. Choose a Course or Learning Path and level.
-5. For Intermediate/Advanced, either skip or complete the optional skill check.
-6. Generate a roadmap and verify lower-level revision content remains available at higher levels.
-7. Complete Lessons and confirm progression updates.
-8. Submit a Quiz and confirm Dashboard/Progress updates.
-9. Open Mentor from a Lesson and confirm the preloaded prompt sends once.
-10. Create Practice and Interview attempts and verify the two-attempt limit.
-11. Disable Gemini and verify honest fallback behavior, including deterministic skill-check roadmap priorities.
-12. Generate a weekly report.
-13. Exercise admin archive/restore/delete and dependency messages.
-14. Switch between independent learner Enrollments from Dashboard.
-15. Create a second demo account and confirm it does not inherit the first demo user's changes.
-16. Log out and test logout-all-devices.
+1. Register and verify an email/password account through Brevo or the development-link fallback.
+2. Log in with that account and resume the correct onboarding step after refresh.
+3. Register a new learner with Google and confirm it goes directly to onboarding without email verification.
+4. Log out, then sign in again with Google and confirm normal onboarding/dashboard routing.
+5. Confirm Google Login rejects an unregistered Google account and Google Register does not link an existing local email account.
+6. From a clean Login page, create a fresh demo account, confirm credentials are filled only after clicking the demo action, and log in normally.
+7. Choose a Course or Learning Path and level.
+8. For Intermediate/Advanced, either skip or complete the optional skill check.
+9. Generate a roadmap and verify lower-level revision content remains available at higher levels.
+10. Complete Lessons and confirm progression updates.
+11. Submit a Quiz and confirm Dashboard/Progress updates.
+12. Open Mentor from a Lesson and confirm the preloaded prompt sends once.
+13. Create Practice and Interview attempts and verify the two-attempt limit.
+14. Disable Gemini and verify honest fallback behavior, including deterministic skill-check roadmap priorities.
+15. Generate a weekly report.
+16. Exercise admin archive/restore/delete and dependency messages.
+17. Switch between independent learner Enrollments from Dashboard.
+18. Create a second demo account and confirm it does not inherit the first demo user's changes.
+19. Log out and test logout-all-devices.
 
 ## Production notes
 
 - Use HTTPS and secure cookies.
 - Route `/api` to the Express API or set `VITE_API_BASE_URL` explicitly.
 - Configure exact frontend origins and proxy trust.
-- Keep MongoDB, Brevo, and Gemini credentials in deployment secrets.
+- Configure the production frontend origin on the Google Web client and use the matching Google client ID in backend/frontend deployment secrets.
+- Keep MongoDB, Brevo, Gemini, and Google configuration in deployment secrets/settings.
 - Disable development email logging.
 - Do not run the development seed in production.
 
@@ -218,6 +249,10 @@ Also exercise the affected browser flow when changing routing, cookies, CSRF, on
 ### Login succeeds but the next API call fails
 
 Check credentialed CORS, cookie domain/same-site settings, HTTPS, the `/api` reverse proxy, and any `VITE_API_BASE_URL` override.
+
+### Google sign-in is not configured or unavailable
+
+Confirm `VITE_GOOGLE_CLIENT_ID` is present in the frontend environment, `GOOGLE_CLIENT_ID` is present in the backend environment, both values refer to the same Google Web client, and the current frontend origin is authorized in Google Cloud.
 
 ### Protected writes return invalid CSRF token
 
