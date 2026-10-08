@@ -38,8 +38,6 @@ Before running it:
 
 The admin seed credentials are intentionally supplied through local environment variables rather than committed in source.
 
-Fresh demo users are different from seed accounts. They are created on demand from Login and each receive their own User, Enrollment, CoursePlan, and Progress.
-
 ## Backend commands
 
 ```bash
@@ -156,23 +154,6 @@ The flow intentionally stays simple:
 
 No Google client secret, Passport.js, Firebase Auth, or frontend Google npm package is required for this sign-in flow.
 
-## Fresh demo accounts
-
-The Login page starts empty. Clicking the demo action calls `POST /api/auth/demo-account`.
-
-That endpoint:
-
-1. Creates a unique verified learner marked `isDemo`.
-2. Creates a Beginner Complete JavaScript Enrollment.
-3. Uses the normal roadmap service to generate the starter CoursePlan and Progress.
-4. If provisioning fails after creating the demo User, removes partial Progress, CoursePlan, Enrollment, and User records before returning the error.
-5. Returns generated credentials to the Login page.
-6. The Login page fills the normal email/password form; it does not bypass the normal login endpoint.
-
-Each request creates a separate learner, so one visitor's course switching, progress, Mentor history, attempts, and other learner data do not affect another visitor's demo.
-
-The endpoint uses the existing registration rate limiter to avoid unbounded account creation from one client. After one demo account is prepared, the Login page disables the demo action for that page session so repeated clicks do not create unnecessary accounts.
-
 ## Practice and interview attempts
 
 Each Practice task or Interview question allows two attempts. The backend simply counts existing attempts and creates attempt 1 or 2. A third attempt is rejected.
@@ -212,28 +193,6 @@ npm run build
 
 Also exercise the affected browser flow when changing routing, cookies, CSRF, onboarding transitions, content publishing, roadmap creation, Google authentication, or Gemini fallbacks.
 
-## Manual critical path
-
-1. Register and verify an email/password account through Brevo or the development-link fallback.
-2. Log in with that account and resume the correct onboarding step after refresh.
-3. Register a new learner with Google and confirm it goes directly to onboarding without email verification.
-4. Log out, then sign in again with Google and confirm normal onboarding/dashboard routing.
-5. Confirm Google Login rejects an unregistered Google account and Google Register does not link an existing local email account.
-6. From a clean Login page, create a fresh demo account, confirm credentials are filled only after clicking the demo action, and log in normally.
-7. Choose a Course or Learning Path and level.
-8. For Intermediate/Advanced, either skip or complete the optional skill check.
-9. Generate a roadmap and verify lower-level revision content remains available at higher levels.
-10. Complete Lessons and confirm progression updates.
-11. Submit a Quiz and confirm Dashboard/Progress updates.
-12. Open Mentor from a Lesson and confirm the preloaded prompt sends once.
-13. Create Practice and Interview attempts and verify the two-attempt limit.
-14. Disable Gemini and verify honest fallback behavior, including deterministic skill-check roadmap priorities.
-15. Generate a weekly report.
-16. Exercise admin archive/restore/delete and dependency messages.
-17. Switch between independent learner Enrollments from Dashboard.
-18. Create a second demo account and confirm it does not inherit the first demo user's changes.
-19. Log out and test logout-all-devices.
-
 ## Production notes
 
 - Use HTTPS and secure cookies.
@@ -257,10 +216,6 @@ Confirm `VITE_GOOGLE_CLIENT_ID` is present in the frontend environment, `GOOGLE_
 ### Protected writes return invalid CSRF token
 
 Confirm authentication and CSRF cookies share the expected browser/domain policy and the proxy preserves cookies and headers.
-
-### Demo account preparation fails
-
-Confirm the Complete JavaScript Course is published and has a published Beginner Roadmap Template with valid published Lessons and Quiz content.
 
 ### Brevo email delivery fails
 

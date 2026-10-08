@@ -118,14 +118,6 @@ Lessons → Quizzes → Practice → Interview preparation
 Review progress and continue learning
 ```
 
-## Demo experience
-
-The Login page can create a **fresh demo learner** on demand.
-
-Each demo request creates a separate verified learner with its own Beginner Complete JavaScript enrollment, CoursePlan, Progress, attempts, Mentor history, and other learner data. Demo visitors therefore do not share learning progress with one another.
-
-The generated credentials are filled into the normal Login form, so the demo still uses the real authentication and learner workflow.
-
 ## Content management
 
 CodeMentor AI also includes an authenticated content-management area for maintaining the learning catalog.
@@ -223,46 +215,46 @@ For a more detailed technical explanation, see [docs/ARCHITECTURE.md](docs/ARCHI
 
 ### Frontend
 
-| Technology | Purpose |
-| --- | --- |
-| React 18 | User interface |
-| React Router 6 | Client-side routing |
-| Vite 5 | Development server and production build |
-| JavaScript / JSX | Application language |
-| Tailwind CSS 3 | Styling |
-| Axios | HTTP requests |
-| React Hook Form | Form state |
-| Zod | Client-side validation |
-| Lucide React | Icons |
-| Sonner | Toast notifications |
+| Technology               | Purpose                                   |
+| ------------------------ | ----------------------------------------- |
+| React 18                 | User interface                            |
+| React Router 6           | Client-side routing                       |
+| Vite 5                   | Development server and production build   |
+| JavaScript / JSX         | Application language                      |
+| Tailwind CSS 3           | Styling                                   |
+| Axios                    | HTTP requests                             |
+| React Hook Form          | Form state                                |
+| Zod                      | Client-side validation                    |
+| Lucide React             | Icons                                     |
+| Sonner                   | Toast notifications                       |
 | Google Identity Services | Google registration/login credential flow |
 
 ### Backend
 
-| Technology | Purpose |
-| --- | --- |
-| Node.js | JavaScript runtime |
-| Express | REST API |
-| MongoDB | Database |
-| Mongoose | MongoDB modelling and persistence |
-| Zod | Request validation |
-| JSON Web Tokens | Authentication |
-| bcryptjs | Password hashing |
-| google-auth-library | Google ID-token verification |
-| cookie-parser | Cookie handling |
-| Helmet | Security headers |
-| CORS | Browser origin control |
-| express-rate-limit | API rate limiting |
-| Morgan | Request logging |
-| Brevo REST API | Verification and password-reset email delivery |
-| Google Gemini API | Optional AI-assisted learning features |
+| Technology          | Purpose                                        |
+| ------------------- | ---------------------------------------------- |
+| Node.js             | JavaScript runtime                             |
+| Express             | REST API                                       |
+| MongoDB             | Database                                       |
+| Mongoose            | MongoDB modelling and persistence              |
+| Zod                 | Request validation                             |
+| JSON Web Tokens     | Authentication                                 |
+| bcryptjs            | Password hashing                               |
+| google-auth-library | Google ID-token verification                   |
+| cookie-parser       | Cookie handling                                |
+| Helmet              | Security headers                               |
+| CORS                | Browser origin control                         |
+| express-rate-limit  | API rate limiting                              |
+| Morgan              | Request logging                                |
+| Brevo REST API      | Verification and password-reset email delivery |
+| Google Gemini API   | Optional AI-assisted learning features         |
 
 ### Backend testing
 
-| Technology | Purpose |
-| --- | --- |
-| Vitest | Test runner |
-| Supertest | Express API integration tests |
+| Technology            | Purpose                                          |
+| --------------------- | ------------------------------------------------ |
+| Vitest                | Test runner                                      |
+| Supertest             | Express API integration tests                    |
 | MongoDB Memory Server | Isolated temporary MongoDB for integration tests |
 
 ## Repository structure

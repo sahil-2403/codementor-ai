@@ -1,44 +1,47 @@
-import { asyncHandler } from '../utils/asyncHandler.js';
-import { sendResponse } from '../utils/ApiResponse.js';
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { sendResponse } from "../utils/ApiResponse.js";
 import {
   registerUser,
-  createDemoAccount,
   refreshAuthTokens,
   logoutAllDevices,
   resetPasswordWithToken,
   verifyEmailWithToken,
-  resendEmailVerification
-} from '../services/auth.service.js';
+  resendEmailVerification,
+} from "../services/auth.service.js";
 import {
   registerWithGoogle,
   loginWithGoogle,
   loginWithConfiguredProvider,
-  requestProviderAwarePasswordReset
-} from '../services/googleAuthFlow.service.js';
-import { logActivity } from '../services/activityLog.service.js';
-import { setAuthCookies, setAccessTokenCookie, clearAuthCookies } from '../services/token.service.js';
-import { issueCsrfToken } from '../middlewares/csrf.middleware.js';
+  requestProviderAwarePasswordReset,
+} from "../services/googleAuthFlow.service.js";
+import { logActivity } from "../services/activityLog.service.js";
+import {
+  setAuthCookies,
+  setAccessTokenCookie,
+  clearAuthCookies,
+} from "../services/token.service.js";
+import { issueCsrfToken } from "../middlewares/csrf.middleware.js";
 
 export const csrfToken = asyncHandler(async (req, res) => {
   const token = issueCsrfToken(res);
-  sendResponse(res, 200, 'CSRF token issued', { csrfToken: token });
+  sendResponse(res, 200, "CSRF token issued", { csrfToken: token });
 });
 
 export const register = asyncHandler(async (req, res) => {
   const result = await registerUser(req.body);
   await logActivity({
     user: result.user._id,
-    action: 'auth_registered',
-    entityType: 'User',
+    action: "auth_registered",
+    entityType: "User",
     entityId: result.user._id,
-    message: 'User registered and email verification is pending',
-    req
+    message: "User registered and email verification is pending",
+    req,
   });
   sendResponse(res, 201, result.message, {
     user: result.user,
     verificationRequired: result.verificationRequired,
     emailSent: result.emailSent,
-    deliveryMode: result.deliveryMode
+    deliveryMode: result.deliveryMode,
   });
 });
 
@@ -47,31 +50,30 @@ export const googleRegister = asyncHandler(async (req, res) => {
   setAuthCookies(res, result.accessToken, result.refreshToken);
   await logActivity({
     user: result.user._id,
-    action: 'auth_google_registered',
-    entityType: 'User',
+    action: "auth_google_registered",
+    entityType: "User",
     entityId: result.user._id,
-    message: 'Learner registered with Google',
-    req
+    message: "Learner registered with Google",
+    req,
   });
-  sendResponse(res, 201, 'Google registration successful', { user: result.user });
-});
-
-export const demoAccount = asyncHandler(async (req, res) => {
-  const credentials = await createDemoAccount();
-  sendResponse(res, 201, 'Fresh demo account ready', { credentials });
+  sendResponse(res, 201, "Google registration successful", {
+    user: result.user,
+  });
 });
 
 export const verifyEmail = asyncHandler(async (req, res) => {
   const user = await verifyEmailWithToken(req.body);
   await logActivity({
     user: user._id,
-    action: 'auth_email_verified',
-    entityType: 'User',
+    action: "auth_email_verified",
+    entityType: "User",
     entityId: user._id,
-    message: 'User verified email',
-    req
+    message: "User verified email",
+    req,
   });
-  sendResponse(res, 200, 'Email verified successfully. You can now log in.', { user });
+  sendResponse(res, 200, "Email verified successfully. You can now log in.", {
+    user,
+  });
 });
 
 export const resendVerification = asyncHandler(async (req, res) => {
@@ -84,13 +86,13 @@ export const login = asyncHandler(async (req, res) => {
   setAuthCookies(res, result.accessToken, result.refreshToken);
   await logActivity({
     user: result.user._id,
-    action: 'auth_login',
-    entityType: 'User',
+    action: "auth_login",
+    entityType: "User",
     entityId: result.user._id,
-    message: 'User logged in',
-    req
+    message: "User logged in",
+    req,
   });
-  sendResponse(res, 200, 'Logged in successfully', { user: result.user });
+  sendResponse(res, 200, "Logged in successfully", { user: result.user });
 });
 
 export const googleLogin = asyncHandler(async (req, res) => {
@@ -98,24 +100,24 @@ export const googleLogin = asyncHandler(async (req, res) => {
   setAuthCookies(res, result.accessToken, result.refreshToken);
   await logActivity({
     user: result.user._id,
-    action: 'auth_google_login',
-    entityType: 'User',
+    action: "auth_google_login",
+    entityType: "User",
     entityId: result.user._id,
-    message: 'Learner logged in with Google',
-    req
+    message: "Learner logged in with Google",
+    req,
   });
-  sendResponse(res, 200, 'Google login successful', { user: result.user });
+  sendResponse(res, 200, "Google login successful", { user: result.user });
 });
 
 export const logout = asyncHandler(async (req, res) => {
   clearAuthCookies(res);
-  sendResponse(res, 200, 'Logged out successfully');
+  sendResponse(res, 200, "Logged out successfully");
 });
 
 export const refresh = asyncHandler(async (req, res) => {
   const result = await refreshAuthTokens(req.cookies?.refreshToken);
   setAccessTokenCookie(res, result.accessToken);
-  sendResponse(res, 200, 'Token refreshed successfully');
+  sendResponse(res, 200, "Token refreshed successfully");
 });
 
 export const logoutAll = asyncHandler(async (req, res) => {
@@ -123,13 +125,13 @@ export const logoutAll = asyncHandler(async (req, res) => {
   clearAuthCookies(res);
   await logActivity({
     user: req.user._id,
-    action: 'auth_logout_all',
-    entityType: 'User',
+    action: "auth_logout_all",
+    entityType: "User",
     entityId: req.user._id,
-    message: 'User logged out from all devices',
-    req
+    message: "User logged out from all devices",
+    req,
   });
-  sendResponse(res, 200, 'Logged out from all devices successfully');
+  sendResponse(res, 200, "Logged out from all devices successfully");
 });
 
 export const forgotPassword = asyncHandler(async (req, res) => {
@@ -139,9 +141,9 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
 export const resetPassword = asyncHandler(async (req, res) => {
   await resetPasswordWithToken(req.body);
-  sendResponse(res, 200, 'Password reset successfully');
+  sendResponse(res, 200, "Password reset successfully");
 });
 
 export const me = asyncHandler(async (req, res) => {
-  sendResponse(res, 200, 'Current user', { user: req.user });
+  sendResponse(res, 200, "Current user", { user: req.user });
 });
