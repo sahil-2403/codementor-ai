@@ -11,6 +11,7 @@ import {
 import Loader from '../../components/common/Loader.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import Button from '../../components/common/Button.jsx';
+import Card from '../../components/common/Card.jsx';
 import LevelBadge from '../../components/common/LevelBadge.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
@@ -180,9 +181,9 @@ export default function LessonPage() {
         </div>
       </section>
 
-      <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
+      <Card variant="compact">
         <LessonContent lesson={lesson} />
-      </section>
+      </Card>
 
       {isCompleted && (
         <nav

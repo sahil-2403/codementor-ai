@@ -1,14 +1,22 @@
-import { MessagesSquare } from 'lucide-react';
-import Card from '../common/Card.jsx';
+import { Sparkles } from 'lucide-react';
 
-export default function MentorPrompts({ aiAvailable, items = [], lessonScoped = false, disabled = false, onSelect }) {
-  return <Card>
-    <div className="flex items-center gap-3">
-      <span className="grid h-10 w-10 place-items-center rounded-surface bg-primary-soft text-primary" aria-hidden="true"><MessagesSquare size={19} /></span>
-      <div><h2 className="font-bold text-foreground">{aiAvailable ? 'Suggested prompts' : 'Saved answers'}</h2><p className="text-xs text-muted-foreground">{lessonScoped ? 'Scoped to the current lesson' : 'Scoped to your learning path'}</p></div>
+export default function MentorPrompts({ items = [], disabled = false, onSelect }) {
+  if (!items.length) return null;
+
+  return (
+    <div className="mb-2 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
+      {items.map((item) => (
+        <button
+          key={item.promptType || item.label}
+          type="button"
+          disabled={disabled}
+          onClick={() => onSelect(item)}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/35 hover:text-foreground disabled:opacity-45"
+        >
+          <Sparkles size={12} className="text-primary" aria-hidden="true" />
+          {item.label}
+        </button>
+      ))}
     </div>
-    <div className="mt-4 grid gap-2">
-      {items.length ? items.map((item, index) => <button key={`${item.promptType || item.label}-${index}`} type="button" onClick={() => onSelect(item)} className="rounded-surface border border-border bg-surface px-3.5 py-3 text-left text-sm font-semibold text-foreground transition hover:border-primary/30 hover:bg-surface-secondary" disabled={disabled}>{item.label}</button>) : <p className="rounded-surface bg-surface-secondary p-3 text-sm leading-6 text-muted-foreground">No prompt or saved explanation is available for this context.</p>}
-    </div>
-  </Card>;
+  );
 }

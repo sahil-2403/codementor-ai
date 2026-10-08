@@ -8,16 +8,18 @@ import {
   Code2,
   MessageSquareText,
   RefreshCw,
-  Sparkles,
   Target
 } from 'lucide-react';
 import EmptyState from '../../components/common/EmptyState.jsx';
+import InlineAlert from '../../components/common/InlineAlert.jsx';
 import LevelBadge from '../../components/common/LevelBadge.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import StatusPill from '../../components/common/StatusPill.jsx';
+import CourseSwitcher from '../../components/dashboard/CourseSwitcher.jsx';
 import CourseProgress from '../../components/progress/CourseProgress.jsx';
+import { onboardingApi } from '../../api/onboardingApi.js';
 import { progressApi } from '../../api/progressApi.js';
 import { useAuth } from '../../hooks/useAuth.js';
 
@@ -42,7 +44,7 @@ function OverviewStats({ stats }) {
   const items = [
     { label: 'Lessons', value: `${stats.completedLessons || 0}/${stats.totalLessons || 0}`, icon: BookOpenCheck },
     { label: 'Quiz average', value: `${stats.quizAccuracy || 0}%`, icon: ClipboardCheck },
-    { label: 'Priority topics', value: stats.criticalWeakTopicsCount || 0, icon: Target },
+    { label: 'Topics to improve', value: stats.weakTopicsCount || 0, icon: Target },
     { label: 'Revisions due', value: stats.revisionsDue || 0, icon: RefreshCw }
   ];
 
@@ -176,6 +178,8 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [data, setData] = useState(null);
+  const [enrollments, setEnrollments] = useState(null);
+  const [enrollmentError, setEnrollmentError] = useState('');
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -184,10 +188,12 @@ export default function DashboardPage() {
     let active = true;
     setIsLoading(true);
     setError(null);
+    setEnrollments(null);
+    setEnrollmentError('');
 
     progressApi.dashboard()
-      .then((result) => {
-        if (active) setData(result);
+      .then((dashboardData) => {
+        if (active) setData(dashboardData);
       })
       .catch((requestError) => {
         if (active) setError(requestError);
@@ -196,10 +202,25 @@ export default function DashboardPage() {
         if (active) setIsLoading(false);
       });
 
+    onboardingApi.enrollments()
+      .then((enrollmentData) => {
+        if (active) setEnrollments(enrollmentData?.enrollments || []);
+      })
+      .catch((requestError) => {
+        if (!active) return;
+        setEnrollments([]);
+        setEnrollmentError(requestError?.message || 'Could not load your enrolled courses.');
+      });
+
     return () => {
       active = false;
     };
   }, [loadAttempt]);
+
+  const switchEnrollment = async (enrollment) => {
+    await onboardingApi.switchEnrollment(enrollment._id);
+    setLoadAttempt((value) => value + 1);
+  };
 
   if (isLoading) return <Loader label="Loading dashboard..." />;
   if (error) {
@@ -218,7 +239,7 @@ export default function DashboardPage() {
         title="No active roadmap yet"
         description="Complete your setup to create a learning roadmap."
         actionLabel="Continue setup"
-        onAction={() => navigate('/onboarding/goal')}
+        onAction={() => navigate('/onboarding/catalog')}
       />
     );
   }
@@ -238,6 +259,18 @@ export default function DashboardPage() {
 
   return (
     <PageShell className="space-y-5 pb-6">
+      {enrollmentError ? (
+        <InlineAlert tone="warning" title="Course switching is temporarily unavailable">
+          {enrollmentError} Your dashboard and current learning progress are still available.
+        </InlineAlert>
+      ) : enrollments ? (
+        <CourseSwitcher
+          enrollments={enrollments}
+          onSwitch={switchEnrollment}
+          onEnroll={() => navigate('/onboarding/catalog?new=true')}
+        />
+      ) : null}
+
       <PageHeader
         variant="compact"
         eyebrow={`Roadmap version ${stats.roadmapVersion || course.version || 1}`}
@@ -258,17 +291,17 @@ export default function DashboardPage() {
         <section className="flex flex-col gap-4 rounded-surface border border-primary/20 bg-primary-soft/45 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
           <div className="flex items-start gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary text-white" aria-hidden="true">
-              <Sparkles size={18} />
+              <Target size={18} />
             </span>
             <div>
-              <h2 className="text-base font-bold text-foreground">Personalize your roadmap with AI</h2>
+              <h2 className="text-base font-bold text-foreground">Personalize your roadmap with a skill check</h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Take a short skill check so your roadmap can put more attention on topics that need practice.
+                Take a short skill check so CodeMentor can highlight the topics that need more attention and connect them to your roadmap lessons.
               </p>
             </div>
           </div>
           <Link to="/onboarding/assessment?personalize=true" className="ui-button ui-button--primary min-h-9 shrink-0 px-4 text-sm">
-            <Sparkles size={15} aria-hidden="true" /> Take skill check
+            <Target size={15} aria-hidden="true" /> Take skill check
           </Link>
         </section>
       )}

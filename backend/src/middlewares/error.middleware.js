@@ -50,9 +50,10 @@ const normalizeError = (error) => {
     };
   }
 
+  const statusCode = error.statusCode || 500;
   return {
-    statusCode: error.statusCode || 500,
-    code: error.code || (error.statusCode >= 500 ? 'INTERNAL_SERVER_ERROR' : 'REQUEST_FAILED'),
+    statusCode,
+    code: error.code || (statusCode >= 500 ? 'INTERNAL_SERVER_ERROR' : 'REQUEST_FAILED'),
     message: error.message || 'Internal server error',
     errors: error.errors || []
   };

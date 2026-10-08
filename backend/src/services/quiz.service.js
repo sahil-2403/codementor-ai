@@ -48,7 +48,8 @@ export const submitQuiz = async ({ userId, moduleId, answers }) => {
       correctAnswer: question.correctAnswer,
       isCorrect: selectedAnswer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase(),
       explanation: question.explanation,
-      topic: question.topic?.title || 'General'
+      topic: question.topic?.title || 'General',
+      topicRef: question.topic?._id || null
     };
   });
 
@@ -57,9 +58,15 @@ export const submitQuiz = async ({ userId, moduleId, answers }) => {
   const wrongByTopic = new Map();
   checkedAnswers
     .filter((answer) => !answer.isCorrect)
-    .forEach((answer) => wrongByTopic.set(answer.topic, (wrongByTopic.get(answer.topic) || 0) + 1));
-  const weakTopicsDetected = Array.from(wrongByTopic.entries()).map(([topic, count]) => ({
+    .forEach((answer) => {
+      const key = answer.topicRef?.toString() || answer.topic;
+      const current = wrongByTopic.get(key) || { topic: answer.topic, topicRef: answer.topicRef, count: 0 };
+      current.count += 1;
+      wrongByTopic.set(key, current);
+    });
+  const weakTopicsDetected = Array.from(wrongByTopic.values()).map(({ topic, topicRef, count }) => ({
     topic,
+    topicRef,
     score: Math.max(0, 100 - count * 30)
   }));
   const basicFeedback = weakTopicsDetected.length

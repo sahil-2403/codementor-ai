@@ -21,16 +21,13 @@ const envBoolean = (defaultValue = false) =>
 
 const optionalString = z.preprocess(emptyToUndefined, z.string().min(1).optional());
 const optionalEmail = z.preprocess(emptyToUndefined, z.string().email().optional());
-const optionalPort = z.preprocess(
-  emptyToUndefined,
-  z.coerce.number().int().min(1).max(65535).optional()
-);
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(5000),
   CLIENT_URL: z.string().url().default('http://localhost:5173'),
   ALLOWED_ORIGINS: z.string().optional().default(''),
+  GOOGLE_CLIENT_ID: optionalString,
   MONGO_URI: z.string().min(1, 'MONGO_URI is required'),
   JWT_ACCESS_SECRET: z.string().min(1, 'JWT_ACCESS_SECRET is required'),
   JWT_REFRESH_SECRET: z.string().min(1, 'JWT_REFRESH_SECRET is required'),
@@ -62,17 +59,11 @@ const envSchema = z.object({
   MAX_INTERVIEW_ANSWER_CHARS: z.coerce.number().int().positive().default(3000),
   MAX_AI_CONTEXT_CHARS: z.coerce.number().int().positive().default(5000),
   EMAIL_ENABLED: envBoolean(false),
-  SMTP_HOST: optionalString,
-  SMTP_PORT: optionalPort,
-  SMTP_SECURE: envBoolean(false),
-  SMTP_USER: optionalString,
-  SMTP_PASSWORD: optionalString,
+  BREVO_API_KEY: optionalString,
   EMAIL_FROM_NAME: z.string().min(1).default('CodeMentor AI'),
   EMAIL_FROM_ADDRESS: optionalEmail,
   EMAIL_REPLY_TO: optionalEmail,
-  EMAIL_VERIFY_CONNECTION: envBoolean(true),
-  ALLOW_DEV_EMAIL_LOG: envBoolean(true),
-  ENABLE_DEMO_MODE: envBoolean(false)
+  ALLOW_DEV_EMAIL_LOG: envBoolean(true)
 }).superRefine((values, context) => {
   const origins = (values.ALLOWED_ORIGINS || values.CLIENT_URL)
     .split(',')
@@ -94,7 +85,7 @@ const envSchema = z.object({
   }
 
   if (values.EMAIL_ENABLED) {
-    [['SMTP_HOST', values.SMTP_HOST], ['SMTP_PORT', values.SMTP_PORT], ['SMTP_USER', values.SMTP_USER], ['SMTP_PASSWORD', values.SMTP_PASSWORD], ['EMAIL_FROM_ADDRESS', values.EMAIL_FROM_ADDRESS]].forEach(([field, value]) => {
+    [['BREVO_API_KEY', values.BREVO_API_KEY], ['EMAIL_FROM_ADDRESS', values.EMAIL_FROM_ADDRESS]].forEach(([field, value]) => {
       if (!value) context.addIssue({ code: z.ZodIssueCode.custom, path: [field], message: `${field} is required when EMAIL_ENABLED is true` });
     });
   }
@@ -123,6 +114,7 @@ export const env = Object.freeze({
   port: values.PORT,
   clientUrl: values.CLIENT_URL,
   allowedOrigins: Object.freeze((values.ALLOWED_ORIGINS || values.CLIENT_URL).split(',').map((origin) => origin.trim()).filter(Boolean)),
+  googleClientId: values.GOOGLE_CLIENT_ID,
   mongoUri: values.MONGO_URI,
   jwtAccessSecret: values.JWT_ACCESS_SECRET,
   jwtRefreshSecret: values.JWT_REFRESH_SECRET,
@@ -140,17 +132,11 @@ export const env = Object.freeze({
   aiLimits: Object.freeze({ mentor: values.DAILY_MENTOR_LIMIT, roadmap: values.DAILY_ROADMAP_LIMIT, quizExplanation: values.DAILY_QUIZ_EXPLANATION_LIMIT, weeklyReport: values.WEEKLY_REPORT_LIMIT, practiceReview: values.DAILY_PRACTICE_REVIEW_LIMIT, interviewFeedback: values.DAILY_INTERVIEW_FEEDBACK_LIMIT }),
   aiInputLimits: Object.freeze({ mentorPromptChars: values.MAX_MENTOR_PROMPT_CHARS, practiceCodeChars: values.MAX_PRACTICE_CODE_CHARS, practiceExplanationChars: values.MAX_PRACTICE_EXPLANATION_CHARS, interviewAnswerChars: values.MAX_INTERVIEW_ANSWER_CHARS, contextChars: values.MAX_AI_CONTEXT_CHARS }),
   emailEnabled: values.EMAIL_ENABLED,
-  smtpHost: values.SMTP_HOST,
-  smtpPort: values.SMTP_PORT,
-  smtpSecure: values.SMTP_SECURE,
-  smtpUser: values.SMTP_USER,
-  smtpPassword: values.SMTP_PASSWORD,
+  brevoApiKey: values.BREVO_API_KEY,
   emailFromName: values.EMAIL_FROM_NAME,
   emailFromAddress: values.EMAIL_FROM_ADDRESS,
   emailReplyTo: values.EMAIL_REPLY_TO,
-  emailVerifyConnection: values.EMAIL_VERIFY_CONNECTION,
-  allowDevEmailLog: values.ALLOW_DEV_EMAIL_LOG,
-  enableDemoMode: values.ENABLE_DEMO_MODE
+  allowDevEmailLog: values.ALLOW_DEV_EMAIL_LOG
 });
 
 export const isGeminiAvailable = () => env.enableAi && Boolean(env.geminiApiKey);

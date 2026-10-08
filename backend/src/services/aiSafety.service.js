@@ -1,17 +1,25 @@
-import { AI_SAFETY, UNSUPPORTED_AI_PATTERNS } from '../constants/aiSafety.js';
+import { env } from '../config/env.js';
 import { ApiError } from '../utils/ApiError.js';
+
+const UNSUPPORTED_AI_PATTERNS = [
+  /ignore previous instructions/i,
+  /system prompt/i,
+  /developer message/i,
+  /jailbreak/i,
+  /act as.*unrestricted/i
+];
 
 const CONTROL_CHARS_REGEX = new RegExp('[\\x00-\\x1F\\x7F]', 'g');
 const stripControlChars = (value = '') => String(value).replace(CONTROL_CHARS_REGEX, ' ');
 const collapseWhitespace = (value = '') => stripControlChars(value).replace(/\s+/g, ' ').trim();
 
-export const sanitizeAIText = (value = '', maxChars = AI_SAFETY.MAX_MENTOR_PROMPT_CHARS) =>
+export const sanitizeAIText = (value = '', maxChars = env.aiInputLimits.mentorPromptChars) =>
   collapseWhitespace(value).slice(0, maxChars);
 
-export const sanitizeCodeText = (value = '', maxChars = AI_SAFETY.MAX_PROJECT_CODE_CHARS) =>
+export const sanitizeCodeText = (value = '', maxChars = env.aiInputLimits.practiceCodeChars) =>
   stripControlChars(value).trim().slice(0, maxChars);
 
-export const guardAIRequest = async ({ text, maxChars = AI_SAFETY.MAX_MENTOR_PROMPT_CHARS, minChars = 2 }) => {
+export const guardAIRequest = async ({ text, maxChars = env.aiInputLimits.mentorPromptChars, minChars = 2 }) => {
   const rawText = String(text || '');
   const cleaned = sanitizeAIText(rawText, maxChars);
 
@@ -28,7 +36,7 @@ export const guardAIRequest = async ({ text, maxChars = AI_SAFETY.MAX_MENTOR_PRO
   return { sanitizedText: cleaned };
 };
 
-export const trimContextForAI = (contextItems = [], maxChars = AI_SAFETY.MAX_CONTEXT_CHARS) => {
+export const trimContextForAI = (contextItems = [], maxChars = env.aiInputLimits.contextChars) => {
   let used = 0;
   return contextItems.map((item) => {
     const snippet = String(item.snippet || '').slice(0, Math.max(0, maxChars - used));

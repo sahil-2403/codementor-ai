@@ -4,6 +4,7 @@ import { REVIEW_MODE, REVIEW_STATUS } from '../../constants/domainEnums.js';
 import Badge from '../common/Badge.jsx';
 import Button from '../common/Button.jsx';
 import InlineAlert from '../common/InlineAlert.jsx';
+import MentorFeedback from '../common/MentorFeedback.jsx';
 import StatusPill from '../common/StatusPill.jsx';
 import { formatDate } from '../../utils/formatDate.js';
 
@@ -20,8 +21,6 @@ export default function InterviewAttemptFeedback({
   const aiReviewed =
     attempt.feedbackMode === REVIEW_MODE.AI &&
     attempt.status === REVIEW_STATUS.REVIEWED;
-  const strengths = attempt.aiFeedback?.strengths || [];
-  const improvements = attempt.aiFeedback?.improvements || [];
 
   return (
     <article className="py-4 sm:py-5">
@@ -88,37 +87,12 @@ export default function InterviewAttemptFeedback({
             </InlineAlert>
           ) : null}
 
-          {attempt.aiFeedback?.summary ? (
-            <div className="mt-4 border-l-2 border-primary pl-4">
-              <div className="flex items-center gap-2 text-primary-strong">
-                <Sparkles size={15} aria-hidden="true" />
-                <h3 className="text-sm font-bold">Mentor feedback</h3>
-              </div>
-              <p className="mt-2 text-sm leading-7 text-muted-foreground">{attempt.aiFeedback.summary}</p>
-            </div>
-          ) : null}
-
-          {strengths.length || improvements.length ? (
-            <div className="mt-5 grid gap-5 md:grid-cols-2">
-              {strengths.length ? (
-                <div>
-                  <h3 className="text-sm font-bold text-success">What you did well</h3>
-                  <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6 text-muted-foreground">
-                    {strengths.map((item) => <li key={item}>{item}</li>)}
-                  </ul>
-                </div>
-              ) : null}
-
-              {improvements.length ? (
-                <div>
-                  <h3 className="text-sm font-bold text-error">What to improve</h3>
-                  <ul className="mt-2 list-disc space-y-1.5 pl-5 text-sm leading-6 text-muted-foreground">
-                    {improvements.map((item) => <li key={item}>{item}</li>)}
-                  </ul>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+          <MentorFeedback
+            className="mt-4"
+            summary={attempt.aiFeedback?.summary || ''}
+            strengths={attempt.aiFeedback?.strengths || []}
+            improvements={attempt.aiFeedback?.improvements || []}
+          />
         </div>
       ) : null}
     </article>

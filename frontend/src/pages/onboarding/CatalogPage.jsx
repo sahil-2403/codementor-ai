@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check, Code2, Route, Search } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
@@ -65,7 +65,15 @@ const getTechnologyMark = (technology) => {
   return cleanName.slice(0, 2).toUpperCase();
 };
 
-function OfferingCard({ type, offering, selected, onSelect }) {
+const getEnrollmentKey = (enrollment) => {
+  if (enrollment?.type === 'learning_path' && enrollment.learningPath?._id) {
+    return `learning_path:${enrollment.learningPath._id}`;
+  }
+  if (enrollment?.course?._id) return `course:${enrollment.course._id}`;
+  return '';
+};
+
+function OfferingCard({ type, offering, selected, enrolled = false, onSelect }) {
   const active = selected?.type === type && selected?.id === offering._id;
   const isPath = type === 'learning_path';
   const primaryTechnology = offering.primaryTechnology || offering.technologies?.[0];
@@ -74,13 +82,16 @@ function OfferingCard({ type, offering, selected, onSelect }) {
   return (
     <button
       type="button"
+      disabled={enrolled}
       aria-pressed={active}
       onClick={() => onSelect({ type, id: offering._id, title: offering.title })}
       className={cn(
         'relative min-h-[176px] w-[250px] shrink-0 rounded-panel border p-5 text-left transition sm:w-[280px]',
-        active
-          ? 'border-primary bg-primary-soft/55 shadow-sm'
-          : 'border-border bg-surface hover:border-primary/30 hover:shadow-sm'
+        enrolled
+          ? 'cursor-not-allowed border-border bg-surface-secondary/55 opacity-80'
+          : active
+            ? 'border-primary bg-primary-soft/55 shadow-sm'
+            : 'border-border bg-surface hover:border-primary/30 hover:shadow-sm'
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -95,7 +106,11 @@ function OfferingCard({ type, offering, selected, onSelect }) {
           {isPath ? <Route size={19} /> : technologyMark || <Code2 size={19} />}
         </span>
 
-        {active ? (
+        {enrolled ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-1 text-xs font-bold text-success">
+            <Check size={13} aria-hidden="true" /> Enrolled
+          </span>
+        ) : active ? (
           <span className="grid h-6 w-6 place-items-center rounded-full bg-primary text-white" aria-hidden="true">
             <Check size={14} />
           </span>
@@ -121,8 +136,11 @@ function OfferingRow({ title, children, id }) {
 
 export default function CatalogPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isNewEnrollment = new URLSearchParams(location.search).get('new') === 'true';
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
+  const [enrollments, setEnrollments] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [catalog, setCatalog] = useState({ technologies: [], courses: [], learningPaths: [] });
@@ -135,35 +153,40 @@ export default function CatalogPage() {
     let active = true;
     setCatalogLoading(true);
     setCatalogError(null);
+    if (isNewEnrollment) setSelected(null);
 
-    onboardingApi.catalog()
-      .then((result) => {
+    const contextRequest = isNewEnrollment
+      ? onboardingApi.enrollments()
+      : onboardingApi.status();
+
+    Promise.all([onboardingApi.catalog(), contextRequest])
+      .then(([catalogResult, context]) => {
         if (!active) return;
-        setCatalog(result || { technologies: [], courses: [], learningPaths: [] });
+        setCatalog(catalogResult || { technologies: [], courses: [], learningPaths: [] });
 
-        onboardingApi.status()
-          .then((status) => {
-            if (!active) return;
-            const enrollment = status?.currentEnrollment;
-            let restored = null;
+        if (isNewEnrollment) {
+          setEnrollments(context?.enrollments || []);
+          return;
+        }
 
-            if (enrollment?.type === 'learning_path' && enrollment.learningPath?._id) {
-              restored = {
-                type: 'learning_path',
-                id: enrollment.learningPath._id,
-                title: enrollment.learningPath.title
-              };
-            } else if (enrollment?.course?._id) {
-              restored = {
-                type: 'course',
-                id: enrollment.course._id,
-                title: enrollment.course.title
-              };
-            }
+        const enrollment = context?.currentEnrollment;
+        let restored = null;
 
-            if (restored) setSelected((current) => current || restored);
-          })
-          .catch(() => {});
+        if (enrollment?.type === 'learning_path' && enrollment.learningPath?._id) {
+          restored = {
+            type: 'learning_path',
+            id: enrollment.learningPath._id,
+            title: enrollment.learningPath.title
+          };
+        } else if (enrollment?.course?._id) {
+          restored = {
+            type: 'course',
+            id: enrollment.course._id,
+            title: enrollment.course.title
+          };
+        }
+
+        if (restored) setSelected((current) => current || restored);
       })
       .catch((requestError) => {
         if (active) setCatalogError(requestError);
@@ -175,7 +198,12 @@ export default function CatalogPage() {
     return () => {
       active = false;
     };
-  }, [loadAttempt]);
+  }, [isNewEnrollment, loadAttempt]);
+
+  const enrolledKeys = useMemo(
+    () => new Set(enrollments.map(getEnrollmentKey).filter(Boolean)),
+    [enrollments]
+  );
 
   const visibleCourses = useMemo(() => catalog.courses.filter((course) => {
     if (!normalizedSearch) return true;
@@ -240,9 +268,11 @@ export default function CatalogPage() {
   return (
     <OnboardingShell
       current="catalog"
-      eyebrow="Course selection"
-      title="Choose what you want to learn"
-      description="Select a course or complete learning path to get started."
+      eyebrow={isNewEnrollment ? 'New enrollment' : 'Course selection'}
+      title={isNewEnrollment ? 'Choose another course to learn' : 'Choose what you want to learn'}
+      description={isNewEnrollment
+        ? 'Select a new course or learning path. Your existing course progress will stay saved.'
+        : 'Select a course or complete learning path to get started.'}
       footer={
         <div className="flex items-center justify-end gap-4 sm:justify-between">
           <p className="hidden text-sm text-muted-foreground sm:block">
@@ -287,6 +317,7 @@ export default function CatalogPage() {
               type="learning_path"
               offering={path}
               selected={selected}
+              enrolled={isNewEnrollment && enrolledKeys.has(`learning_path:${path._id}`)}
               onSelect={setSelected}
             />
           ))}
@@ -305,6 +336,7 @@ export default function CatalogPage() {
               type="course"
               offering={course}
               selected={selected}
+              enrolled={isNewEnrollment && enrolledKeys.has(`course:${course._id}`)}
               onSelect={setSelected}
             />
           ))}

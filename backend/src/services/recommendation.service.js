@@ -1,6 +1,9 @@
 const severityRank = { critical: 4, high: 3, medium: 2, low: 1 };
 const referenceId = (value) => value?._id || value;
 const moduleLevel = (course, module) => module.level || course.level;
+const formatSource = (value) => value === 'assessment'
+  ? 'skill check'
+  : String(value || 'learning activity').replaceAll('_', ' ');
 
 export const getWeakTopicSeverity = ({ score = 0, attempts = 1 }) => {
   if (attempts >= 4 || score < 30) return 'critical';
@@ -55,10 +58,10 @@ export const buildLearningRecommendations = ({ course, progress, dueRevisions = 
     recommendations.push({
       type: 'weak_topic',
       priority: topWeakTopic.severity || 'medium',
-      title: `Fix ${topWeakTopic.topic}`,
+      title: `Review ${topWeakTopic.topic}`,
       description: relatedLessonId
         ? `Review the related lesson for ${topWeakTopic.topic}, then retry the activity that exposed this gap.`
-        : `This topic appeared ${topWeakTopic.attempts || 1} time(s) from ${topWeakTopic.source}. Ask the mentor for a simpler explanation before retrying.`,
+        : `This topic appeared ${topWeakTopic.attempts || 1} time(s) from ${formatSource(topWeakTopic.source)}. Ask the mentor for a simpler explanation before retrying.`,
       actionLabel: relatedLessonId ? 'Review lesson' : 'Ask AI mentor',
       actionPath: relatedLessonId ? `/lessons/${relatedLessonId}` : '/mentor'
     });

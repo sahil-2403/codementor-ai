@@ -20,8 +20,7 @@ node scripts/release-check.mjs
 
 Confirm:
 
-- [ ] Backend unit tests pass
-- [ ] Frontend contract tests pass
+- [ ] Backend tests pass
 - [ ] Frontend production build passes
 
 When Gemini is enabled, also run:
@@ -36,7 +35,7 @@ npm run check:gemini
 - [ ] Only intended files are included
 - [ ] `package.json` changes are intentional
 - [ ] Fresh dependency installation succeeds for backend and frontend
-- [ ] No `.env`, credentials, API keys, SMTP passwords, database dumps, or private user data are committed
+- [ ] No `.env`, credentials, API keys, database dumps, or private user data are committed
 - [ ] Environment examples and documentation match current variables/commands
 - [ ] Frontend/backend API enums and response fields remain aligned
 - [ ] Admin scope remains learning-content management only
@@ -68,7 +67,6 @@ npm run seed
 - [ ] `CLIENT_URL` and `ALLOWED_ORIGINS` contain only approved origins
 - [ ] `TRUST_PROXY` matches the reverse proxy setup
 - [ ] Rate limits are appropriate
-- [ ] Development/demo flags are disabled unless intentionally required
 
 ### MongoDB
 
@@ -78,7 +76,7 @@ npm run seed
 
 ### Email
 
-- [ ] SMTP connection verified when real delivery is required
+- [ ] Brevo API key and verified sender are configured when real delivery is required
 - [ ] Production sender/reply-to addresses configured
 - [ ] `ALLOW_DEV_EMAIL_LOG=false` in production
 
@@ -104,17 +102,20 @@ npm run seed
 
 - [ ] Catalog shows published Courses and Learning Paths
 - [ ] Learner can select a Course or Learning Path
-- [ ] Level and preferences persist across refresh
-- [ ] Beginner setup creates a roadmap
-- [ ] Intermediate/advanced diagnostic skip path works
-- [ ] Diagnostic submission/report path works
+- [ ] Level selection persists across refresh
+- [ ] Beginner setup creates a roadmap without a skill check
+- [ ] Intermediate/Advanced skill-check skip path works
+- [ ] Skill-check submission/report path works
+- [ ] Higher-level roadmaps include lower-level content for revision
+- [ ] Skill-check weak topics mark only verified related modules as priority
 - [ ] Roadmap creation shows normal loading, success, failure, and retry states
-- [ ] Template fallback remains usable when Gemini is disabled
+- [ ] Backend priority mapping remains usable when Gemini is disabled
 
 ### Learning and progress
 
 - [ ] Locked modules/Lessons are not interactive
 - [ ] Completing Lessons updates Progress correctly
+- [ ] Previous/Next Lesson navigation appears after completion where applicable
 - [ ] Module Quiz accepts the server-provided question set
 - [ ] Wrong answers update weak topics and revisions
 - [ ] Lesson → Mentor predefined prompt sends exactly once
@@ -133,6 +134,7 @@ Test once with Gemini enabled and once unavailable:
 - [ ] Interview answer is saved before review
 - [ ] Successful reviews may show a score
 - [ ] Fallback reviews remain scoreless
+- [ ] Skill-check roadmap priorities remain deterministic when Gemini is unavailable
 
 ### Admin CMS
 

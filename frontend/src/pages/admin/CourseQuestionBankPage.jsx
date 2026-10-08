@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Archive, FileQuestion, Pencil, Plus, Trash2 } from 'lucide-react';
+import AdminFilterPanel from '../../components/admin/AdminFilterPanel.jsx';
 import LifecycleError from '../../components/admin/LifecycleError.jsx';
+import PermanentDeleteDialog from '../../components/admin/PermanentDeleteDialog.jsx';
 import Button from '../../components/common/Button.jsx';
 import Card from '../../components/common/Card.jsx';
 import ConfirmDialog from '../../components/common/ConfirmDialog.jsx';
@@ -94,6 +96,12 @@ export default function CourseQuestionBankPage({ bank = 'quiz' }) {
     }
   };
 
+  const closeDeleteDialog = () => {
+    setDeleteTarget(null);
+    setDeleteConfirmation('');
+    setActionError(null);
+  };
+
   if (isLoading) return <Loader label={`Loading ${meta.title.toLowerCase()}...`} />;
 
   return (
@@ -101,13 +109,13 @@ export default function CourseQuestionBankPage({ bank = 'quiz' }) {
       <PageHeader eyebrow="Course assessments" eyebrowIcon={FileQuestion} title={meta.title} description={meta.description} actions={<Link to={filters.course ? `/admin/questions/${meta.path}/new?course=${filters.course}` : `/admin/questions/${meta.path}/new`} className="ui-button ui-button--primary gap-2"><Plus size={16} /> Add question</Link>} />
       <ErrorMessage message={error?.message} />
 
-      <div className="grid gap-3 rounded-surface border border-border bg-surface p-4 sm:grid-cols-2 xl:grid-cols-5">
+      <AdminFilterPanel>
         <Input label="Search" value={filters.search} onChange={(event) => update('search', event.target.value)} placeholder="Question text" />
         <Select label="Course" value={filters.course} onChange={(event) => update('course', event.target.value)}><option value="">All courses</option>{courses.map((course) => <option key={course._id} value={course._id}>{course.title}</option>)}</Select>
         <Select label="Difficulty" value={filters.difficulty} onChange={(event) => update('difficulty', event.target.value)}><option value="">All difficulties</option>{bank === 'quiz' ? <option value="beginner">Beginner</option> : null}<option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></Select>
         <Select label="Status" value={filters.status} onChange={(event) => update('status', event.target.value)}><option value="">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></Select>
         <div className="flex items-end"><Button type="button" variant="secondary" className="w-full" onClick={resetFilters}>Reset</Button></div>
-      </div>
+      </AdminFilterPanel>
 
       <div className="space-y-3">
         {questions.length ? questions.map((question) => {
@@ -116,7 +124,7 @@ export default function CourseQuestionBankPage({ bank = 'quiz' }) {
             <Card key={question._id}>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2"><h2 className="text-base font-bold">{question.question}</h2><StatusPill status={question.status} /><LevelBadge level={question.difficulty} /></div>
+                  <div className="flex flex-wrap items-center gap-2"><h2 className="break-words text-base font-bold">{question.question}</h2><StatusPill status={question.status} /><LevelBadge level={question.difficulty} /></div>
                   <p className="mt-1 text-xs font-semibold text-primary-strong">{question.course?.title || 'Unknown course'} · {question.topic?.title || 'Unknown topic'}</p>
                   <p className="mt-2 text-xs capitalize text-muted-foreground">{String(question.type || '').replaceAll('_', ' ')}</p>
                 </div>
@@ -133,7 +141,16 @@ export default function CourseQuestionBankPage({ bank = 'quiz' }) {
       </div>
 
       <ConfirmDialog open={Boolean(statusTarget)} title={statusTarget?.status === 'published' ? `Publish ${meta.singular.toLowerCase()}?` : statusTarget?.status === 'restored' ? `Restore ${meta.singular.toLowerCase()}?` : `Archive ${meta.singular.toLowerCase()}?`} confirmLabel={statusTarget?.status === 'published' ? 'Publish' : statusTarget?.status === 'restored' ? 'Restore' : 'Archive'} isLoading={actionLoading} onCancel={() => setStatusTarget(null)} onConfirm={changeStatus}><LifecycleError error={actionError} /></ConfirmDialog>
-      <ConfirmDialog open={Boolean(deleteTarget)} title={`Delete archived ${meta.singular.toLowerCase()} permanently?`} confirmLabel="Delete permanently" tone="danger" isLoading={actionLoading} confirmDisabled={deleteConfirmation !== 'DELETE'} onCancel={() => { setDeleteTarget(null); setDeleteConfirmation(''); }} onConfirm={deleteItem}><Input label="Type DELETE to confirm" value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)} /><LifecycleError error={actionError} /></ConfirmDialog>
+      <PermanentDeleteDialog
+        open={Boolean(deleteTarget)}
+        title={`Delete archived ${meta.singular.toLowerCase()} permanently?`}
+        confirmation={deleteConfirmation}
+        onConfirmationChange={setDeleteConfirmation}
+        onCancel={closeDeleteDialog}
+        onConfirm={deleteItem}
+        isLoading={actionLoading}
+        error={actionError}
+      />
     </PageShell>
   );
 }

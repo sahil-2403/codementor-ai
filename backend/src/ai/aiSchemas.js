@@ -9,16 +9,11 @@ export const aiWeakTopicSchema = z.object({
 });
 
 export const roadmapResponseSchema = z.object({
-  title: z.string().min(2),
-  description: z.string().default(''),
-  modules: z.array(z.object({
-    sourceOrder: z.coerce.number().int().min(1),
-    title: z.string().min(1),
-    description: z.string().default(''),
-    order: z.coerce.number().int().min(1),
-    durationDays: z.coerce.number().int().min(1).max(90),
-    highPriority: z.coerce.boolean().default(false)
-  })).min(1)
+  summary: z.string().min(1),
+  focusAreas: z.array(z.object({
+    focusKey: z.string().min(1),
+    advice: z.string().min(1)
+  })).default([])
 });
 
 export const practiceReviewResponseSchema = z.object({

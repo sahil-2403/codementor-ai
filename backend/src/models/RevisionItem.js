@@ -9,7 +9,7 @@ const revisionItemSchema = new mongoose.Schema(
     dueDate: { type: Date, required: true, index: true },
     priority: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'medium' },
     status: { type: String, enum: ['pending', 'completed', 'skipped'], default: 'pending', index: true },
-    source: { type: String, enum: ['assessment', 'quiz', 'mentor_chat', 'practice_submission', 'project_submission', 'interview_mode', 'manual'], default: 'quiz' },
+    source: { type: String, enum: ['assessment', 'quiz', 'mentor_chat', 'practice_submission', 'interview_mode', 'manual'], default: 'quiz' },
     reason: { type: String, default: '' }
   },
   { timestamps: true }

@@ -8,6 +8,8 @@ const passwordSchema = z.string()
   .regex(/[0-9]/, 'Password must contain one number')
   .regex(/[^A-Za-z0-9]/, 'Password must contain one special character');
 
+const googleCredentialSchema = z.string().trim().min(1, 'Google credential is required');
+
 export const registerSchema = z.object({
   body: z.object({
     name: z.string().trim().min(2).max(80),
@@ -18,6 +20,12 @@ export const registerSchema = z.object({
     path: ['confirmPassword'],
     message: 'Passwords do not match'
   }).transform(({ confirmPassword, ...data }) => data)
+});
+
+export const googleAuthSchema = z.object({
+  body: z.object({
+    credential: googleCredentialSchema
+  })
 });
 
 export const loginSchema = z.object({

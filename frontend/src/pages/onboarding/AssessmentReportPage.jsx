@@ -9,16 +9,6 @@ import ErrorMessage from '../../components/common/ErrorMessage.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import OnboardingShell from '../../components/onboarding/OnboardingShell.jsx';
 
-const roadmapRecommendationLabel = (value) => ({
-  assessment_ai_personalized: 'Personalized roadmap',
-  template_ai_adjusted: 'Adjusted roadmap',
-  template: 'Recommended roadmap',
-  foundation_repair: 'Foundation-focused roadmap',
-  gap_focused: 'Gap-focused roadmap',
-  accelerated: 'Accelerated roadmap',
-  balanced_personalized: 'Balanced personalized roadmap'
-}[value] || 'Personalized roadmap');
-
 function TopicList({ title, icon: Icon, items = [], emptyText, tone }) {
   const toneClass = tone === 'success' ? 'text-success bg-success-soft' : 'text-warning bg-warning-soft';
 
@@ -130,6 +120,7 @@ export default function AssessmentReportPage() {
   }
 
   const score = Math.max(0, Math.min(100, Number(report.score) || 0));
+  const mainFocus = (report.weakTopics || []).slice(0, 3).map((item) => item.topic).join(' · ');
 
   return (
     <OnboardingShell
@@ -167,10 +158,11 @@ export default function AssessmentReportPage() {
         <section className="rounded-panel border border-border bg-surface p-6 text-center">
           <p className="text-sm font-semibold text-muted-foreground">Overall score</p>
           <p className="mt-3 text-5xl font-extrabold tracking-tight text-primary-strong">{score}%</p>
-          <p className="mt-5 text-sm font-semibold text-foreground">Recommended level</p>
-          <p className="mt-1 text-xl font-bold capitalize text-foreground">{report.recommendedLevel || 'Review'}</p>
-          <p className="mt-3 text-xs font-semibold text-muted-foreground">
-            {roadmapRecommendationLabel(report.suggestedRoadmapType)}
+          <p className="mt-5 text-sm font-semibold text-foreground">Skill-check level</p>
+          <p className="mt-1 text-xl font-bold capitalize text-foreground">{report.level || 'Current'}</p>
+          <p className="mt-4 text-xs font-semibold text-muted-foreground">Main focus</p>
+          <p className="mt-1 text-sm font-semibold leading-6 text-foreground">
+            {mainFocus || 'No urgent gaps detected'}
           </p>
         </section>
 

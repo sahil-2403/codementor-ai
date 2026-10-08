@@ -13,8 +13,7 @@ const learnerLinks = [
   ['Practice', '/practice'],
   ['Interview', '/interview'],
   ['Mentor', '/mentor'],
-  ['Progress', '/progress'],
-  ['Profile', '/profile']
+  ['Progress', '/progress']
 ];
 
 const adminLinks = [

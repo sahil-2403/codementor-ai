@@ -2,15 +2,15 @@ import { Progress } from '../models/Progress.js';
 import { CoursePlan } from '../models/CoursePlan.js';
 import { Course } from '../models/Course.js';
 import { Enrollment } from '../models/Enrollment.js';
+import { Lesson } from '../models/Lesson.js';
 import { getWeakTopicSeverity, getNextLessonFromCourse, buildLearningRecommendations, buildStudyPlan } from './recommendation.service.js';
 import { scheduleRevisionForWeakTopic, getDueRevisions, getRevisionStats } from './revision.service.js';
 import { assertLessonBelongsToCourse, getActiveCourseForUser } from './dataIntegrity.service.js';
 import { findRelevantLessons } from './learningContext.service.js';
 import { ONBOARDING_STATES } from '../constants/onboardingStates.js';
+import { nextAvailableLevel } from '../utils/levels.js';
+import { referenceId, referenceString } from '../utils/reference.js';
 
-const levelOrder = ['beginner', 'intermediate', 'advanced'];
-const referenceId = (value) => value?._id || value;
-const referenceString = (value) => referenceId(value)?.toString?.() || '';
 const moduleLevel = (course, module) => module.level || course.level;
 
 export const getCurrentLevelModules = (course) => (course?.modules || [])
@@ -91,12 +91,9 @@ export const getNextAvailableCourseLevel = async (coursePlan) => {
   if (!enrollment || enrollment.type !== 'course') return null;
 
   const course = await Course.findById(coursePlan.course).select('availableLevels').lean();
-  const currentIndex = levelOrder.indexOf(coursePlan.level);
-  if (!course || currentIndex < 0) return null;
+  if (!course) return null;
 
-  return levelOrder
-    .slice(currentIndex + 1)
-    .find((level) => (course.availableLevels || []).includes(level)) || null;
+  return nextAvailableLevel(coursePlan.level, course.availableLevels || []);
 };
 
 export const createProgressForCourse = async ({ userId, coursePlanId }) => Progress.findOneAndUpdate(
@@ -139,14 +136,10 @@ const buildCurrentProgressPayload = async (userId) => {
   const course = await getActiveCourseForUser({ userId, populate: true, lean: true });
   if (!course) return null;
 
-  const [progress, dueRevisions, revisionStats, roadmapVersions] = await Promise.all([
+  const [progress, dueRevisions, revisionStats] = await Promise.all([
     Progress.findOne({ user: userId, coursePlan: course._id }).lean(),
     getDueRevisions({ userId, coursePlanId: course._id }),
-    getRevisionStats({ userId, coursePlanId: course._id }),
-    CoursePlan.find({ user: userId, enrollment: course.enrollment, course: course.course })
-      .select('_id title version roadmapType generatedReason status isActive createdAt')
-      .sort({ version: -1 })
-      .lean()
+    getRevisionStats({ userId, coursePlanId: course._id })
   ]);
 
   const nextLesson = getNextLessonFromCourse(course);
@@ -163,7 +156,6 @@ const buildCurrentProgressPayload = async (userId) => {
     revisionStats,
     recommendations,
     studyPlan,
-    roadmapVersions,
     completion: {
       isComplete,
       nextLevel,
@@ -246,6 +238,21 @@ const resolveRelatedLessons = async ({ course, roadmapLessonIds, weak }) => {
     .filter((id) => id && roadmapLessonIds.has(id.toString()));
   if (supplied.length) return supplied.slice(0, 3);
 
+  const topicRef = referenceId(weak.topicRef);
+  if (topicRef) {
+    const topicLessons = await Lesson.find({
+      course: course.course,
+      topic: topicRef,
+      status: 'published'
+    }).select('_id').limit(5).lean();
+
+    const matchingLessonIds = topicLessons
+      .map((lesson) => lesson._id)
+      .filter((id) => roadmapLessonIds.has(id.toString()))
+      .slice(0, 3);
+    if (matchingLessonIds.length) return matchingLessonIds;
+  }
+
   const matches = await findRelevantLessons({
     query: weak.topic,
     courseId: course.course,
@@ -273,7 +280,12 @@ export const mergeWeakTopics = async ({ progress, weakTopics, source = 'quiz' })
     const relatedLessons = course
       ? await resolveRelatedLessons({ course, roadmapLessonIds, weak })
       : [];
-    const existing = progress.weakTopics.find((item) => item.topic === weak.topic);
+    const weakTopicRef = referenceId(weak.topicRef);
+    const existing = progress.weakTopics.find((item) => (
+      weakTopicRef
+        ? referenceString(item.topicRef) === weakTopicRef.toString()
+        : item.topic === weak.topic
+    ));
     let normalizedWeakTopic;
 
     if (existing) {
@@ -282,12 +294,14 @@ export const mergeWeakTopics = async ({ progress, weakTopics, source = 'quiz' })
       existing.source = source;
       existing.severity = getWeakTopicSeverity({ score: existing.score, attempts: existing.attempts });
       existing.lastDetectedAt = new Date();
+      if (weakTopicRef) existing.topicRef = weakTopicRef;
       if (relatedLessons.length) existing.relatedLessons = relatedLessons;
       normalizedWeakTopic = existing;
     } else {
       const severity = getWeakTopicSeverity({ score: weak.score || 0, attempts: 1 });
       progress.weakTopics.push({
         topic: weak.topic,
+        topicRef: weakTopicRef || null,
         score: weak.score || 0,
         source,
         severity,

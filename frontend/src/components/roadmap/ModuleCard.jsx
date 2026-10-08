@@ -45,15 +45,14 @@ const getLessonIcon = (status, locked) => {
   return Circle;
 };
 
-const cleanPriorityTitle = (title = '') => title.replace(/^priority review\s*[:–—-]?\s*/i, '').trim();
-
 export default function ModuleCard({
   module,
   index = 0,
   lessonNumberStart = 1,
   isLast = false,
   defaultExpanded = false,
-  isCurrent = false
+  isCurrent = false,
+  isRevisionLevel = false
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const contentId = useId();
@@ -65,9 +64,9 @@ export default function ModuleCard({
   const completedModule = module.status === 'completed';
   const inProgress = module.status === 'in_progress' || lessons.some((item) => item.status === 'in_progress');
   const hasQuiz = Boolean(module._id && module.quizQuestions?.length);
-  const hadPriorityTitle = /^priority review\b/i.test(module.title || '');
-  const displayTitle = cleanPriorityTitle(module.title) || module.title || `Module ${index + 1}`;
-  const highPriority = Boolean(module.highPriority || hadPriorityTitle);
+  const displayTitle = module.title || `Module ${index + 1}`;
+  const highPriority = Boolean(module.highPriority);
+  const focusTopics = module.focusTopics || [];
   const visual = getModuleVisual(displayTitle);
   const ModuleIcon = visual.icon;
 
@@ -135,7 +134,7 @@ export default function ModuleCard({
 
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   {isCurrent && <Badge variant="info">Current</Badge>}
-                  {highPriority && <Badge variant="warning">High priority</Badge>}
+                  {highPriority && <Badge variant="warning">{isRevisionLevel ? 'Revision needed' : 'High priority'}</Badge>}
                   <StatusPill status={module.status || 'available'} />
                   <ChevronDown
                     size={17}
@@ -144,6 +143,18 @@ export default function ModuleCard({
                   />
                 </div>
               </div>
+
+              {highPriority && focusTopics.length > 0 && (
+                <p className="mt-3 text-xs font-semibold text-warning sm:text-sm">
+                  Skill check: {focusTopics.map((item) => `${item.topic} ${item.score}%`).join(' · ')}
+                </p>
+              )}
+
+              {highPriority && module.focusReason && (
+                <p className="mt-2 rounded-control bg-warning-soft px-3 py-2 text-xs font-medium leading-5 text-foreground sm:text-sm">
+                  {module.focusReason}
+                </p>
+              )}
 
               <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-secondary" role="progressbar" aria-label={`${displayTitle} completion`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={completion}>

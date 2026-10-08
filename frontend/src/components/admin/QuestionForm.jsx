@@ -9,11 +9,12 @@ import {
   Settings2,
   Trash2
 } from 'lucide-react';
+import FormSectionHeader from './FormSectionHeader.jsx';
 import Button from '../common/Button.jsx';
 import Card from '../common/Card.jsx';
 import Input from '../common/Input.jsx';
 import Select from '../common/Select.jsx';
-import FormTextarea from '../form/FormTextarea.jsx';
+import Textarea from '../common/Textarea.jsx';
 import { questionFormSchema } from '../../validations/admin.schema.js';
 
 const defaultOptions = [{ value: 'Option A' }, { value: 'Option B' }];
@@ -54,21 +55,6 @@ const toForm = (question, topics, bank) => {
     tags: (question.tags || []).join(', ')
   };
 };
-
-function FormSectionHeader({ icon: Icon, eyebrow, title, description }) {
-  return (
-    <div className="flex items-start gap-3 border-b border-border pb-4">
-      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-primary-soft text-primary-strong" aria-hidden="true">
-        <Icon size={18} />
-      </span>
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary-strong">{eyebrow}</p>
-        <h2 className="mt-1 text-lg font-bold text-foreground">{title}</h2>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function QuestionForm({
   bank = 'quiz',
@@ -159,12 +145,12 @@ export default function QuestionForm({
         />
 
         <div className="mt-5 space-y-4">
-          <FormTextarea
+          <Textarea
             label="Question prompt"
             rows={3}
-            registration={register('question')}
             error={errors.question?.message}
             placeholder="Write the learner-facing question clearly."
+            {...register('question')}
           />
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -261,13 +247,13 @@ export default function QuestionForm({
           ) : (
             <>
               {type === 'code_output' ? (
-                <FormTextarea
+                <Textarea
                   label="Code snippet"
                   rows={7}
-                  registration={register('codeSnippet')}
                   error={errors.codeSnippet?.message}
                   className="font-mono text-sm leading-6"
                   placeholder="const value = 2;\nconsole.log(value * 3);"
+                  {...register('codeSnippet')}
                 />
               ) : (
                 <div className="rounded-surface border border-amber-200 bg-amber-50/65 p-4">
@@ -293,12 +279,12 @@ export default function QuestionForm({
           description="Explain why the answer is correct and add useful search or roadmap tags."
         />
         <div className="mt-5 space-y-4">
-          <FormTextarea
+          <Textarea
             label="Answer explanation"
             rows={4}
-            registration={register('explanation')}
             error={errors.explanation?.message}
             placeholder="Explain the reasoning learners should understand after answering."
+            {...register('explanation')}
           />
           <Input
             label="Tags"

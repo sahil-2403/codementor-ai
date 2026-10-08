@@ -1,7 +1,8 @@
-import { CheckCircle2, CircleAlert, Sparkles } from 'lucide-react';
+import { CheckCircle2, CircleAlert } from 'lucide-react';
 import { REVIEW_MODE, REVIEW_STATUS } from '../../constants/domainEnums.js';
 import Badge from '../common/Badge.jsx';
 import InlineAlert from '../common/InlineAlert.jsx';
+import MentorFeedback from '../common/MentorFeedback.jsx';
 
 const isFallbackReview = (submission) =>
   submission.reviewMode === REVIEW_MODE.FALLBACK ||
@@ -26,38 +27,18 @@ export default function PracticeSubmissionFeedback({ submission }) {
 
   return (
     <div className="mt-4 border-t border-primary/15 pt-4">
-      <div className="flex items-center gap-2 text-primary-strong">
-        <Sparkles size={16} aria-hidden="true" />
-        <h3 className="font-bold">Mentor feedback</h3>
-      </div>
-
       {fallback && (
-        <InlineAlert tone="warning" title="Detailed review unavailable" className="mt-3">
+        <InlineAlert tone="warning" title="Detailed review unavailable">
           Your attempt is saved. This checklist has no score and does not change your progress.
         </InlineAlert>
       )}
 
-      <p className="mt-3 text-sm font-medium leading-7 text-foreground">{feedback.summary}</p>
-
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        {!fallback && feedback.strengths?.length ? (
-          <div>
-            <h4 className="text-sm font-bold text-success">What you did well</h4>
-            <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-              {feedback.strengths.map((item, index) => <li key={`${item}-${index}`}>• {item}</li>)}
-            </ul>
-          </div>
-        ) : null}
-
-        {feedback.improvements?.length ? (
-          <div>
-            <h4 className="text-sm font-bold text-error">What to improve</h4>
-            <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
-              {feedback.improvements.map((item, index) => <li key={`${item}-${index}`}>• {item}</li>)}
-            </ul>
-          </div>
-        ) : null}
-      </div>
+      <MentorFeedback
+        className={fallback ? 'mt-4' : ''}
+        summary={feedback.summary}
+        strengths={fallback ? [] : feedback.strengths || []}
+        improvements={feedback.improvements || []}
+      />
 
       {feedback.checklist?.length ? (
         <div className="mt-4 border-t border-border pt-4">

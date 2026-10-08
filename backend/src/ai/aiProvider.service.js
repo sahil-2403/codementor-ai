@@ -28,12 +28,12 @@ const ensureGeminiAvailable = () => {
 const resultInfo = (result) => ({ model: result.model, aiAvailable: true });
 
 export const aiProvider = {
-  async generateRoadmap({ template, enrollment, course, assessment }) {
+  async generateRoadmap({ enrollment, course, assessment, focusAreas = [] }) {
     ensureGeminiAvailable();
     const result = await geminiClient.generate({
-      ...buildRoadmapPrompt({ template, enrollment, course, assessment }),
+      ...buildRoadmapPrompt({ enrollment, course, assessment, focusAreas }),
       schema: roadmapResponseSchema,
-      validationMessage: 'Gemini roadmap response did not match the roadmap schema'
+      validationMessage: 'Gemini roadmap guidance did not match the roadmap schema'
     });
     return { ...result.data, ...resultInfo(result) };
   },

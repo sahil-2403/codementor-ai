@@ -55,10 +55,22 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
+  const googleLogin = useCallback(async (credential) => {
+    const data = await authApi.googleLogin(credential);
+    setUser(data.user);
+    return data.user;
+  }, []);
+
   const register = useCallback(async (payload) => {
     const data = await authApi.register(payload);
     setUser(null);
     return data;
+  }, []);
+
+  const googleRegister = useCallback(async (credential) => {
+    const data = await authApi.googleRegister(credential);
+    setUser(data.user);
+    return data.user;
   }, []);
 
   const logout = useCallback(async () => {
@@ -79,14 +91,16 @@ export function AuthProvider({ children }) {
     isLoading,
     isAuthenticated: Boolean(user),
     login,
+    googleLogin,
     register,
+    googleRegister,
     verifyEmail: authApi.verifyEmail,
     resendVerification: authApi.resendVerification,
     logout,
     signOut,
     updateUser,
     reloadUser: restoreSession
-  }), [user, isLoading, login, register, logout, signOut, updateUser, restoreSession]);
+  }), [user, isLoading, login, googleLogin, register, googleRegister, logout, signOut, updateUser, restoreSession]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -9,13 +9,12 @@ import { practiceReviewFallback } from './aiFallback.service.js';
 import { mergeWeakTopics } from './progress.service.js';
 import { requireActiveCourseForUser } from './dataIntegrity.service.js';
 import { ApiError } from '../utils/ApiError.js';
+import { LEVELS, isLevelAccessible } from '../utils/levels.js';
+import { referenceId } from '../utils/reference.js';
+import { runOptionalTask } from '../utils/optionalTask.js';
 import { createAttempt } from './attempt.service.js';
 import { assertReviewCanStart } from '../domain/reviewPolicy.js';
 import { env, isGeminiAvailable } from '../config/env.js';
-
-const difficultyRank = { beginner: 1, intermediate: 2, advanced: 3 };
-const allowedByLevel = (userLevel, difficulty) => difficultyRank[difficulty] <= difficultyRank[userLevel || 'beginner'];
-const referenceId = (value) => value?._id || value;
 
 const getUnlockedLessonIds = (course) => new Set(
   (course.modules || [])
@@ -28,9 +27,11 @@ const getUnlockedLessonIds = (course) => new Set(
 
 const isPracticeTaskUnlocked = ({ course, task, unlockedLessonIds = getUnlockedLessonIds(course) }) => {
   const userLevel = course.level || 'beginner';
-  if (!allowedByLevel(userLevel, task.difficulty)) return false;
+  if (!isLevelAccessible(userLevel, task.difficulty)) return false;
 
-  if (difficultyRank[task.difficulty] < difficultyRank[userLevel]) {
+  const userLevelIndex = LEVELS.indexOf(userLevel);
+  const taskLevelIndex = LEVELS.indexOf(task.difficulty);
+  if (taskLevelIndex >= 0 && userLevelIndex >= 0 && taskLevelIndex < userLevelIndex) {
     return true;
   }
 
@@ -40,14 +41,6 @@ const isPracticeTaskUnlocked = ({ course, task, unlockedLessonIds = getUnlockedL
 };
 
 const practiceLockedReason = 'Complete the earlier roadmap modules to unlock this practice task.';
-
-const runBestEffort = async (label, action) => {
-  try {
-    await action();
-  } catch (error) {
-    console.error(`${label} failed:`, error.message);
-  }
-};
 
 const getCurrentCourse = (userId) => requireActiveCourseForUser({ userId, lean: true });
 
@@ -200,7 +193,7 @@ export const reviewPracticeSubmission = async ({ user, submissionId }) => {
       generatedAt: new Date()
     };
     await submission.save();
-    await runBestEffort('Practice review logging', () => logAIUsage({
+    await runOptionalTask('Practice review logging', () => logAIUsage({
       user: user._id,
       feature: AI_FEATURES.PRACTICE_REVIEW,
       status: 'failed',
@@ -223,14 +216,14 @@ export const reviewPracticeSubmission = async ({ user, submissionId }) => {
     await submission.save();
 
     if (progress && submission.aiFeedback.weakTopicsDetected.length) {
-      await runBestEffort('Practice weak-topic update', () => mergeWeakTopics({
+      await runOptionalTask('Practice weak-topic update', () => mergeWeakTopics({
         progress,
         weakTopics: submission.aiFeedback.weakTopicsDetected,
         source: 'practice_submission'
       }));
     }
 
-    await runBestEffort('Practice review logging', () => logAIUsage({
+    await runOptionalTask('Practice review logging', () => logAIUsage({
       user: user._id,
       feature: AI_FEATURES.PRACTICE_REVIEW,
       model: aiResult.model || env.geminiModel

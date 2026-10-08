@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { BookMarked, Bot, FileText, SendHorizonal, Sparkles, User, WifiOff } from 'lucide-react';
 import InlineAlert from '../../components/common/InlineAlert.jsx';
 import Loader from '../../components/common/Loader.jsx';
+import ChatWindow from '../../components/mentor/ChatWindow.jsx';
+import MentorComposer from '../../components/mentor/MentorComposer.jsx';
+import MentorPrompts from '../../components/mentor/MentorPrompts.jsx';
 import { mentorApi } from '../../api/mentorApi.js';
 import { mentorAskSchema } from '../../validations/mentor.schema.js';
 import { cn } from '../../utils/cn.js';
@@ -17,17 +19,6 @@ const promptOrder = [
   'practice_question'
 ];
 
-const sourceLabel = (source) =>
-  source?.title || source?.name || source?.refId ||
-  (typeof source === 'string' ? source : 'Learning source');
-
-const formatTime = (value) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
-
 const formatResetTime = (value) => {
   if (!value) return 'after the daily reset';
   const date = new Date(value);
@@ -38,77 +29,6 @@ const formatResetTime = (value) => {
 const isDailyLimitError = (error) =>
   error?.code === 'AI_DAILY_LIMIT_REACHED' ||
   (error?.response?.status === 429 && /daily.*limit|limit.*reached/i.test(error?.message || ''));
-
-function MentorMessage({ message }) {
-  const isUser = message.role === 'user';
-  const isSaved = message.metadata?.promptType === 'saved_answer';
-  const time = formatTime(message.createdAt);
-
-  return (
-    <article className={cn('flex w-full gap-2', isUser && 'flex-row-reverse')}>
-      <span className={cn('mt-5 shrink-0', isUser ? 'text-muted-foreground' : 'text-primary-strong')} aria-hidden="true">
-        {isUser ? <User size={16} /> : <Bot size={16} />}
-      </span>
-
-      <div className={cn('min-w-0 max-w-[75%]', isUser && 'flex flex-col items-end')}>
-        <div className={cn('flex items-center gap-2 text-[11px] text-muted-foreground', isUser && 'flex-row-reverse')}>
-          <span className="font-semibold text-foreground">{isUser ? 'You' : 'Mentor'}</span>
-          {time ? <span>{time}</span> : null}
-          {isSaved ? <span className="rounded-full bg-surface-secondary px-2 py-0.5 font-semibold">Saved answer</span> : null}
-        </div>
-
-        <div className={cn(
-          'mt-1.5 whitespace-pre-wrap break-words rounded-panel px-4 py-3 text-sm leading-7',
-          isUser ? 'bg-primary text-white' : 'border border-border bg-surface text-foreground'
-        )}>
-          {String(message.content || '').trim()}
-        </div>
-
-        {!isUser && message.sources?.length ? (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {message.sources.map((source, index) => (
-              <span
-                key={`${sourceLabel(source)}-${index}`}
-                className="inline-flex items-center gap-1 rounded-full border border-primary/15 bg-primary-soft px-2.5 py-1 text-[11px] font-semibold text-primary-strong"
-              >
-                <FileText size={12} aria-hidden="true" />
-                {sourceLabel(source)}
-              </span>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </article>
-  );
-}
-
-function SavedAnswers({ items, onSelect }) {
-  if (!items.length) return null;
-
-  return (
-    <section className="mt-8" aria-labelledby="saved-answers-title">
-      <div className="flex items-center gap-2">
-        <BookMarked size={17} className="text-primary" aria-hidden="true" />
-        <h2 id="saved-answers-title" className="text-sm font-bold text-foreground">
-          Saved answers for this learning context
-        </h2>
-      </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        {items.map((item, index) => (
-          <button
-            key={`${item.text || item.label}-${index}`}
-            type="button"
-            onClick={() => onSelect(item)}
-            className="rounded-panel border border-border bg-surface p-4 text-left transition hover:border-primary/35 hover:shadow-sm"
-          >
-            <p className="text-sm font-semibold text-foreground">{item.label || item.text}</p>
-            <p className="mt-2 text-xs leading-5 text-muted-foreground">Open the saved course explanation.</p>
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
 
 export default function MentorPage() {
   const [params, setParams] = useSearchParams();
@@ -424,97 +344,32 @@ export default function MentorPage() {
         ) : null}
       </div>
 
-      <section className="flex-1 px-4 py-6 sm:px-6 lg:px-8" aria-live="polite">
-        {messages.length ? (
-          <div className="space-y-7">
-            {messages.map((message, index) => (
-              <MentorMessage
-                key={message._id || message.clientId || `${message.role}-${index}`}
-                message={message}
-              />
-            ))}
-            {isAsking ? (
-              <div className="flex items-center gap-3 text-sm text-muted-foreground" role="status">
-                <Bot size={16} className="text-primary" aria-hidden="true" />
-                <span>Mentor is preparing a response…</span>
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <div className="grid min-h-[300px] place-items-center rounded-panel border border-dashed border-border bg-surface-secondary/55 px-6 text-center">
-            <div>
-              <Bot size={24} className="mx-auto text-primary" aria-hidden="true" />
-              <p className="mt-4 text-sm font-semibold text-foreground">Ask anything about your learning</p>
-              <p className="mt-2 text-sm text-muted-foreground">Use a suggested prompt or type your own question.</p>
-            </div>
-          </div>
-        )}
-
-        {!aiAvailable ? <SavedAnswers items={savedQuestions} onSelect={addSavedAnswer} /> : null}
-        <div ref={endRef} />
-      </section>
+      <ChatWindow
+        messages={messages}
+        isResponding={isAsking}
+        savedAnswers={!aiAvailable ? savedQuestions : []}
+        onSelectSaved={addSavedAnswer}
+        endRef={endRef}
+      />
 
       <div className="sticky bottom-0 z-30 bg-page/95 px-4 py-2 backdrop-blur-xl sm:px-6 lg:px-8">
-        {aiAvailable && orderedSuggestions.length ? (
-          <div className="mb-2 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap">
-            {orderedSuggestions.map((item) => (
-              <button
-                key={item.promptType}
-                type="button"
-                disabled={!canAsk || isAsking}
-                onClick={() => sendPayload({ text: item.text, type: item.promptType })}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:border-primary/35 hover:text-foreground disabled:opacity-45"
-              >
-                <Sparkles size={12} className="text-primary" aria-hidden="true" />
-                {item.label}
-              </button>
-            ))}
-          </div>
+        {aiAvailable ? (
+          <MentorPrompts
+            items={orderedSuggestions}
+            disabled={!canAsk || isAsking}
+            onSelect={(item) => sendPayload({ text: item.text, type: item.promptType })}
+          />
         ) : null}
 
-        <form
+        <MentorComposer
+          register={register}
+          error={errors.message?.message}
+          canAsk={canAsk}
+          isAsking={isAsking}
+          dailyLimitReached={dailyLimitReached}
+          resetDescription={formatResetTime(resetAt)}
           onSubmit={handleSubmit((values) => sendPayload({ text: values.message }))}
-          className={cn(
-            'relative rounded-panel border bg-surface p-2 pr-14 shadow-sm',
-            errors.message ? 'border-error' : 'border-border'
-          )}
-        >
-          <textarea
-            rows={1}
-            className="w-full resize-none border-0 bg-transparent px-2 py-2 text-sm leading-6 outline-none"
-            placeholder={
-              dailyLimitReached
-                ? `Daily mentor limit reached. Try again ${formatResetTime(resetAt)}.`
-                : aiAvailable
-                  ? 'Ask about your lesson or quiz mistakes…'
-                  : 'Choose a saved answer above.'
-            }
-            disabled={!canAsk || isAsking}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                event.currentTarget.form?.requestSubmit();
-              }
-            }}
-            {...register('message')}
-          />
-          <button
-            type="submit"
-            disabled={!canAsk || isAsking}
-            className="absolute bottom-3 right-3 grid h-9 w-9 place-items-center rounded-control bg-primary text-white disabled:bg-surface-secondary disabled:text-muted-foreground"
-            aria-label="Send message"
-          >
-            {isAsking ? (
-              <span className="ui-spinner ui-spinner--sm" aria-hidden="true" />
-            ) : canAsk ? (
-              <SendHorizonal size={17} />
-            ) : (
-              <WifiOff size={16} />
-            )}
-          </button>
-        </form>
-
-        {errors.message ? <p className="mt-2 text-xs font-semibold text-error">{errors.message.message}</p> : null}
+        />
       </div>
     </section>
   );

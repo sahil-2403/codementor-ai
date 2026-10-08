@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Code2, Dumbbell, LockKeyhole, SlidersHorizontal } from 'lucide-react';
 import Badge from '../../components/common/Badge.jsx';
+import Card from '../../components/common/Card.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import LevelBadge from '../../components/common/LevelBadge.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
+import Select from '../../components/common/Select.jsx';
 import { practiceApi } from '../../api/practiceApi.js';
 
 const reviewLabel = (submission) => {
@@ -101,7 +103,7 @@ export default function PracticePage() {
         />
       ) : (
         <>
-          <section className="rounded-surface border border-border bg-surface p-4 sm:p-5" aria-label="Practice filters">
+          <Card variant="compact" aria-label="Practice filters">
             <div className="flex items-start gap-3">
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-control bg-surface-secondary text-muted-foreground" aria-hidden="true">
                 <SlidersHorizontal size={16} />
@@ -113,31 +115,25 @@ export default function PracticePage() {
             </div>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="grid gap-1.5 text-xs font-semibold text-muted-foreground">
-                Topic
-                <select
-                  value={selectedModule}
-                  onChange={(event) => setSelectedModule(event.target.value)}
-                  className="min-h-10 rounded-control border border-border bg-surface px-3 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
-                >
-                  <option value="all">All topics</option>
-                  {moduleOptions.map((moduleTitle) => <option key={moduleTitle} value={moduleTitle}>{moduleTitle}</option>)}
-                </select>
-              </label>
+              <Select
+                label="Topic"
+                value={selectedModule}
+                onChange={(event) => setSelectedModule(event.target.value)}
+              >
+                <option value="all">All topics</option>
+                {moduleOptions.map((moduleTitle) => <option key={moduleTitle} value={moduleTitle}>{moduleTitle}</option>)}
+              </Select>
 
-              <label className="grid gap-1.5 text-xs font-semibold text-muted-foreground">
-                Level
-                <select
-                  value={selectedLevel}
-                  onChange={(event) => setSelectedLevel(event.target.value)}
-                  className="min-h-10 rounded-control border border-border bg-surface px-3 text-sm font-medium text-foreground outline-none transition focus:border-primary focus:ring-4 focus:ring-primary-soft"
-                >
-                  <option value="all">All available levels</option>
-                  {levelOptions.map((level) => <option key={level} value={level}>{titleCase(level)}</option>)}
-                </select>
-              </label>
+              <Select
+                label="Level"
+                value={selectedLevel}
+                onChange={(event) => setSelectedLevel(event.target.value)}
+              >
+                <option value="all">All available levels</option>
+                {levelOptions.map((level) => <option key={level} value={level}>{titleCase(level)}</option>)}
+              </Select>
             </div>
-          </section>
+          </Card>
 
           {!filteredTasks.length ? (
             <EmptyState
@@ -168,8 +164,8 @@ export default function PracticePage() {
                                 {typeof task.bestScore === 'number' && <Badge variant="success">Best {task.bestScore}%</Badge>}
                               </div>
 
-                              <h3 className="mt-3 text-lg font-bold text-foreground">{task.title}</h3>
-                              {task.description && <p className="mt-1 text-sm leading-6 text-muted-foreground">{task.description}</p>}
+                              <h3 className="mt-3 break-words text-lg font-bold text-foreground">{task.title}</h3>
+                              {task.description && <p className="mt-1 break-words text-sm leading-6 text-muted-foreground">{task.description}</p>}
 
                               <p className="mt-3 text-xs font-semibold text-muted-foreground">
                                 {Number(task.estimatedMinutes) > 0 ? `${task.estimatedMinutes} min · ` : ''}

@@ -10,32 +10,20 @@ import { mergeWeakTopics } from './progress.service.js';
 import { requireActiveCourseForUser } from './dataIntegrity.service.js';
 import { ApiError } from '../utils/ApiError.js';
 import { escapeRegex } from '../utils/regex.js';
+import { levelsThrough, isLevelAccessible } from '../utils/levels.js';
+import { runOptionalTask } from '../utils/optionalTask.js';
 import { createAttempt } from './attempt.service.js';
 import { assertReviewCanStart } from '../domain/reviewPolicy.js';
 import { env, isGeminiAvailable } from '../config/env.js';
 
 const publicQuestionProjection = '-expectedAnswer -answerChecklist';
-const levelOrder = ['beginner', 'intermediate', 'advanced'];
-
-const allowedDifficultiesForLevel = (level) => {
-  const index = levelOrder.indexOf(level);
-  return index < 0 ? ['beginner'] : levelOrder.slice(0, index + 1);
-};
 
 const questionAllowedForCourse = (course, question) =>
-  allowedDifficultiesForLevel(course.level).includes(question?.difficulty);
-
-const runBestEffort = async (label, action) => {
-  try {
-    await action();
-  } catch (error) {
-    console.error(`${label} failed:`, error.message);
-  }
-};
+  isLevelAccessible(course.level, question?.difficulty);
 
 export const listInterviewQuestions = async ({ userId, topic, difficulty, type }) => {
   const course = await requireActiveCourseForUser({ userId, lean: true });
-  const allowedDifficulties = allowedDifficultiesForLevel(course.level);
+  const allowedDifficulties = levelsThrough(course.level);
   if (difficulty && !allowedDifficulties.includes(difficulty)) return [];
 
   const filter = {
@@ -59,7 +47,7 @@ export const getInterviewQuestion = async ({ questionId, userId }) => {
   const query = InterviewQuestion.findOne({
     _id: questionId,
     course: course.course,
-    difficulty: { $in: allowedDifficultiesForLevel(course.level) },
+    difficulty: { $in: levelsThrough(course.level) },
     status: 'published'
   });
   if (!hasAttempted) query.select(publicQuestionProjection);
@@ -73,7 +61,7 @@ const getFullInterviewQuestion = async ({ questionId, userId }) => {
   const question = await InterviewQuestion.findOne({
     _id: questionId,
     course: course.course,
-    difficulty: { $in: allowedDifficultiesForLevel(course.level) },
+    difficulty: { $in: levelsThrough(course.level) },
     status: 'published'
   });
   if (!question) throw new ApiError(404, 'Interview question not found in your current course');
@@ -156,7 +144,7 @@ export const reviewInterviewAttempt = async ({ user, attemptId }) => {
       generatedAt: new Date()
     };
     await attempt.save();
-    await runBestEffort('Interview review logging', () => logAIUsage({
+    await runOptionalTask('Interview review logging', () => logAIUsage({
       user: user._id,
       feature: AI_FEATURES.INTERVIEW_FEEDBACK,
       status: 'failed',
@@ -179,14 +167,14 @@ export const reviewInterviewAttempt = async ({ user, attemptId }) => {
     await attempt.save();
 
     if (progress && attempt.aiFeedback.weakTopicsDetected.length) {
-      await runBestEffort('Interview weak-topic update', () => mergeWeakTopics({
+      await runOptionalTask('Interview weak-topic update', () => mergeWeakTopics({
         progress,
         weakTopics: attempt.aiFeedback.weakTopicsDetected,
         source: 'interview_mode'
       }));
     }
 
-    await runBestEffort('Interview review logging', () => logAIUsage({
+    await runOptionalTask('Interview review logging', () => logAIUsage({
       user: user._id,
       feature: AI_FEATURES.INTERVIEW_FEEDBACK,
       model: aiResult.model || env.geminiModel
@@ -205,7 +193,7 @@ export const listInterviewAttempts = async ({ userId }) => {
   const course = await requireActiveCourseForUser({ userId, lean: true });
   const questionIds = await InterviewQuestion.find({
     course: course.course,
-    difficulty: { $in: allowedDifficultiesForLevel(course.level) }
+    difficulty: { $in: levelsThrough(course.level) }
   }).distinct('_id');
   return InterviewAttempt.find({ user: userId, question: { $in: questionIds } })
     .populate('question')

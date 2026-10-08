@@ -1,9 +1,8 @@
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import Loader from '../components/common/Loader.jsx';
 import PublicLayout from '../layouts/PublicLayout.jsx';
-import AppLayout from '../layouts/AppLayout.jsx';
-import AdminLayout from '../layouts/AdminLayout.jsx';
+import SiteLayout from '../layouts/SiteLayout.jsx';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import RoleRoute from './RoleRoute.jsx';
 import OnboardingGuard from './OnboardingGuard.jsx';
@@ -28,7 +27,6 @@ const QuizResultPage = lazy(() => import('../pages/learner/QuizResultPage.jsx'))
 const MentorPage = lazy(() => import('../pages/learner/MentorPage.jsx'));
 const ProgressPage = lazy(() => import('../pages/learner/ProgressPage.jsx'));
 const ReportsPage = lazy(() => import('../pages/learner/ReportsPage.jsx'));
-const ProfilePage = lazy(() => import('../pages/learner/ProfilePage.jsx'));
 const PracticePage = lazy(() => import('../pages/learner/PracticePage.jsx'));
 const PracticeTaskPage = lazy(() => import('../pages/learner/PracticeTaskPage.jsx'));
 const InterviewPage = lazy(() => import('../pages/learner/InterviewPage.jsx'));
@@ -69,12 +67,10 @@ export default function AppRoutes() {
       </Route>
 
       <Route element={<ProtectedRoute />}>
-        <Route element={<AppLayout />}>
+        <Route element={<SiteLayout />}>
           <Route element={<OnboardingGuard mode="needs-onboarding" />}>
-            <Route path="/onboarding/goal" element={<Navigate to="/onboarding/catalog" replace />} />
             <Route path="/onboarding/catalog" element={<CatalogPage />} />
             <Route path="/onboarding/level" element={<LevelPage />} />
-            <Route path="/onboarding/preferences" element={<Navigate to="/onboarding/level" replace />} />
             <Route path="/onboarding/assessment-intro" element={<AssessmentIntroPage />} />
             <Route path="/onboarding/assessment" element={<AssessmentPage />} />
             <Route path="/onboarding/assessment-report/:assessmentId" element={<AssessmentReportPage />} />
@@ -89,7 +85,6 @@ export default function AppRoutes() {
             <Route path="/mentor" element={<MentorPage />} />
             <Route path="/progress" element={<ProgressPage />} />
             <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
             <Route path="/practice" element={<PracticePage />} />
             <Route path="/practice/:taskId" element={<PracticeTaskPage />} />
             <Route path="/interview" element={<InterviewPage />} />
@@ -97,7 +92,7 @@ export default function AppRoutes() {
         </Route>
 
         <Route element={<RoleRoute role="admin" />}>
-          <Route element={<AdminLayout />}>
+          <Route element={<SiteLayout />}>
             <Route path="/admin" element={<AdminDashboardPage />} />
             <Route path="/admin/catalog" element={<AdminCatalogPage />} />
 

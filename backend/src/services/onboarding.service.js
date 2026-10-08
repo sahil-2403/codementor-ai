@@ -11,11 +11,8 @@ import {
   setCurrentEnrollmentForUser
 } from './dataIntegrity.service.js';
 
-const LEGACY_PREFERENCES_PENDING = 'preferences_pending';
-
 const incompleteStates = [
   ONBOARDING_STATES.LEVEL_PENDING,
-  LEGACY_PREFERENCES_PENDING,
   ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING,
   ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS,
   ONBOARDING_STATES.ASSESSMENT_COMPLETED,
@@ -64,12 +61,6 @@ const deriveState = ({ enrollment, activeCourse, assessment }) => {
   }
   if (assessment?.status === 'started') return ONBOARDING_STATES.ASSESSMENT_IN_PROGRESS;
   if (assessment?.status === 'completed' && enrollment.assessmentPreference === 'take') return ONBOARDING_STATES.ASSESSMENT_COMPLETED;
-
-  if (enrollment.onboardingState === LEGACY_PREFERENCES_PENDING) {
-    return enrollment.level === 'beginner'
-      ? ONBOARDING_STATES.ROADMAP_PENDING
-      : ONBOARDING_STATES.ASSESSMENT_CHOICE_PENDING;
-  }
 
   if (enrollment.onboardingState && isOnboardingState(enrollment.onboardingState)) return enrollment.onboardingState;
   if (!enrollment.level) return ONBOARDING_STATES.LEVEL_PENDING;
@@ -190,8 +181,26 @@ export const switchLearnerEnrollment = async ({ userId, enrollmentId }) => {
 
 export const selectEnrollmentTarget = async ({ userId, type, courseId = null, learningPathId = null }) => {
   const selection = await resolveSelection({ type, courseId, learningPathId });
-  let enrollment = await findPendingEnrollment(userId);
+  const duplicateFilter = {
+    user: userId,
+    type,
+    status: { $in: ['active', 'completed'] }
+  };
 
+  if (type === 'course') duplicateFilter.course = selection.course._id;
+  else duplicateFilter.learningPath = selection.learningPath._id;
+
+  const existingEnrollment = await Enrollment.findOne(duplicateFilter).select('_id').lean();
+  if (existingEnrollment) {
+    throw new ApiError(
+      409,
+      `You are already enrolled in this ${type === 'course' ? 'course' : 'learning path'}. Switch to it from your Dashboard.`,
+      [],
+      'ALREADY_ENROLLED'
+    );
+  }
+
+  let enrollment = await findPendingEnrollment(userId);
   if (!enrollment) enrollment = new Enrollment({ user: userId, type });
 
   const previousTarget = enrollment.type === 'course'

@@ -14,6 +14,10 @@ const delayByPriority = {
   critical: 0
 };
 
+const formatSource = (value) => value === 'assessment'
+  ? 'skill check'
+  : String(value || 'learning activity').replaceAll('_', ' ');
+
 export const scheduleRevisionForWeakTopic = async ({ userId, coursePlanId, weakTopic, source = 'quiz' }) => {
   if (!weakTopic?.topic) return null;
 
@@ -33,7 +37,7 @@ export const scheduleRevisionForWeakTopic = async ({ userId, coursePlanId, weakT
     existingPending.source = source;
     if (relatedLesson) existingPending.relatedLesson = relatedLesson;
     existingPending.dueDate = existingPending.dueDate > dueDate ? dueDate : existingPending.dueDate;
-    existingPending.reason = `Repeated weakness detected from ${source}.`;
+    existingPending.reason = `Repeated weakness detected from ${formatSource(source)}.`;
     await existingPending.save();
     return existingPending;
   }

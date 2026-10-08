@@ -4,18 +4,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   BriefcaseBusiness,
   MessageSquareText,
-  Send,
   Sparkles
 } from 'lucide-react';
 import Badge from '../../components/common/Badge.jsx';
 import Button from '../../components/common/Button.jsx';
+import Card from '../../components/common/Card.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import InlineAlert from '../../components/common/InlineAlert.jsx';
 import LevelBadge from '../../components/common/LevelBadge.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
-import FormTextarea from '../../components/form/FormTextarea.jsx';
+import SectionHeader from '../../components/common/SectionHeader.jsx';
+import Textarea from '../../components/common/Textarea.jsx';
 import InterviewAttemptFeedback from '../../components/interview/InterviewAttemptFeedback.jsx';
 import InterviewQuestionSelector from '../../components/interview/InterviewQuestionSelector.jsx';
 import { interviewApi } from '../../api/interviewApi.js';
@@ -164,7 +165,7 @@ export default function InterviewPage() {
   }
 
   return (
-    <PageShell className="space-y-6 pb-6">
+    <PageShell className="space-y-5 pb-6">
       <PageHeader
         variant="compact"
         eyebrow="Interview practice"
@@ -180,11 +181,11 @@ export default function InterviewPage() {
         />
       ) : (
         <>
-          <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-foreground">Choose a question</h2>
-              <span className="text-xs font-semibold text-muted-foreground">{questions.length} questions</span>
-            </div>
+          <Card variant="compact">
+            <SectionHeader
+              title="Choose a question"
+              actions={<span className="text-xs font-semibold text-muted-foreground">{questions.length} questions</span>}
+            />
             <InterviewQuestionSelector
               topics={topics}
               currentTopic={currentTopic}
@@ -193,10 +194,10 @@ export default function InterviewPage() {
               onTopicChange={chooseTopic}
               onQuestionChange={chooseQuestion}
             />
-          </section>
+          </Card>
 
           {selectedQuestion ? (
-            <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
+            <Card variant="compact">
               <div className="flex items-start gap-3">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-control bg-surface-secondary text-muted-foreground" aria-hidden="true">
                   <MessageSquareText size={18} />
@@ -207,8 +208,8 @@ export default function InterviewPage() {
                     <Badge variant="neutral" className="capitalize">{formatQuestionType(selectedQuestion.type)}</Badge>
                     <Badge variant={canSubmit ? 'neutral' : 'warning'}>{attemptsUsed}/{MAX_ATTEMPTS} attempts</Badge>
                   </div>
-                  <h2 className="mt-3 text-lg font-bold leading-7 text-foreground sm:text-xl">{selectedQuestion.question}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">{selectedQuestion.topic}</p>
+                  <h2 className="mt-3 break-words text-lg font-bold leading-7 text-foreground sm:text-xl">{selectedQuestion.question}</h2>
+                  <p className="mt-1 break-words text-sm text-muted-foreground">{selectedQuestion.topic}</p>
                 </div>
               </div>
 
@@ -219,13 +220,13 @@ export default function InterviewPage() {
                   </InlineAlert>
                 ) : null}
 
-                <FormTextarea
+                <Textarea
                   label="Your answer"
                   className="min-h-52"
                   placeholder="Explain the concept clearly and add a small example when it helps."
-                  registration={register('answer')}
                   error={errors.answer?.message}
                   disabled={!canSubmit}
+                  {...register('answer')}
                 />
 
                 <div className="flex justify-end">
@@ -241,14 +242,14 @@ export default function InterviewPage() {
                   </Button>
                 </div>
               </form>
-            </section>
+            </Card>
           ) : null}
 
-          <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-bold text-foreground">Your attempts</h2>
-              <span className="text-xs font-semibold text-muted-foreground">{selectedAttempts.length}/{MAX_ATTEMPTS} attempts</span>
-            </div>
+          <Card variant="compact">
+            <SectionHeader
+              title="Your attempts"
+              actions={<span className="text-xs font-semibold text-muted-foreground">{selectedAttempts.length}/{MAX_ATTEMPTS} attempts</span>}
+            />
 
             {selectedAttempts.length ? (
               <>
@@ -257,7 +258,7 @@ export default function InterviewPage() {
                     <Sparkles size={16} aria-hidden="true" />
                     <h3 className="font-bold">Expected answer</h3>
                   </div>
-                  <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                  <p className="mt-2 break-words text-sm leading-7 text-muted-foreground">
                     {expectedAnswer || 'The expected answer is available in your saved feedback.'}
                   </p>
                 </div>
@@ -282,7 +283,7 @@ export default function InterviewPage() {
                 />
               </div>
             )}
-          </section>
+          </Card>
         </>
       )}
     </PageShell>

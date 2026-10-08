@@ -3,9 +3,9 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { MailCheck } from 'lucide-react';
 import Button from '../../components/common/Button.jsx';
 import ErrorMessage from '../../components/common/ErrorMessage.jsx';
+import Input from '../../components/common/Input.jsx';
 import AuthNotice from '../../components/auth/AuthNotice.jsx';
 import AuthShell from '../../components/auth/AuthShell.jsx';
-import FormInput from '../../components/form/FormInput.jsx';
 import { useAuth } from '../../hooks/useAuth.js';
 
 const registrationNotice = ({ emailSent, deliveryMode }) => {
@@ -91,7 +91,7 @@ export default function VerifyEmailPage() {
 
     {canResend && <form onSubmit={resend} className="mt-5 space-y-4">
       <p className="text-sm leading-6 text-muted-foreground">Enter your email to request a new link. The response does not reveal whether the account exists.</p>
-      <FormInput label="Email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required />
+      <Input label="Email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" required />
       {message && <AuthNotice tone="success">{message}</AuthNotice>}
       <Button type="submit" className="w-full" disabled={!email.trim()} isLoading={isResending} loadingLabel="Sending link...">Resend verification link</Button>
     </form>}

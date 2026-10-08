@@ -10,6 +10,25 @@ const assessmentAnswerSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const categoryScoreSchema = new mongoose.Schema(
+  {
+    topic: String,
+    topicRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Topic', default: null },
+    score: Number,
+    total: Number
+  },
+  { _id: false }
+);
+
+const topicScoreSchema = new mongoose.Schema(
+  {
+    topic: String,
+    topicRef: { type: mongoose.Schema.Types.ObjectId, ref: 'Topic', default: null },
+    score: Number
+  },
+  { _id: false }
+);
+
 const assessmentSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -19,9 +38,9 @@ const assessmentSchema = new mongoose.Schema(
     status: { type: String, enum: ['started', 'completed'], default: 'completed', index: true },
     questionIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'QuizQuestion' }],
     answers: [assessmentAnswerSchema],
-    categoryScores: [{ topic: String, score: Number, total: Number }],
-    weakTopics: [{ topic: String, score: Number }],
-    strongTopics: [{ topic: String, score: Number }],
+    categoryScores: [categoryScoreSchema],
+    weakTopics: [topicScoreSchema],
+    strongTopics: [topicScoreSchema],
     score: { type: Number, default: 0 },
     completedAt: { type: Date, default: null }
   },

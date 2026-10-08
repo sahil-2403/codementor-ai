@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { CalendarDays, CheckCircle2, ChevronDown, Sparkles } from 'lucide-react';
+import Badge from '../../components/common/Badge.jsx';
 import Button from '../../components/common/Button.jsx';
+import Card from '../../components/common/Card.jsx';
 import Loader from '../../components/common/Loader.jsx';
 import EmptyState from '../../components/common/EmptyState.jsx';
 import PageShell from '../../components/common/PageShell.jsx';
 import PageHeader from '../../components/common/PageHeader.jsx';
-import Badge from '../../components/common/Badge.jsx';
+import SectionHeader from '../../components/common/SectionHeader.jsx';
 import { formatDate } from '../../utils/formatDate.js';
 import { reportApi } from '../../api/reportApi.js';
 import notify from '../../utils/notify.js';
@@ -43,7 +45,7 @@ function ReportList({ items = [], emptyText }) {
       {items.map((item) => (
         <li key={item} className="flex gap-2">
           <span className="text-primary-strong" aria-hidden="true">•</span>
-          <span>{item}</span>
+          <span className="break-words">{item}</span>
         </li>
       ))}
     </ul>
@@ -77,7 +79,7 @@ function ReportDetails({ report }) {
       <section>
         <h3 className="text-sm font-bold text-foreground">This week</h3>
         <ActivitySummary activity={report.activity} />
-        <p className="mt-3 text-sm leading-7 text-foreground">{report.summary}</p>
+        <p className="mt-3 break-words text-sm leading-7 text-foreground">{report.summary}</p>
       </section>
 
       <div className="grid gap-5 md:grid-cols-3">
@@ -104,12 +106,12 @@ function ReportHistoryItem({ report }) {
     <article className="border-b border-border py-4 last:border-b-0">
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-4 text-left"
+        className="flex w-full min-w-0 items-center justify-between gap-4 text-left"
         onClick={() => setExpanded((value) => !value)}
         aria-expanded={expanded}
       >
-        <div>
-          <p className="font-bold text-foreground">Week of {formatDate(report.weekStart || report.createdAt)}</p>
+        <div className="min-w-0">
+          <p className="break-words font-bold text-foreground">Week of {formatDate(report.weekStart || report.createdAt)}</p>
           <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">{report.summary}</p>
         </div>
         <ChevronDown size={17} className={`shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
@@ -178,7 +180,7 @@ export default function ReportsPage() {
   const reportAlreadyCreated = reports.some((report) => getReportWeekKey(report) === currentWeekKey);
 
   return (
-    <PageShell className="space-y-6 pb-6">
+    <PageShell className="space-y-5 pb-6">
       <PageHeader
         variant="compact"
         eyebrow="Weekly reports"
@@ -200,13 +202,13 @@ export default function ReportsPage() {
       />
 
       {latestReport ? (
-        <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-lg font-bold text-foreground">Latest report</h2>
-            <Badge variant="neutral">Week of {formatDate(latestReport.weekStart || latestReport.createdAt)}</Badge>
-          </div>
+        <Card variant="compact">
+          <SectionHeader
+            title="Latest report"
+            actions={<Badge variant="neutral">Week of {formatDate(latestReport.weekStart || latestReport.createdAt)}</Badge>}
+          />
           <div className="mt-4"><ReportDetails report={latestReport} /></div>
-        </section>
+        </Card>
       ) : (
         <EmptyState
           title="No weekly report yet"
@@ -215,12 +217,12 @@ export default function ReportsPage() {
       )}
 
       {reports.length > 1 ? (
-        <section className="rounded-surface border border-border bg-surface p-4 sm:p-5">
-          <h2 className="text-lg font-bold text-foreground">Previous reports</h2>
+        <Card variant="compact">
+          <SectionHeader title="Previous reports" />
           <div className="mt-2">
             {reports.slice(1).map((report) => <ReportHistoryItem key={report._id} report={report} />)}
           </div>
-        </section>
+        </Card>
       ) : null}
     </PageShell>
   );
